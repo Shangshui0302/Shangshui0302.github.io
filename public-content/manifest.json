@@ -1,0 +1,14 @@
+{
+  "review_state": "preview_pending_owner_review",
+  "work": [
+    "shell-switcher",
+    "mellow-matugen",
+    "some-nixos-skills",
+    "nixos-config"
+  ],
+  "writing": [
+    "git-snapshots",
+    "linux-permissions",
+    "login-and-session"
+  ]
+}

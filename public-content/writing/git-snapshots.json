@@ -1,0 +1,43 @@
+{
+  "slug": "git-snapshots",
+  "number": "001",
+  "category": "GIT / WORKFLOW",
+  "title": "你提交的，真是刚改的那一版？",
+  "deck": "从三份快照看懂 Git 工作区、暂存区与提交。",
+  "sections": [
+    [
+      "snapshots",
+      "先分清三份内容"
+    ],
+    [
+      "staging",
+      "add 之后，修改还在继续"
+    ],
+    [
+      "diff",
+      "让 diff 回答具体问题"
+    ],
+    [
+      "undo",
+      "撤回暂存，不丢掉修改"
+    ]
+  ],
+  "body": "\n        <p class=\"article-lead\">一个文件刚刚保存，为什么提交里却没有最后那几行？因为保存到磁盘，与放进下一次提交，是两件事。</p>\n        <h2 id=\"snapshots\">先分清三份内容</h2>\n        <p>理解日常 Git 操作时，可以先看三个位置：工作区是正在编辑的文件；暂存区（index）准备下一次提交的内容；HEAD 通常指向当前检出的提交。</p>\n        <p>它们不必保持一致。这个差异正是拆分提交的空间：可以一次修改很多地方，再选择把哪些改动放在同一个提交里。</p>\n        <div class=\"concept-strip\"><div><small>01 / WORKTREE</small><strong>正在改的</strong></div><div><small>02 / INDEX</small><strong>准备交的</strong></div><div><small>03 / HEAD</small><strong>已经记下的</strong></div></div>\n        <h2 id=\"staging\">add 之后，修改还在继续</h2>\n        <p>假设先在 <code>notes.md</code> 中修正一个术语，然后执行：</p>\n        <pre><code>git add notes.md</code></pre>\n        <p>这时，暂存区记录了修正术语后的版本。接着，又在文件末尾补了一段解释并保存。若此时直接执行普通的 <code>git commit</code>，新增的解释不会一起进入提交。</p>\n        <blockquote>git add 保存的是执行那一刻的内容，之后的编辑不会自动追进暂存区。</blockquote>\n        <p>想把补充内容也提交，就再次暂存。想将两件事分别记录，就先提交已有的暂存内容，再处理后面的修改。同一个文件同时显示为 staged 和 modified，并不矛盾。<a class=\"ref\" href=\"https://git-scm.com/docs/git-add\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n        <h2 id=\"diff\">让 diff 回答具体问题</h2>\n        <p>排查“少提交了什么”时，先确定要比较哪两份内容：</p>\n        <div class=\"command-list\"><div><code>git diff</code><span>已跟踪文件中，工作区相对暂存区又改了什么？</span></div><div><code>git diff --cached</code><span>暂存区相对 HEAD 改了什么？普通提交会记录这些。</span></div><div><code>git diff HEAD</code><span>已跟踪文件相对当前提交，总共发生了哪些变化？</span></div></div>\n        <p>新建且未跟踪的文件需要另外看 <code>git status</code>，不能因为 diff 为空就以为没有新内容。<a class=\"ref\" href=\"https://git-scm.com/docs/git-diff\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n        <p>若一次编辑混入了不同目的的改动，可以用 <code>git add -p</code> 按块选择。审查时沿着一个问题阅读一个提交，比把修复、重构和格式化混在一起更容易判断。</p>\n        <h2 id=\"undo\">撤回暂存，不丢掉修改</h2>\n        <p>对于已有提交的仓库，如果 <code>notes.md</code> 暂时不该进入下一次提交：</p>\n        <pre><code>git restore --staged notes.md</code></pre>\n        <p>这会把该路径的暂存内容恢复到 HEAD 的状态，保留工作区中的编辑。它和不带 <code>--staged</code> 的 <code>git restore notes.md</code> 不同：后者默认用暂存区覆盖工作区，会丢弃该文件尚未暂存的修改。<a class=\"ref\" href=\"https://git-scm.com/docs/git-restore\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n        <p>提交之前，花几秒看一遍 <code>git diff --cached</code>。确认下一份快照里到底有什么，比凭印象相信“我刚才都保存了”可靠得多。</p>\n        ",
+  "refs": [
+    [
+      "git-add 官方文档",
+      "https://git-scm.com/docs/git-add"
+    ],
+    [
+      "git-diff 官方文档",
+      "https://git-scm.com/docs/git-diff"
+    ],
+    [
+      "git-restore 官方文档",
+      "https://git-scm.com/docs/git-restore"
+    ]
+  ],
+  "date": "2026-10-07",
+  "kind": "技术笔记整理",
+  "related_work": []
+}

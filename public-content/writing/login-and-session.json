@@ -1,0 +1,41 @@
+{
+  "slug": "login-and-session",
+  "number": "003",
+  "category": "WAYLAND / ARCHITECTURE",
+  "title": "登录之后，谁来接管桌面？",
+  "deck": "拆开 greetd、greeter 和 uwsm 各自负责的那一层。",
+  "sections": [
+    [
+      "login",
+      "先把登录界面拆开"
+    ],
+    [
+      "session",
+      "桌面启动，是另一段流程"
+    ],
+    [
+      "boundary",
+      "用交接关系理解组件"
+    ],
+    [
+      "choices",
+      "把两个选择分开"
+    ]
+  ],
+  "body": "\n        <p class=\"article-lead\">换了登录界面，是否也要换会话管理器？先沿着一次登录的过程走一遍，答案会清楚很多。</p>\n        <h2 id=\"login\">先把登录界面拆开</h2>\n        <p>在 greetd 的组合里，后台服务与用户看见的界面是分开的。greetd 负责登录服务和启动会话；greeter 提供交互，通过协议与服务交换认证信息，并请求启动选定的命令。</p>\n        <p>greeter 可以是图形界面，也可以在终端中显示。界面看起来不同，不代表底层登录机制必须重写。认证的处理也不能简单归为“界面自己检查密码”：greeter 参与交互，认证流程由服务端处理。</p>\n        <p>至于是否列出会话、从哪里读取会话条目、怎样记住选择，要看具体 greeter 的功能与配置。不能从“它使用 greetd”直接推断这些行为。</p>\n        <h2 id=\"session\">桌面启动，是另一段流程</h2>\n        <p>认证成功并不意味着整个图形会话已经被妥善管理。compositor 启动后，环境变量怎样传递、应用如何自启动、注销时哪些进程需要结束，仍然需要有人组织。</p>\n        <p>uwsm 面向独立的 Wayland compositor，用 systemd 用户单元管理图形会话。它处理环境准备与清理、自启动，以及会话的启动和关闭关系；它本身并不提供密码登录界面。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n        <h2 id=\"boundary\">用交接关系理解组件</h2>\n        <div class=\"session-flow\"><div><small>交互与登录</small><strong>greeter + greetd</strong><p>显示界面、交换认证信息、请求并启动会话命令</p></div><span class=\"flow-label\">通过正确配置的启动命令交接</span><div><small>图形会话生命周期</small><strong>uwsm + systemd</strong><p>组织环境、compositor、自启动与退出清理</p></div><span class=\"flow-label\">运行桌面与应用</span><div><small>窗口与显示</small><strong>Wayland compositor</strong><p>例如 Hyprland 或 niri</p></div></div>\n        <p>这是职责示意，不是每个发行版都完全一致的进程树。uwsm 可以读取 Wayland 会话的 Desktop Entry，也可以被会话条目的启动命令调用。两边接上的关键，是登录端实际启动了什么。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm#concepts-and-features\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n        <h2 id=\"choices\">把两个选择分开</h2>\n        <p>想改变登录画面时，先检查登录服务和 greeter。想改善环境传递、自启动或注销清理时，再看图形会话的管理方式。它们处于相邻层，但解决的问题不同。</p>\n        <p>更换 greeter 后，原有 uwsm 启动方式有可能继续使用，前提是新组件能正确发现或配置相应会话命令。不要把“通常可以衔接”当成“任何组合都自动兼容”。</p>\n        <p>排障也可以沿着这条边界：是认证没有成功、会话命令没有启动，还是 compositor 已运行但环境不完整？把故障定位到具体一层，才知道该看谁的配置和日志。</p>\n        ",
+  "refs": [
+    [
+      "uwsm 项目文档",
+      "https://github.com/Vladimir-csp/uwsm"
+    ],
+    [
+      "greetd 项目与手册",
+      "https://sr.ht/~kennylevinsen/greetd/"
+    ]
+  ],
+  "date": "2026-10-07",
+  "kind": "技术笔记整理",
+  "related_work": [
+    "shell-switcher"
+  ]
+}

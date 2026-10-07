@@ -1,0 +1,32 @@
+{
+  "slug": "mellow-matugen",
+  "number": "02",
+  "title": "Mellow × Matugen",
+  "category": "界面主题",
+  "tech": "Nix / Matugen / SVG",
+  "summary": "将色板、图像高亮和完整主题配置一起生成，让输入法候选窗跟随桌面配色。",
+  "repo": "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen",
+  "revision": "4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d",
+  "visual": "theme",
+  "headline": "颜色之外，\n还有结构。",
+  "problem": "图片型候选高亮不能只靠一个普通颜色字段更新。GTK 内嵌候选窗也需要完整主题配置，零散地覆盖几个字段，难以让高亮与文字在不同界面里保持一致。",
+  "structure": "Matugen 模板以 primary 与 on_primary 配对高亮背景和文字，同时生成高亮 SVG 与完整 theme.conf。基础资源保存在主题包中，Home Manager 将它们复制到用户可写目录，再交给 Matugen 更新。",
+  "tradeoff": "把不可变的基础资源与可变的运行时主题分开。保留 Mellow WeChat 的形状与布局；壁纸选择、明暗模式状态和输入法重启继续由已有桌面方案负责，避免主题模块包办整个桌面。",
+  "result": "仓库提供明暗、模糊和纯色变体及安装组合。README 记录了 Hyprland 原生模糊验证；这里呈现的是项目文档中的验证记录，没有补充本站未进行的测试结论。",
+  "limitation": "niri、KWin 和 Mutter 的原生模糊尚无同等实测记录。GTK 候选窗不保证背景模糊，外部输入法面板也不采用这套 ClassicUI 主题。",
+  "evidence": [
+    [
+      "README：生成机制与兼容边界",
+      "README.md"
+    ],
+    [
+      "Home Manager：可写副本",
+      "home-manager.nix"
+    ],
+    [
+      "完整主题模板",
+      "templates/mellow-matugen/theme.conf.tpl"
+    ]
+  ],
+  "related": []
+}

@@ -1,0 +1,30 @@
+{
+  "slug": "shell-switcher",
+  "number": "01",
+  "title": "shell-switcher",
+  "category": "桌面工具",
+  "tech": "Rust / systemd",
+  "summary": "把桌面 Shell 的停止、启动和状态确认，组织成一条有顺序的交接流程。",
+  "repo": "https://github.com/Shangshui0302/shell-switcher",
+  "revision": "1668dbdc427eb6b68796e8bbd4de287a112d9372",
+  "visual": "shell",
+  "headline": "先交接，\n再切换。",
+  "problem": "多个桌面 Shell 可能同时绘制面板、争用通知服务。手工停止旧服务、启动新服务时，还需要确认进程是否真正退出，不能只看命令有没有返回。",
+  "structure": "程序读取 TOML 中的名称与 systemd 用户服务映射，检查当前会话。目标已独占运行时直接更新选择记录；否则停止已注册服务并等待其退出，再启动目标、等待 active 状态，最后写入选择记录。boot 入口可以恢复记录的选择。",
+  "tradeoff": "把进程管理交给 systemd，Rust 程序负责启停顺序与状态判断。先停再启减少主动重叠，但会产生短暂的界面空窗。目前只识别 Hyprland 和 niri，会话检查和固定超时也构成了适用边界。",
+  "result": "公开源码包含状态查询、幂等切换与启动恢复。停止失败或启动命令失败时会尝试启动默认服务；这是一项恢复尝试，程序没有进一步确认默认服务恢复成功。",
+  "limitation": "等待目标进入 active 状态超时的分支只返回错误，不执行同样的恢复步骤。本页依据源码说明行为，没有将源码分析表述为现场运行测试。",
+  "evidence": [
+    [
+      "README：场景与切换流程",
+      "README.md"
+    ],
+    [
+      "main.rs：状态轮询与失败分支",
+      "src/main.rs"
+    ]
+  ],
+  "related": [
+    "login-and-session"
+  ]
+}

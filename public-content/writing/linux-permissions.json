@@ -1,0 +1,43 @@
+{
+  "slug": "linux-permissions",
+  "number": "002",
+  "category": "LINUX / PERMISSIONS",
+  "title": "rwx 的另一面。",
+  "deck": "同样三个字母，在文件和目录上为何含义不同。",
+  "sections": [
+    [
+      "bits",
+      "先读懂权限位"
+    ],
+    [
+      "directory",
+      "目录是一张名字表"
+    ],
+    [
+      "delete",
+      "能写文件，不等于能删文件"
+    ],
+    [
+      "diagnose",
+      "沿着路径排查"
+    ]
+  ],
+  "body": "\n        <p class=\"article-lead\">“文件明明可读，为什么还是 Permission denied？”先别急着 chmod。挡住你的，可能是路径上的某一级目录。</p>\n        <h2 id=\"bits\">先读懂权限位</h2>\n        <pre><code>-rw-r-----  1 alice editors 1280 Oct  7 10:00 notes.txt</code></pre>\n        <p>这是一行示意输出。第一个字符 <code>-</code> 表示普通文件；后面的九个字符依次对应所有者、所属组和其他用户。这里所有者可读写，所属组可读，其他用户没有这三类权限。</p>\n        <p>数字形式以读 4、写 2、执行 1 相加：<code>640</code> 就是 <code>rw-r-----</code>。但数字只能说明哪些位被设置，真正的行为还取决于对象是文件还是目录。<a class=\"ref\" href=\"https://man7.org/linux/man-pages/man7/inode.7.html\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n        <h2 id=\"directory\">目录是一张名字表</h2>\n        <p>普通文件的 r、w、x 分别对应读取内容、写入内容和执行。目录保存的是名字与对象的关联，权限也就换了语义：</p>\n        <div class=\"permission-grid\"><div><strong>r</strong><h3>读取名字</h3><p>允许列出目录里的条目名称。</p></div><div><strong>w</strong><h3>修改条目</h3><p>创建、删除或重命名条目，通常还需要目录的 x 权限。</p></div><div><strong>x</strong><h3>搜索路径</h3><p>允许经过目录，查找已知名称的条目；也与进入目录有关。</p></div></div>\n        <p>因此，只有 r 没有 x 时，可能列出文件名，却无法读取这些文件的详细信息。有 x 没有 r 时，不能随意列出目录，但知道名字且路径其余权限允许，仍可能访问其中的文件。<a class=\"ref\" href=\"https://man7.org/linux/man-pages/man7/path_resolution.7.html\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n        <h2 id=\"delete\">能写文件，不等于能删文件</h2>\n        <p>修改文件内容，是对文件的操作；删除一个名字，是对父目录条目的操作。删除是否允许，重点在父目录的写入和搜索权限，而不只是文件本身有没有 w。</p>\n        <p>这解释了一个看似奇怪的现象：某个只读文件可能仍能被删除；一个可写文件也可能无法改名。系统还会检查其他限制，例如 Sticky 位、只读挂载或不可变属性。<a class=\"ref\" href=\"https://man7.org/linux/man-pages/man2/unlink.2.html\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n        <blockquote>Sticky 目录并不意味着“只有文件所有者能删除”：目录所有者及具备相应特权的进程也可能被允许。</blockquote>\n        <h2 id=\"diagnose\">沿着路径排查</h2>\n        <p>读一个文件时，除了目标文件的读取权限，还要经过上级目录。只盯着最后一个 <code>ls -l</code> 结果，容易漏掉中间那层缺失的搜索权限。</p>\n        <p>先确认当前身份和组，再逐级检查目录，最后看目标文件。若常规权限解释不了结果，再查 ACL、挂载方式和安全模块等条件。权限问题越具体，修改范围就越小。</p>\n        <pre><code>ls -ld project project/docs\nls -l project/docs/notes.txt</code></pre>\n        <p>这些命令只用于观察。理解被拒绝的是哪一步，再调整权限，比先把整棵目录改成 777 更有帮助。</p>\n        ",
+  "refs": [
+    [
+      "Linux inode(7)",
+      "https://man7.org/linux/man-pages/man7/inode.7.html"
+    ],
+    [
+      "Linux path_resolution(7)",
+      "https://man7.org/linux/man-pages/man7/path_resolution.7.html"
+    ],
+    [
+      "Linux unlink(2)",
+      "https://man7.org/linux/man-pages/man2/unlink.2.html"
+    ]
+  ],
+  "date": "2026-10-07",
+  "kind": "技术笔记整理",
+  "related_work": []
+}

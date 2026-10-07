@@ -1,0 +1,36 @@
+{
+  "slug": "some-nixos-skills",
+  "number": "03",
+  "title": "some-NixOS-skills",
+  "category": "Agent 工作流",
+  "tech": "Agent Skills / Nix / Python",
+  "summary": "将求值、构建与现场验证拆开，为编程 Agent 定义有证据边界的 Nix 工作流。",
+  "repo": "https://github.com/Shangshui0302/some-NixOS-skills",
+  "revision": "2dc36174a7932ca5396aa0774fd0a8e2f2cca98b",
+  "visual": "skills",
+  "headline": "检查通过，\n然后呢？",
+  "problem": "配置能求值、软件能构建、服务正在运行，是三种不同结论。自动化协作者若用前一层结果代替后一层证据，就容易把尚未完成的任务报告为成功。",
+  "structure": "三套 Skills 分别负责通用打包、上游 Nixpkgs 维护与系统管理。它们配有参考文档、结构检查、评估题和来源时效检查，并提供安装入口与 Home Manager 集成。",
+  "tradeoff": "用任务分流和验证边界约束执行，不做一键部署器。要求查看实际锁定源码与接口，把激活和部署保留为单独步骤；代价是文档与外部 API 变化后仍需维护。",
+  "result": "仓库交付三套可安装技能和 flake 检查入口。公开审阅记录区分来源核对、结构检查与未执行的现场操作，可以直接追溯结论来自哪一层。",
+  "limitation": "审阅记录没有执行宿主激活、远程部署或 VM 启动，也不能证明所有外部例子都构建成功。工作流减少混淆，但不会自动替代具体项目的验证。",
+  "evidence": [
+    [
+      "README：技能与安装",
+      "README.md"
+    ],
+    [
+      "flake：打包与检查入口",
+      "flake.nix"
+    ],
+    [
+      "验证分层",
+      "skills/nix-packaging/references/validation.md"
+    ],
+    [
+      "来源审阅与验证边界",
+      "docs/freshness-review-2026-10-07.md"
+    ]
+  ],
+  "related": []
+}

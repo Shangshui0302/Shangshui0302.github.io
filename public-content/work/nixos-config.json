@@ -1,0 +1,32 @@
+{
+  "slug": "nixos-config",
+  "number": "04",
+  "title": "myNixOSConfig",
+  "category": "系统配置",
+  "tech": "Nix / Home Manager",
+  "summary": "把系统层、用户层和桌面变体拆成可组合模块，让环境配置能够追踪和复建。",
+  "repo": "https://github.com/Shangshui0302/myNixOSConfig",
+  "revision": "ac5ae38a66de003f1cfe69a8f40cd1ffb46023a0",
+  "visual": "nix",
+  "headline": "一个环境，\n分层表达。",
+  "problem": "桌面、主题、输入法与开发工具共同组成工作环境。配置若散落在运行中的文件里，依赖关系、修改原因和恢复步骤就不容易保持一致。",
+  "structure": "flake 统一输入与主机入口，host 描述系统层，home 描述用户层。共享基础、桌面会话和主题域分别组织，GNOME 以独立变体接入。",
+  "tradeoff": "用 NixOS 与 Home Manager 声明配置，并让本地派生承载频道尚未提供的包。相应地，需要维护锁定输入、模块关系和硬件边界；通用组合与机器特定配置不能混为一谈。",
+  "result": "仓库公开了一套主机配置和按组件组织的 Wiki，检查与激活是分开的工作环节。配置源码提供了可审查的结构，不等于证明所有配置都已在当前机器成功运行。",
+  "limitation": "这是面向特定环境的配置工程，不是适用于任意设备的通用发行版。本站不转录主机名、用户目录和其他机器特定字段。",
+  "evidence": [
+    [
+      "README：组织方式",
+      "README.md"
+    ],
+    [
+      "flake：输入与输出",
+      "flake.nix"
+    ],
+    [
+      "用户模块组合",
+      "home/home.nix"
+    ]
+  ],
+  "related": []
+}

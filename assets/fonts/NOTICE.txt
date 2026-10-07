@@ -1,0 +1,2 @@
+Archivo and IBM Plex Mono are distributed with their accompanying SIL OFL licenses.
+Offset Han Sans is a renamed, current-content subset derivative of Source Han Sans SC by Adobe. It retains the original copyright and SIL OFL license. Rebuild subsets when content changes. System CJK fallbacks cover characters outside the subset.
