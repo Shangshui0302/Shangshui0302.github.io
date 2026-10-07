@@ -13,7 +13,7 @@ python3 build_site.py
 python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 ```
 
-打开 `http://127.0.0.1:4173/`。常规构建仅需 Python 标准库，无需安装依赖。静态页面支持直接打开项目、文章与段落链接；JavaScript 仅增强搜索、筛选、复制代码和动效偏好。
+打开 `http://127.0.0.1:4173/`。常规构建仅需 Python 标准库，无需安装依赖。静态页面支持直接打开项目、文章与段落链接；JavaScript 增强星系交互、搜索、筛选、情境切换、阅读进度、复制代码和动效偏好。
 
 ## 内容与结构
 
@@ -23,6 +23,9 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 - `assets/section.css`、`assets/section.js`：共享排版与交互。
 - `components/stellar.html`、`assets/stellar.*`：首页与切面 Demo 共用的整屏星系。Canvas 实时投影朱红立体网格、轨道与旋臂，支持鼠标牵引、拖动旋转、点击脉冲、长按蓄能爆发与滚动穿越；四个作品行星可直接进入项目，普通目录入口始终可用。蓄能按钮支持鼠标/触摸按住与空格键，回车触发普通脉冲；无脚本时显示原创 SVG 后备画面。仅作视觉表达，不作天文模拟。支持暂停、系统/站内减少动效，隐藏页面停止绘制。
 - `stellar_template.py`：从现有公开项目清单生成共用的作品行星入口。
+- `case_template.py`：独立行星开场、问题/结构/取舍/结果/证据和下一个作品。shell-switcher 的三种情境与源码摘录对应固定 revision，仅作源码流程示意，不执行系统命令，也不宣称经过现场切换测试。
+- `article_template.py`：编号封面、文章目录、代码摘录和下一篇入口。阅读时间按正文长度估算。
+- `assets/inner.css`、`assets/inner.js`：案例与文章的阅读排版、章节提示和阅读进度；不保存阅读历史。无脚本时仍可阅读全部内容，包括三种切换情境。
 - `build_site.py`：只读取清单列出的内容，生成页面、搜索目录和 RSS。
 - `dist/`：唯一静态发布目录。`/work/`、`/writing/`、`/index/` 可独立访问；旧 `/journal/` 预览链接保留。
 

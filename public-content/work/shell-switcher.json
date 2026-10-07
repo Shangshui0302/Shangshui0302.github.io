@@ -9,11 +9,11 @@
   "revision": "1668dbdc427eb6b68796e8bbd4de287a112d9372",
   "visual": "shell",
   "headline": "先交接，\n再切换。",
-  "problem": "多个桌面 Shell 可能同时绘制面板、争用通知服务。手工停止旧服务、启动新服务时，还需要确认进程是否真正退出，不能只看命令有没有返回。",
-  "structure": "程序读取 TOML 中的名称与 systemd 用户服务映射，检查当前会话。目标已独占运行时直接更新选择记录；否则停止已注册服务并等待其退出，再启动目标、等待 active 状态，最后写入选择记录。boot 入口可以恢复记录的选择。",
+  "problem": "多个桌面 Shell 可能同时绘制面板、争用通知服务。手工停止旧服务、启动新服务时，还需要检查服务状态，不能只看命令有没有返回。",
+  "structure": "程序读取 TOML 中的名称与 systemd 用户服务映射，通过环境变量识别会话。目标已独占 active 时仅尝试更新选择记录；否则停止全部已注册服务，确认不再报告 active，再启动目标、等待 active，最后尝试写入选择记录。boot 入口选择有效记录或默认服务并发出启动命令，不执行同一套停止和状态轮询流程。",
   "tradeoff": "把进程管理交给 systemd，Rust 程序负责启停顺序与状态判断。先停再启减少主动重叠，但会产生短暂的界面空窗。目前只识别 Hyprland 和 niri，会话检查和固定超时也构成了适用边界。",
-  "result": "公开源码包含状态查询、幂等切换与启动恢复。停止失败或启动命令失败时会尝试启动默认服务；这是一项恢复尝试，程序没有进一步确认默认服务恢复成功。",
-  "limitation": "等待目标进入 active 状态超时的分支只返回错误，不执行同样的恢复步骤。本页依据源码说明行为，没有将源码分析表述为现场运行测试。",
+  "result": "源码提供状态查询、幂等切换与按记录启动的入口。停止确认超时或启动目标的命令失败时，会尝试启动默认服务并返回错误；程序没有进一步确认恢复成功。等待目标 active 超时则直接返回错误，不执行同样的恢复步骤。",
+  "limitation": "状态查询失败也会被视为非 active，因此状态检查不等于证明进程完全退出。创建目录和写入选择记录的错误被忽略，成功退出不保证记录落盘。本页依据固定源码说明行为，没有将分析表述为现场运行测试。",
   "evidence": [
     [
       "README：场景与切换流程",
@@ -26,5 +26,49 @@
   ],
   "related": [
     "login-and-session"
-  ]
+  ],
+  "case_study": {
+    "steps": [
+      {
+        "title": "成功：先交接，再记录",
+        "text": "停止全部已注册服务，确认它们不再报告 active；启动目标，轮询到 active 后尝试写入选择记录。目标已独占 active 时，仅尝试更新记录。",
+        "label": "状态确认后完成",
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L249-L295"
+      },
+      {
+        "title": "停止超时 / 启动命令失败",
+        "text": "停止后仍有服务报告 active，或启动目标的命令失败时，程序尝试启动默认服务并返回错误。恢复结果没有进一步确认。",
+        "label": "恢复尝试",
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L261-L280"
+      },
+      {
+        "title": "等待 active 超时",
+        "text": "启动命令成功后，目标在 15 秒轮询窗口内仍未报告 active，程序返回错误；此分支不启动默认服务，也不更新选择记录。",
+        "label": "边界明确",
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L283-L296"
+      }
+    ],
+    "snippet": {
+      "language": "rust",
+      "code": "    // 确认真的起来了（systemd 可能还在 activating）\n    let deadline = Instant::now() + START_TIMEOUT;\n    loop {\n        if is_active(&target_entry.service) {\n            println!(\"{}\", t!(\"switched\", target = target));\n            write_current(target);\n            return ExitCode::SUCCESS;\n        }\n        if Instant::now() >= deadline {\n            eprintln!(\"{}\", t!(\"start_timeout\", target = target));\n            return ExitCode::from(1);\n        }\n        sleep(Duration::from_millis(200));\n    }",
+      "startLine": 283,
+      "endLine": 296,
+      "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L283-L296",
+      "caption": "命令返回后，继续确认 active；超时分支只返回错误。"
+    },
+    "key_evidence": [
+      {
+        "text": "状态判断来自 systemctl --user is-active 的 stdout 是否等于 active；查询失败也视为 false。",
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L135-L140"
+      },
+      {
+        "text": "选择记录的目录创建与写文件错误均被忽略；成功退出不保证记录已落盘。",
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L181-L186"
+      },
+      {
+        "text": "boot 选择有效记录，否则选择默认服务，然后直接 start；没有 stop-all，也没有 active 轮询确认。",
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L301-L329"
+      }
+    ]
+  }
 }
