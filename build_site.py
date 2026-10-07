@@ -1,5 +1,6 @@
 """Build only allowlisted, curated content. Never reads a vault or live API."""
 from pathlib import Path
+from stellar_template import render_stellar
 from html import escape as esc
 import json
 import re
@@ -75,13 +76,13 @@ def note_row(post):
     category=post['category'].split('/')[0].strip()
     return f'''<a class="writing-row" href="{url('writing',post)}" data-category="{esc(category)}"><span class="mono">{post['number']}</span><div><h3>{esc(post['title'])}</h3><p>{esc(post['deck'])}</p></div><time datetime="{post['date']}">{post['date'].replace('-','.')}</time></a>'''
 
-stellar_hero = (ROOT / 'components/stellar.html').read_text()
+stellar_hero = render_stellar(ROOT)
 hero = works[0]
 features = ''
 for item in works[1:3]:
     features += f'''<article class="editorial-project"><div class="project-copy"><span class="mono">{item['number']} / {esc(item['category'])}</span><h3>{esc(item['title'])}</h3><p>{esc(item['summary'])}</p><a class="text-link" href="{url('work',item)}">查看项目</a></div><div class="project-visual cut-reveal">{visual(item)}</div></article>'''
 home = f'''{stellar_hero}
-<section id="selected-work" aria-labelledby="featured-title"><div class="feature-caption wrap"><div><span class="mono">FEATURED PROJECT</span><h2 id="featured-title"><a href="{url('work',hero)}">{esc(hero['title'])}</a></h2></div><p>{esc(hero['summary'])}</p><a class="text-link" href="{url('work',hero)}">查看项目</a></div></section>
+<section id="featured-project" aria-labelledby="featured-title"><div class="feature-caption wrap"><div><span class="mono">FEATURED PROJECT</span><h2 id="featured-title"><a href="{url('work',hero)}">{esc(hero['title'])}</a></h2></div><p>{esc(hero['summary'])}</p><a class="text-link" href="{url('work',hero)}">查看项目</a></div></section>
 <section class="section wrap"><div class="section-label"><h2 class="eyebrow">继续拆开 / 精选作品</h2><span class="mono">以结构呈现选择</span></div>{features}<div class="section-end"><a class="text-link" href="/work/">全部 4 个作品</a></div></section>
 <section class="section writing-preview wrap"><div class="section-label"><p class="eyebrow">文章 / 整理与推演</p><span class="mono">FIELD NOTES</span></div><h2 class="section-title">把问题拆开，<br>把思路留下。</h2>{''.join(note_row(p) for p in posts)}<div class="section-end"><a class="text-link" href="/writing/">全部文章</a></div></section>
 <section class="index-callout wrap"><h2>按问题，<br>找到下一步。</h2><div><p>4 个作品，3 篇文章。<br>从目录进入，不必顺着展陈走。</p><a class="text-link" href="/index/">进入完整索引</a></div></section>'''

@@ -21,7 +21,8 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 - `public-content/work/`：4 个公开 GitHub 项目的说明、边界和固定 revision 证据。
 - `public-content/writing/`：3 篇去除私人信息、重新整理的技术文章。
 - `assets/section.css`、`assets/section.js`：共享排版与交互。
-- `components/stellar.html`、`assets/stellar.*`：首页与切面 Demo 共用的整屏星系。Canvas 实时投影朱红立体网格、轨道与旋臂，支持鼠标牵引、拖动旋转、点击脉冲和滚动视差；无脚本时显示原创 SVG 后备画面。仅作视觉表达，不作天文模拟。支持暂停、系统/站内减少动效，隐藏页面停止绘制。
+- `components/stellar.html`、`assets/stellar.*`：首页与切面 Demo 共用的整屏星系。Canvas 实时投影朱红立体网格、轨道与旋臂，支持鼠标牵引、拖动旋转、点击脉冲、长按蓄能爆发与滚动穿越；四个作品行星可直接进入项目，普通目录入口始终可用。蓄能按钮支持鼠标/触摸按住与空格键，回车触发普通脉冲；无脚本时显示原创 SVG 后备画面。仅作视觉表达，不作天文模拟。支持暂停、系统/站内减少动效，隐藏页面停止绘制。
+- `stellar_template.py`：从现有公开项目清单生成共用的作品行星入口。
 - `build_site.py`：只读取清单列出的内容，生成页面、搜索目录和 RSS。
 - `dist/`：唯一静态发布目录。`/work/`、`/writing/`、`/index/` 可独立访问；旧 `/journal/` 预览链接保留。
 
