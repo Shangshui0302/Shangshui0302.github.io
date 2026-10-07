@@ -1,0 +1,22 @@
+/* Portfolio exhibits use public source structure and unmodified collection images. */
+.kanban-figure{background:#151719;color:#f1efe9;padding:30px;margin:0;min-width:0}
+.kanban-caption{display:flex;justify-content:space-between;gap:20px;font:9px/1.8 var(--mono);letter-spacing:.1em;color:#ff795a;margin-bottom:28px}
+.kanban-lanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.kanban-lanes>div{border-top:2px solid #ff4d2e;padding-top:17px;min-width:0}
+.kanban-lanes>div>span{font:9px/1.8 var(--mono);color:#94938d}.kanban-lanes h3{font-size:16px;line-height:1.7;font-weight:550;margin:20px 0}
+.kanban-lanes p{font-size:11px;line-height:1.9;border-top:1px solid #ffffff20;padding-top:14px;margin-top:14px;color:#c3bfb5}
+.kanban-figure>figcaption{font-size:10px;line-height:1.8;color:#96938b;margin-top:28px}
+.collection-lab{background:#111214;color:#f1efe9;padding:36px;scroll-margin-top:0}
+.collection-lab .lab-heading{max-width:1200px;margin:0 auto 30px}.collection-lab .lab-heading h2{font-size:28px}.collection-lab .lab-heading>span{font:9px/1.8 var(--mono);color:#ff795a}
+.wallpaper-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:30px 24px;max-width:1200px;margin:auto}
+.wallpaper-tile{margin:0;min-width:0}.wallpaper-tile>a{display:block;position:relative;overflow:hidden;background:#090a0c;outline-offset:5px}
+.wallpaper-tile img{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:contain;transition:filter .35s;filter:brightness(.9)}
+.wallpaper-tile>a>span{position:absolute;right:12px;bottom:12px;display:grid;place-items:center;width:32px;height:32px;background:#ff4d2e;color:#111214;font-size:20px;opacity:0;transition:opacity .25s}
+.wallpaper-tile>a:hover img,.wallpaper-tile>a:focus-visible img{filter:brightness(1)}.wallpaper-tile>a:hover>span,.wallpaper-tile>a:focus-visible>span{opacity:1}
+.wallpaper-tile>figcaption{display:flex;justify-content:space-between;gap:15px;margin-top:12px;font:10px/1.8 var(--mono);color:#d5cfc3}.wallpaper-tile>figcaption>span:last-child{color:#8b8880;font-size:9px;white-space:nowrap}
+.collection-credit{max-width:1200px;margin:28px auto 0;font-size:10px;line-height:1.9;color:#aaa59b}
+.editorial-project .wallpaper-gallery{gap:16px}.editorial-project .wallpaper-tile>figcaption{font-size:9px;margin-top:8px}.editorial-project .wallpaper-tile>figcaption>span:last-child{display:none}.editorial-project .collection-credit{font-size:9px;margin-top:18px}
+@media(max-width:1000px){.kanban-figure{padding:24px}.kanban-lanes{gap:12px}.kanban-lanes h3{font-size:14px}.kanban-lanes p{font-size:10px}.kanban-caption{font-size:8px}}
+@media(max-width:760px){.collection-lab{padding:22px 18px}.collection-lab .lab-heading h2{font-size:22px}.collection-lab .lab-heading>span{font-size:8px}.wallpaper-gallery{grid-template-columns:1fr;gap:26px}.wallpaper-tile img{filter:none}.wallpaper-tile>a>span{opacity:1;width:27px;height:27px;font-size:17px;right:8px;bottom:8px}.wallpaper-tile>figcaption{font-size:9px;gap:10px}.wallpaper-tile>figcaption>span:last-child{font-size:8px}.collection-credit{font-size:9px;margin-top:24px}.editorial-project .wallpaper-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px}.kanban-figure{padding:20px}.kanban-caption{display:block;line-height:2}.kanban-caption>span{display:block}.kanban-lanes{grid-template-columns:1fr;gap:22px}.kanban-lanes h3{font-size:17px;margin:8px 0 14px}.kanban-lanes p{font-size:11px;margin-top:8px;padding-top:8px}.kanban-figure>figcaption{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.wallpaper-tile img,.wallpaper-tile>a>span{transition:none}}
+[data-reduced-motion="true"] .wallpaper-tile img,[data-reduced-motion="true"] .wallpaper-tile>a>span{transition:none}

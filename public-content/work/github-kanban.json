@@ -1,0 +1,48 @@
+{
+  "slug": "github-kanban",
+  "number": "05",
+  "title": "GitHub Kanban",
+  "category": "桌面看板",
+  "tech": "Luau / Noctalia / GitHub CLI",
+  "summary": "把通知、待审 PR、Issues 和关注动态汇集到桌面面板，让分散的信息回到同一视野。",
+  "repo": "https://github.com/noctalia-dev/community-plugins",
+  "revision": "c87a385af76d0434048488c160a442bbb8081cd4",
+  "source_url": "https://github.com/noctalia-dev/community-plugins/tree/c87a385af76d0434048488c160a442bbb8081cd4/github-kanban",
+  "visual": "kanban",
+  "planet": "nixos-config",
+  "headline": "分散的信息，\n回到一个视野。",
+  "problem": "通知、待审 PR、Issues、Actions 和关注动态分散在不同页面。桌面看板提供一个集中入口，先看清需要关注的事情，再进入对应 GitHub 页面处理。",
+  "structure": "状态栏入口连接概览、通知、工作、关注和仓库五个视图。后台通过已有的 gh 登录读取 REST / GraphQL 数据，整理为统一卡片并缓存；通知服务单独处理分页、轮询和已读状态。界面与数据服务分开，卡片链接保留具体上下文。",
+  "tradeoff": "首版选择只读，把操作交给 GitHub。当前版本的 Legacy 模式仍默认只读；Synced 模式可选开启通知已读同步，打开通知后自动标记也需要单独开启。批量标记仅作用于当前筛选列表中的未读项。关注流组合公开事件与 Star 仓库发布，不等同于 GitHub 网页首页。",
+  "result": "原创插件已通过 PR #739 合并到 Noctalia 社区仓库，后续持续修复刷新与缓存，并通过 PR #944 加入可选通知同步。本页对应 0.2.4。公开 PR 记录包含 Hyprland 上的界面和真实读取检查；本站没有另行执行插件运行测试。",
+  "limitation": "PR #944 中真实已读 PATCH 与批量写回尚未执行，相关逻辑由 mock 场景验证。公开记录未声明 Niri 或 Sway 的同等实测，列表和关注流也受请求上限约束。此处展示信息结构，不接入访问者的 GitHub 账户。",
+  "evidence": [
+    [
+      "README：功能、设置与边界",
+      "github-kanban/README.md"
+    ],
+    [
+      "插件声明与默认设置",
+      "github-kanban/plugin.toml"
+    ],
+    [
+      "数据读取与查询",
+      "github-kanban/lib/github.luau"
+    ],
+    [
+      "通知同步与回滚",
+      "github-kanban/lib/notifications.luau"
+    ]
+  ],
+  "references": [
+    [
+      "原创插件合并记录 · PR #739",
+      "https://github.com/noctalia-dev/community-plugins/pull/739"
+    ],
+    [
+      "通知同步与验证范围 · PR #944",
+      "https://github.com/noctalia-dev/community-plugins/pull/944"
+    ]
+  ],
+  "related": []
+}

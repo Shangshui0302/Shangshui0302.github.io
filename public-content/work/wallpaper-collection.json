@@ -1,0 +1,80 @@
+{
+  "slug": "wallpaper-collection",
+  "number": "06",
+  "title": "壁纸收藏",
+  "kind": "collection",
+  "category": "视觉收藏",
+  "tech": "图像选集 / PNG · JPG",
+  "summary": "月面、云端城市与像素信号。把喜欢的画面收进一个持续整理的个人壁纸收藏。",
+  "repo": "https://github.com/Shangshui0302/myWallpaperCollection",
+  "revision": "f8aebff4d0a334f9a976a396146ea9558ddab639",
+  "visual": "wallpapers",
+  "planet": "mellow-matugen",
+  "headline": "留一块屏幕，\n给想象。",
+  "problem": "从月面的灰白，到城市上空的深蓝，再到像素屏幕与海风。这份收藏把不同的画面放在一起，为日常桌面留出一点想象的空间。",
+  "structure": "本页选出四张画面，按月面、城市、像素与海边的顺序展开。每张图保留原始比例，并链接到公开收藏仓库中的对应文件；完整收藏可以从仓库继续浏览。",
+  "tradeoff": "这里展示的是个人收藏与编排，不把收集来的壁纸声明为原创绘画。选图保留各自的色彩和画面信息，让不同风格并置，不强行统一成网站的朱红色。",
+  "result": "本页固定版本的仓库中有 29 个 PNG / JPG 文件，其中包含部分裁切或外观变体；本站选取四张作为预览，完整文件列表以仓库为准。",
+  "limitation": "壁纸版权归各自权利人。收藏仓库没有统一授权声明，原图作者与使用条件需以各自来源为准。本页的选图标题仅用于浏览，不作为原作名称或作者署名。",
+  "evidence": [
+    [
+      "收藏说明与预览目录",
+      "README.md"
+    ],
+    [
+      "月面：仓库文件",
+      "cratered_moon.png"
+    ],
+    [
+      "云端漫游：仓库文件",
+      "floating_city_runner.png"
+    ],
+    [
+      "像素信号：仓库文件",
+      "pixel_hacker_girl.png"
+    ],
+    [
+      "海边来信：仓库文件",
+      "seaside_girl_lighthouse.png"
+    ]
+  ],
+  "related": [],
+  "gallery": [
+    {
+      "file": "cratered_moon.png",
+      "width": 3840,
+      "height": 2160,
+      "bytes": 2095933,
+      "sha256": "32642f5b0abc24913de614665d9ec3ee1cf01dcbd120e16702b727c1b659f92e",
+      "title": "月面",
+      "alt": "黑色背景上的灰白色月面与密集环形山"
+    },
+    {
+      "file": "floating_city_runner.png",
+      "width": 2048,
+      "height": 1228,
+      "bytes": 922339,
+      "sha256": "eee05283b86e9340a91956f2556864283daab298027daa5df0792f4a069078ae",
+      "title": "云端漫游",
+      "alt": "巨大的云朵与城市天际线上，人物牵着猫在空中奔跑"
+    },
+    {
+      "file": "pixel_hacker_girl.png",
+      "width": 5090,
+      "height": 3590,
+      "bytes": 257756,
+      "sha256": "6f9fa5a997072247620a7783d5712bf29e82facb8739c6d8e85a49846d3e1803",
+      "title": "像素信号",
+      "alt": "蓝紫色像素画面，旧式电脑屏幕与桌面上的角色和物件"
+    },
+    {
+      "file": "seaside_girl_lighthouse.png",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 600715,
+      "sha256": "cfcf8026eb7e4d877efa061ff5daee1ca1519e2baba9c05982da8a2e56011f52",
+      "title": "海边来信",
+      "alt": "海风中的少女肖像，远处是蓝绿色海面和灯塔"
+    }
+  ]
+}

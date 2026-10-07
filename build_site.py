@@ -3,6 +3,7 @@ from pathlib import Path
 from stellar_template import render_stellar
 from case_template import render_case
 from article_template import render_article
+from exhibit_template import kanban_diagram, wallpaper_gallery
 from html import escape as esc
 import json
 import re
@@ -52,6 +53,8 @@ def footer():
 def page(title, body, active='', description='', is_article=False, stellar=False, is_case=False):
     stellar_assets = '<link rel="stylesheet" href="/assets/stellar.css"><script src="/assets/stellar.js" defer></script>' if stellar else ''
     inner_assets = '<link rel="stylesheet" href="/assets/inner.css"><script src="/assets/inner.js" defer></script>' if is_article or is_case else ''
+    if stellar or is_case:
+        inner_assets += '<link rel="stylesheet" href="/assets/exhibits.css">'
     favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F1EFE9'/%3E%3Cpath fill='%2317191C' d='M10 10h44v14H10zm0 32h44v12H10z'/%3E%3Cpath fill='%23FF4D2E' d='M10 29h44v8H10z'/%3E%3C/svg%3E"
     return f'''<!doctype html><html class="no-js" lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)} · {esc(site_name)} / {esc(wordmark)}</title><meta name="description" content="{esc(description or CONFIG['description'])}"><meta name="referrer" content="no-referrer"><link rel="icon" type="image/svg+xml" href="{favicon}"><link rel="stylesheet" href="/assets/section.css"><link rel="alternate" type="application/rss+xml" title="{esc(site_name)}文章" href="/feed.xml"><script src="/assets/section.js" defer></script>{stellar_assets}{inner_assets}</head><body{' class="orbit-home"' if stellar else (' class="reading-page"' if is_article else (' class="case-page"' if is_case else ''))}>{nav(active)}<main id="main">{body}</main>{footer()}</body></html>'''
 
@@ -73,6 +76,8 @@ def nix_diagram():
     return '''<div class="system-diagram" role="img" aria-label="锁定输入经过 flake 主机入口，组合系统与用户模块。"><div class="diagram-nodes"><div class="diagram-node"><small>01 / INPUTS</small><strong>锁定输入</strong></div><div class="diagram-node"><small>02 / FLAKE</small><strong>主机入口</strong></div><div class="diagram-node"><small>03 / MODULES</small><strong>系统层 / 用户层</strong></div></div><p class="diagram-legend">配置结构示意；不代表所有模块已现场激活。</p></div>'''
 
 def visual(item):
+    if item['visual']=='kanban':return kanban_diagram()
+    if item['visual']=='wallpapers':return wallpaper_gallery(item)
     return {'shell':shell_diagram,'theme':theme_diagram,'skills':skills_diagram,'nix':nix_diagram}[item['visual']]()
 
 def note_row(post):
@@ -82,19 +87,21 @@ def note_row(post):
 stellar_hero = render_stellar(ROOT)
 hero = works[0]
 features = ''
-for item in works[1:3]:
+for item in works[1:3]+works[4:]:
     features += f'''<article class="editorial-project"><div class="project-copy"><span class="mono">{item['number']} / {esc(item['category'])}</span><h3>{esc(item['title'])}</h3><p>{esc(item['summary'])}</p><a class="text-link" href="{url('work',item)}">查看项目</a></div><div class="project-visual cut-reveal">{visual(item)}</div></article>'''
 home = f'''{stellar_hero}
 <section id="featured-project" aria-labelledby="featured-title"><div class="feature-caption wrap"><div><span class="mono">FEATURED PROJECT</span><h2 id="featured-title"><a href="{url('work',hero)}">{esc(hero['title'])}</a></h2></div><p>{esc(hero['summary'])}</p><a class="text-link" href="{url('work',hero)}">查看项目</a></div></section>
-<section class="section wrap"><div class="section-label"><h2 class="eyebrow">继续拆开 / 精选作品</h2><span class="mono">以结构呈现选择</span></div>{features}<div class="section-end"><a class="text-link" href="/work/">全部 4 个作品</a></div></section>
+<section class="section wrap"><div class="section-label"><h2 class="eyebrow">继续拆开 / 精选作品</h2><span class="mono">以结构呈现选择</span></div>{features}<div class="section-end"><a class="text-link" href="/work/">全部 {len(works)} 个项目</a></div></section>
 <section class="section writing-preview wrap"><div class="section-label"><p class="eyebrow">文章 / 整理与推演</p><span class="mono">FIELD NOTES</span></div><h2 class="section-title">把问题拆开，<br>把思路留下。</h2>{''.join(note_row(p) for p in posts)}<div class="section-end"><a class="text-link" href="/writing/">全部文章</a></div></section>
-<section class="index-callout wrap"><h2>按问题，<br>找到下一步。</h2><div><p>4 个作品，3 篇文章。<br>从目录进入，不必顺着展陈走。</p><a class="text-link" href="/index/">进入完整索引</a></div></section>'''
+<section class="index-callout wrap"><h2>按问题，<br>找到下一步。</h2><div><p>{len(works)} 个项目，{len(posts)} 篇文章。<br>从目录进入，不必顺着展陈走。</p><a class="text-link" href="/index/">进入完整索引</a></div></section>'''
 write('', page('开源作品与技术文章',home,stellar=True))
 
 rows=''
 for item in works:
-    rows += f'''<article class="work-row"><span class="mono">{item['number']}</span><h2><a href="{url('work',item)}">{esc(item['title'])}</a></h2><p>{esc(item['summary'])}</p><span class="state">公开仓库<br>已核验</span><a class="source-link" href="{item['repo']}" target="_blank" rel="noopener noreferrer">源码</a></article>'''
-body=f'''<header class="page-intro wrap"><span class="eyebrow">01 / WORK</span><h1>作品目录。</h1><p>从系统配置到输入框。从遇到的问题，走到可以使用的东西。</p></header><section class="directory wrap" aria-label="全部作品"><div class="directory-head"><span>编号</span><span>项目</span><span>用途</span><span>核验范围</span><span>源码</span></div>{rows}<p class="directory-footnote">“已核验”指公开仓库与相关源码可查阅，不代表本站对项目进行了完整运行测试。点击项目名称查看结构、证据与限制。</p></section>'''
+    state='个人收藏<br>非原创图集' if item.get('kind')=='collection' else '公开仓库<br>已核验'
+    label='收藏' if item.get('kind')=='collection' else '源码'
+    rows += f'''<article class="work-row"><span class="mono">{item['number']}</span><h2><a href="{url('work',item)}">{esc(item['title'])}</a></h2><p>{esc(item['summary'])}</p><span class="state">{state}</span><a class="source-link" href="{item.get('source_url',item['repo'])}" target="_blank" rel="noopener noreferrer">{label}</a></article>'''
+body=f'''<header class="page-intro wrap"><span class="eyebrow">01 / WORK</span><h1>作品目录。</h1><p>桌面工具、系统配置，以及留在屏幕上的视觉收藏。</p></header><section class="directory wrap" aria-label="全部作品"><div class="directory-head"><span>编号</span><span>项目</span><span>用途</span><span>核验范围</span><span>来源</span></div>{rows}<p class="directory-footnote">“已核验”指公开仓库与相关源码可查阅，不代表本站对项目进行了完整运行测试。收藏条目单独标注，图像不声明为本站原创。</p></section>'''
 write('work',page('作品目录',body,'work'))
 
 def related_work_links(post):
@@ -126,7 +133,7 @@ for kind, items in [('work',works),('writing',posts)]:
         searchable=' '.join(str(item.get(k,'')) for k in ['title','summary','deck','category','tech','problem','structure','tradeoff','result','body'])
         searchable=re.sub('<[^>]+>',' ',searchable)
         results.append(f'<a class="result-row" href="{url(kind,item)}" data-kind="{kind}" data-search="{esc(searchable,quote=True)}"><span class="kind">{"作品" if kind=="work" else "文章"}</span><div><h2>{esc(title)}</h2><p>{esc(summary)}</p></div><span class="mono">{esc(item["category"])}</span></a>')
-body=f'''<header class="page-intro wrap"><span class="eyebrow">03 / INDEX</span><h1>完整索引。</h1><p>作品与文章放在同一个目录。搜索标题、主题或内容中的关键词。</p><form class="search-form" id="search" action="/index/" method="get" role="search"><label class="sr-only" for="search-input">搜索作品与文章</label><input id="search-input" name="q" type="search" placeholder="例如：服务、权限、Git" autocomplete="off"><button type="submit">搜索</button></form></header><section class="directory wrap"><div class="listing-controls"><label for="kind">类型</label><select id="kind"><option value="all">全部内容</option><option value="work">作品</option><option value="writing">文章</option></select><span class="count" role="status" aria-live="polite">7 项内容</span></div><noscript><p class="noscript-note">当前显示完整目录。搜索与筛选需要 JavaScript，所有项目和文章链接仍可直接打开。</p></noscript><div id="search-results">{''.join(results)}</div><div id="search-empty" class="empty-state" hidden><p>没有找到匹配内容。</p><button class="reset-search" type="button">清空搜索，查看全部</button></div></section>'''
+body=f'''<header class="page-intro wrap"><span class="eyebrow">03 / INDEX</span><h1>完整索引。</h1><p>作品与文章放在同一个目录。搜索标题、主题或内容中的关键词。</p><form class="search-form" id="search" action="/index/" method="get" role="search"><label class="sr-only" for="search-input">搜索作品与文章</label><input id="search-input" name="q" type="search" placeholder="例如：服务、权限、Git" autocomplete="off"><button type="submit">搜索</button></form></header><section class="directory wrap"><div class="listing-controls"><label for="kind">类型</label><select id="kind"><option value="all">全部内容</option><option value="work">作品</option><option value="writing">文章</option></select><span class="count" role="status" aria-live="polite">{len(works)+len(posts)} 项内容</span></div><noscript><p class="noscript-note">当前显示完整目录。搜索与筛选需要 JavaScript，所有项目和文章链接仍可直接打开。</p></noscript><div id="search-results">{''.join(results)}</div><div id="search-empty" class="empty-state" hidden><p>没有找到匹配内容。</p><button class="reset-search" type="button">清空搜索，查看全部</button></div></section>'''
 write('index',page('完整索引',body,'index'))
 
 # All feed entries are explicitly allowlisted. Preview uses local URLs until approved publication.

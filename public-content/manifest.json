@@ -4,7 +4,9 @@
     "shell-switcher",
     "mellow-matugen",
     "some-nixos-skills",
-    "nixos-config"
+    "nixos-config",
+    "github-kanban",
+    "wallpaper-collection"
   ],
   "writing": [
     "git-snapshots",
