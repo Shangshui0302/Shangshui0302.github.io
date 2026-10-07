@@ -110,3 +110,9 @@
 [data-reduced-motion="true"] .next-note>b,[data-reduced-motion="true"] .next-orbit img{transition:none}
 
 .no-js .reading-progress,.no-js .reading-status{display:none}
+/* A technical nine-slice diagram; labels remain available without scripts. */
+.slice-grid{display:grid;grid-template-columns:1fr 1.4fr 1fr;border:1px solid #17191c;background:#17191c;gap:1px}
+.slice-grid>span,.slice-grid>strong{display:flex;align-items:center;justify-content:center;text-align:center;padding:24px 8px;min-height:82px;font-size:14px;background:#e9e5da}
+.slice-grid>strong{background:#ff4d2e;color:#17191c;font-weight:650}
+.slice-grid>span:nth-child(even){background:#d7d1c4}
+@media(max-width:760px){.slice-grid>span,.slice-grid>strong{padding:18px 4px;min-height:68px}}

@@ -28,5 +28,7 @@
       "home/home.nix"
     ]
   ],
-  "related": []
+  "related": [
+    "declarative-and-state"
+  ]
 }

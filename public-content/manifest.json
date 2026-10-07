@@ -11,6 +11,9 @@
   "writing": [
     "git-snapshots",
     "linux-permissions",
-    "login-and-session"
+    "login-and-session",
+    "theme-nine-slice",
+    "declarative-and-state",
+    "distrobox-export"
   ]
 }

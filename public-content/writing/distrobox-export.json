@@ -1,0 +1,51 @@
+{
+  "slug": "distrobox-export",
+  "number": "006",
+  "category": "CONTAINERS / DISTROBOX",
+  "title": "Distrobox 导出的，到底是什么？",
+  "deck": "桌面图标和命令出现在宿主机，程序仍然在哪里运行？",
+  "sections": [
+    [
+      "entry",
+      "出现在桌面上的，是入口"
+    ],
+    [
+      "paths",
+      "图标与命令走两条路"
+    ],
+    [
+      "shared",
+      "文件可见，不代表环境相同"
+    ],
+    [
+      "remove",
+      "取消导出，取消了什么"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">容器里装好的应用出现在宿主启动器中，点开就能用，很容易让人以为它已经被装到了宿主。要弄清它依赖哪里、该去哪里排障，可以从启动入口一路往里追。</p>\n<h2 id=\"entry\">出现在桌面上的，是入口</h2>\n<p>Distrobox 的导出把容器中的应用接到宿主桌面或命令行。桌面模式处理启动条目与图标，命令行模式生成包装脚本；导出本身不会把应用连同整套依赖转换成宿主机的软件包。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-export/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"session-flow\"><div><small>HOST / 宿主入口</small><strong>桌面条目，或命令包装器</strong><p>决定用户从哪里发起启动。</p></div><span class=\"flow-label\">通过 Distrobox 进入来源容器</span><div><small>CONTAINER / 执行目标</small><strong>容器内的应用程序</strong><p>程序及其容器内安装的依赖仍属于这个环境。</p></div></div>\n<p>理解这条路径后，排障顺序就清楚了：入口是否存在、它指向哪个容器、容器里的命令能否运行。这三件事需要分别确认。<code>distrobox enter</code> 正是进入指定容器并执行命令的入口。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-enter/\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<h2 id=\"paths\">图标与命令走两条路</h2>\n<p>下面用 <code>gedit</code> 和 <code>jq</code> 作示意，假设它们已经安装在容器内，前者有桌面条目，后者位于 <code>/usr/bin/jq</code>。示例采用默认共享 home；执行前应确认宿主没有会冲突的同名导出入口。</p>\n<pre><code># 在容器内：导出桌面入口\ndistrobox-export --app gedit\n\n# 在容器内：导出命令包装器\ndistrobox-export --bin /usr/bin/jq --export-path ~/.local/bin</code></pre>\n<p>第一条让宿主启动器获得改写后的桌面入口。第二条在指定位置生成 wrapper；从宿主调用这个 wrapper 时，再进入来源容器执行 <code>jq</code>。这些是文档与源码核对过的写法，本文没有运行容器实验。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-export/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<p>导出不等于自动配置 PATH。先从宿主使用明确路径 <code>~/.local/bin/jq</code>，可以避免把导出成功和命令查找混在一起。若想直接输入 <code>jq</code>，还要确认该目录在宿主 PATH 中，并检查 <code>command -v jq</code> 实际命中了哪个入口。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<h2 id=\"shared\">文件可见，不代表环境相同</h2>\n<p>Distrobox 默认与宿主紧密集成，包括共享 home 和连接桌面资源。因此，应用可以打开同一份文件，并不意味着它使用的是同一套安装环境。这种便利也意味着它不适合被当作运行不可信程序的安全沙箱。<a class=\"ref\" href=\"https://distrobox.it/#security-implications\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>如果创建容器时设置了 <code>--home</code>，容器里的 <code>~</code> 就不能直接当成宿主 home。此时要重新确认导出目录实际落在哪里；上面的默认路径示例不能不加判断地照搬。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-create/\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<p>遇到“能打开窗口，但行为不同”，可以分别检查容器中的程序与依赖、双方能访问的文件，以及桌面或设备集成。只确认某个目录可见，还不足以解释整条运行路径。</p>\n<h2 id=\"remove\">取消导出，取消了什么</h2>\n<p>对应的取消导出操作仍在同一个容器内执行。CLI 使用原来的目标目录：</p>\n<pre><code># 在来源容器内：取消桌面导出\ndistrobox-export --app gedit --delete\n\n# 在来源容器内：取消命令导出\ndistrobox-export --bin /usr/bin/jq --export-path ~/.local/bin --delete</code></pre>\n<p><code>--delete</code> 不会卸载容器里的软件，也不删除容器。稳定版 1.8.2.5 的 GUI 清理还涉及图标和同名桌面条目，不能把它理解成“只删除眼前这一枚图标”；使用前应核对已有的同名入口。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<blockquote>宿主上的入口、容器里的软件、两边可访问的数据，分别有自己的生命周期。</blockquote>\n<p>准备清理时，先说清要撤掉哪一层。撤掉入口之后仍能从容器内启动程序，并不矛盾；程序是否保留、数据是否保留，需要各自作决定。</p>",
+  "refs": [
+    [
+      "Distrobox 官方导出文档",
+      "https://distrobox.it/usage/distrobox-export/"
+    ],
+    [
+      "Distrobox enter 文档",
+      "https://distrobox.it/usage/distrobox-enter/"
+    ],
+    [
+      "导出与清理实现（1.8.2.5）",
+      "https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export"
+    ],
+    [
+      "Distrobox 的共享与安全边界",
+      "https://distrobox.it/#security-implications"
+    ],
+    [
+      "自定义容器 home",
+      "https://distrobox.it/usage/distrobox-create/"
+    ]
+  ],
+  "date": "2026-10-07",
+  "kind": "技术笔记整理",
+  "related_work": []
+}

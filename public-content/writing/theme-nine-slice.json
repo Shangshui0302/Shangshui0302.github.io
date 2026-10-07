@@ -1,0 +1,45 @@
+{
+  "slug": "theme-nine-slice",
+  "number": "004",
+  "category": "INTERFACE / FCITX5",
+  "title": "一个主题为什么会被拉坏？",
+  "deck": "从一张 30 × 30 的背景图，拆开 Fcitx5 的九宫格与留白。",
+  "sections": [
+    [
+      "slices",
+      "先决定哪里可以伸展"
+    ],
+    [
+      "geometry",
+      "30 减去 15，再减去 15"
+    ],
+    [
+      "margins",
+      "两组边距，两种职责"
+    ],
+    [
+      "inspect",
+      "沿着切分线检查素材"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">背景图单独打开时圆润完整，放进候选窗却出现缺口或变形。遇到这种问题，除了检查图画得对不对，还要看渲染器会从哪里把它切开。</p>\n<h2 id=\"slices\">先决定哪里可以伸展</h2>\n<p>Fcitx5 ClassicUI 的背景采用九宫格：四角保留尺寸，上下边沿水平方向伸展，左右边沿垂直方向伸展，中间区域在两个方向上缩放。这让一个小素材能够适应不同长度的候选内容。高亮背景也使用这套规则。<a class=\"ref\" href=\"https://fcitx-im.org/wiki/Fcitx_5_Theme#Background_images\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<figure class=\"slice-figure\"><div class=\"slice-grid\" role=\"img\" aria-label=\"九宫格示意：四角固定，上下边横向伸展，左右边纵向伸展，中心双向伸展。\"><span>固定角</span><span>横向伸展</span><span>固定角</span><span>纵向伸展</span><strong>双向伸展</strong><span>纵向伸展</span><span>固定角</span><span>横向伸展</span><span>固定角</span></div><figcaption>机制示意，不按像素比例绘制。渲染器认识切片边界，不会自动识别图里的圆角。</figcaption></figure>\n<p>由此可以推演：如果圆角曲线跨进了可伸展的区域，曲线的一部分也会被拉长。素材设计和切分位置必须一起考虑；“这是 SVG”并不能自动解决切片问题。</p>\n<h2 id=\"geometry\">30 减去 15，再减去 15</h2>\n<p>假设背景加载后的尺寸是 30 × 30，上下左右切片边距都设为 15。留给中心的区域就变成：</p>\n<pre><code>中心宽度 = 30 − 15 − 15 = 0\n中心高度 = 30 − 15 − 15 = 0</code></pre>\n<p>这不是一块很小的中心，而是没有面积的中心。Fcitx 维护者曾在公开问题中指出这种参数不合理，并建议将各边减去 1。这里引用的是公开案例，不是本文新增的运行实验。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/issues/1659#issuecomment-5564443731\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>四边改成 14 后，源中心剩下 2 × 2。若目标背景为 100 × 40，按相同边距计算，中心需要覆盖 72 × 12。它从哪里取样、往哪里伸展，现在都有了明确的区域。</p>\n<p>本次核对的源码会跳过宽或高不大于零的源切片。因此，应把前一种情况描述为切片退化，不能笼统地归因于“除零”。实现也会随版本变化。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp#L345-L374\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<h2 id=\"margins\">两组边距，两种职责</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"两种边距的职责\"><table><thead><tr><th scope=\"col\">参数</th><th scope=\"col\">回答的问题</th></tr></thead><tbody><tr><td><code>Background/Margin</code></td><td>背景图从哪里切，哪些部分参与伸展？</td></tr><tr><td><code>ContentMargin</code></td><td>内容区域外围留多少空间？</td></tr></tbody></table></div>\n<p>文字与边框太近，应先检查内容布局；背景角形异常，应先检查切片。两组数字可以恰好相同，但不能仅因为它们都叫 Margin，就认为它们可以互相替代。<a class=\"ref\" href=\"https://fcitx-im.org/wiki/Fcitx_5_Theme#Size_calculation\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<h2 id=\"inspect\">沿着切分线检查素材</h2>\n<p>检查时，先确认加载后的图像尺寸，再在素材上标出四条切分线。对 SVG 尤其要区分固有像素尺寸和 <code>viewBox</code> 坐标系；本次核验的加载路径读取固有像素宽高，不能只看 viewBox 就代入上面的算式。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp#L239-L247\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<p>接着观察圆角、边框、渐变和阴影是否跨过切分线，再分别检查短候选、长候选以及不同缩放比例下的效果。几何计算能排除零面积切片，实际外观仍需要渲染验证。</p>\n<blockquote>14 不是圆角主题的标准答案。它只是让这个 30 × 30 的例子，重新拥有一块可以伸展的中心。</blockquote>\n<p>制作主题时，可以把切分线也当成素材的一部分来设计：先约定哪些区域保持形状，哪些区域允许变化，再调整颜色和留白。</p>",
+  "refs": [
+    [
+      "Fcitx 5 官方主题文档",
+      "https://fcitx-im.org/wiki/Fcitx_5_Theme"
+    ],
+    [
+      "Fcitx 维护者对零面积中心的说明",
+      "https://github.com/fcitx/fcitx5/issues/1659#issuecomment-5564443731"
+    ],
+    [
+      "ClassicUI 切片与 SVG 加载源码（固定版本）",
+      "https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp"
+    ]
+  ],
+  "date": "2026-10-07",
+  "kind": "技术笔记整理",
+  "related_work": [
+    "mellow-matugen"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "slug": "declarative-and-state",
+  "number": "005",
+  "category": "NIXOS / STATE",
+  "title": "配置可重现，应用为什么还会“失忆”？",
+  "deck": "把环境的构建、偏好的写入和数据的恢复分开考虑。",
+  "sections": [
+    [
+      "boundary",
+      "一份配置负责到哪里"
+    ],
+    [
+      "activation",
+      "写入一次，与持续锁定"
+    ],
+    [
+      "data",
+      "装回应用，数据从哪里来"
+    ],
+    [
+      "choices",
+      "给每类状态安排去处"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">重新构建环境后，软件都在，熟悉的偏好和历史记录却未必回来。排查之前，先列出想恢复的东西：程序、设置、数据，它们可能由不同机制负责。</p>\n<h2 id=\"boundary\">一份配置负责到哪里</h2>\n<p>NixOS 的系统代际提供了返回旧配置的入口；它并不是整块磁盘在那个时刻的照片。切回上一代系统，不会因此把后来编辑的文档或应用数据库一起恢复到昨天。<a class=\"ref\" href=\"https://nixos.org/manual/nixos/stable/#sec-rollback\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"concept-strip\"><div><small>01 / BUILD</small><strong>重建环境</strong></div><div><small>02 / APPLY</small><strong>应用配置</strong></div><div><small>03 / RESTORE</small><strong>恢复数据</strong></div></div>\n<p>因此，“配置已经进 Git”之后，还要问一句：哪些内容根本没有被这份配置描述？编辑器的安装方式可以写成声明，正在编辑的文档则需要自己的保存与备份方式。</p>\n<p>也不能直接用目录划界。用户目录里的某些文件可能由 Home Manager 管理，其他文件则由应用写入。判断依据应当是管理机制，而不是看到 <code>~/.config</code> 就把整棵目录都算成同一类。</p>\n<h2 id=\"activation\">写入一次，与持续锁定</h2>\n<p>以 Home Manager 的 <code>dconf.settings</code> 为例：它生成要写入的设置，并在激活阶段通过 dconf 加载。这个模块本身没有一个持续监视并立即纠正后续修改的循环。<a class=\"ref\" href=\"https://github.com/nix-community/home-manager/blob/fae6e9e42c3b762ab47635cddcfaf6f52374a61b/modules/misc/dconf.nix\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>这意味着“应用配置时写入”和“之后永远不能修改”需要分开理解。若没有额外锁定机制，应用或用户仍可能修改可写的设置；下一次执行相应激活流程，声明的值又会被写入。</p>\n<p>反过来，只完成构建并不代表这一步已经发生。检查偏好没有变化时，先确认所用 Home Manager 配置是否执行了激活，再看设置的类型、路径和应用是否读取了它。不要只凭构建成功就推断运行中的值。</p>\n<blockquote>先问这个选项何时生效、由谁写入、之后谁还能改它，再判断它有多“声明式”。</blockquote>\n<h2 id=\"data\">装回应用，数据从哪里来</h2>\n<p>Flatpak 提供了一个直观例子：普通卸载可以保留应用数据，而带 <code>--delete-data</code> 的卸载会删除 Flatpak 管理的相应应用数据。应用保存在其他位置的文件仍可能留下。包与数据原本就是两个管理对象。<a class=\"ref\" href=\"https://docs.flathub.org/docs/for-users/uninstallation\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<p>把应用安装清单写进配置，只解决恢复软件这一部分。项目文件、笔记、数据库以及需要延续的应用状态，还要明确存放位置、备份范围和恢复顺序。</p>\n<p>同样，保留了一份用户目录也不自动意味着一切都能恢复。更换应用版本后，数据格式和恢复方式仍需检查。完整的迁移计划，最好同时包含“怎样装回来”和“怎样把内容接回来”。</p>\n<h2 id=\"choices\">给每类状态安排去处</h2>\n<p>整理一个环境时，可以按下面这张表逐项判断。它是取舍方法，不要求把所有状态都塞进同一种工具。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"状态的管理方式\"><table><thead><tr><th scope=\"col\">想保留什么</th><th scope=\"col\">可采用的方式</th><th scope=\"col\">需要验证什么</th></tr></thead><tbody><tr><td>长期使用的软件和服务</td><td>声明配置，记录依赖</td><td>能否构建、激活并正常使用</td></tr><tr><td>稳定的快捷键和偏好</td><td>选取有明确接口的设置纳入配置</td><td>写入时机与后续覆盖关系</td></tr><tr><td>文档和重要应用数据</td><td>备份或同步，记录恢复步骤</td><td>内容是否完整、能否被应用读取</td></tr><tr><td>可重新生成的缓存</td><td>按成本决定是否保留</td><td>重建是否可接受</td></tr></tbody></table></div>\n<p>最有用的检查不是“还有多少东西没声明化”，而是选一项真正重要的内容，走完一次恢复流程。配置负责描述环境，数据有明确的归处，换机时才不会把缺失误认成系统忘记了什么。</p>",
+  "refs": [
+    [
+      "NixOS 手册：回滚配置",
+      "https://nixos.org/manual/nixos/stable/#sec-rollback"
+    ],
+    [
+      "Home Manager dconf 激活实现（固定版本）",
+      "https://github.com/nix-community/home-manager/blob/fae6e9e42c3b762ab47635cddcfaf6f52374a61b/modules/misc/dconf.nix"
+    ],
+    [
+      "Flathub：卸载与应用数据",
+      "https://docs.flathub.org/docs/for-users/uninstallation"
+    ]
+  ],
+  "date": "2026-10-07",
+  "kind": "技术笔记整理",
+  "related_work": [
+    "nixos-config",
+    "mellow-matugen"
+  ]
+}

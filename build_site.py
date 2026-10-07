@@ -110,14 +110,14 @@ def related_work_links(post):
     links=''
     for slug in post['related_work']:
         item=work_by_slug[slug]
-        links+=f'<a class="related-item" href="{url("work",item)}"><strong>{esc(item["title"])}</strong><p>延伸实践：登录后的桌面 Shell 服务如何交接，见项目中的启停流程与限制。</p></a>'
+        links+=f'<a class="related-item" href="{url("work",item)}"><strong>{esc(item["title"])}</strong><p>{esc(item["summary"])}</p></a>'
     return '<section class="related"><h2>从文章到实践</h2>'+links+'</section>'
 
 for item in works:
     body=render_case(item,works,post_by_slug,visual)
     write('work/'+item['slug'],page(item['title'],body,'work',item['summary'],is_case=True))
 
-body=f'''<header class="page-intro wrap"><span class="eyebrow">02 / WRITING</span><h1>文章目录。</h1><p>从技术笔记中整理出的独立文章。保留推理的过程，也核对结论的边界。</p></header><section class="directory light-list wrap"><div class="listing-controls"><label for="topic">主题</label><select id="topic"><option value="all">全部主题</option>{''.join(f'<option value="{c}">{c}</option>' for c in ['GIT','LINUX','WAYLAND'])}</select><span class="count" role="status" aria-live="polite">3 篇文章</span></div><noscript><p class="noscript-note">当前显示全部文章；主题筛选需要 JavaScript。</p></noscript><div id="writing-list">{''.join(note_row(p) for p in posts)}</div><p id="writing-empty" class="empty-state" hidden>这个主题暂时没有文章。</p></section>'''
+body=f'''<header class="page-intro wrap"><span class="eyebrow">02 / WRITING</span><h1>文章目录。</h1><p>从技术笔记中整理出的独立文章。保留推理的过程，也核对结论的边界。</p></header><section class="directory light-list wrap"><div class="listing-controls"><label for="topic">主题</label><select id="topic"><option value="all">全部主题</option>{''.join(f'<option value="{esc(c, quote=True)}">{esc(c)}</option>' for c in dict.fromkeys(p['category'].split('/')[0].strip() for p in posts))}</select><span class="count" role="status" aria-live="polite">{len(posts)} 篇文章</span></div><noscript><p class="noscript-note">当前显示全部文章；主题筛选需要 JavaScript。</p></noscript><div id="writing-list">{''.join(note_row(p) for p in posts)}</div><p id="writing-empty" class="empty-state" hidden>这个主题暂时没有文章。</p></section>'''
 write('writing',page('文章目录',body,'writing'))
 
 for post in posts:
