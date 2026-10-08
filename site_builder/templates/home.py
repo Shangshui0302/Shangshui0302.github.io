@@ -14,5 +14,5 @@ def render_home(ROOT, works, posts, topics, taxonomy):
     <section id="featured-project" aria-labelledby="featured-title"><div class="feature-caption wrap"><div><span class="mono">FEATURED PROJECT</span><h2 id="featured-title"><a href="{url('work',hero)}">{esc(hero['title'])}</a></h2></div><p>{esc(hero['summary'])}</p><a class="text-link" href="{url('work',hero)}">查看项目</a></div></section>
     <section class="section wrap"><div class="section-label"><h2 class="eyebrow">继续拆开 / 精选作品</h2><span class="mono">以结构呈现选择</span></div>{features}<div class="section-end"><a class="text-link" href="/work/">全部 {len(works)} 个项目</a></div></section>
     <section class="section writing-preview wrap"><div class="section-label"><p class="eyebrow">文章 / 整理与推演</p><span class="mono">FIELD NOTES</span></div><h2 class="section-title">把问题拆开，<br>把思路留下。</h2>{''.join(note_row(p, topics, taxonomy) for p in posts[-6:])}<div class="section-end"><a class="text-link" href="/writing/">全部文章</a></div></section>
-    <section class="index-callout wrap"><h2>按问题，<br>找到下一步。</h2><div><p>{len(works)} 个项目，{len(posts)} 篇文章。<br>从目录进入，不必顺着展陈走。</p><a class="text-link" href="/index/">搜索与目录</a></div></section>'''
+    <section class="index-callout wrap"><h2>按问题，<br>找到下一步。</h2><div><a class="text-link" href="/index/">搜索与目录</a></div></section>'''
     return home
