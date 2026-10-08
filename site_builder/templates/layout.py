@@ -5,8 +5,8 @@ from html import escape as esc
 def render_page(config, title, body, active='', description='', is_article=False, stellar=False, is_case=False):
     name, wordmark = config['site_name'], config['wordmark']
     entries = ''.join(
-        f'<a href="/{slug}/" data-nav="{slug}"'+(' aria-current="page"' if active == slug else '')+f'>{label}</a>'
-        for slug, label in [('work', '作品'), ('writing', '文章'), ('index', '<span class="search-symbol" aria-hidden="true"></span>搜索')])
+        f'<a href="{href}" data-nav="{slug}"'+(' aria-current="page"' if active == slug else '')+f'>{label}</a>'
+        for slug, href, label in [('home', '/', '首页'), ('work', '/work/', '作品'), ('writing', '/writing/', '文章'), ('index', '/index/', '<span class="search-symbol" aria-hidden="true"></span>搜索')])
     body_class = 'orbit-home' if stellar else 'reading-page' if is_article else 'case-page' if is_case else ''
     favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F1EFE9'/%3E%3Cpath fill='%2317191C' d='M10 10h44v14H10zm0 32h44v12H10z'/%3E%3Cpath fill='%23FF4D2E' d='M10 29h44v8H10z'/%3E%3C/svg%3E"
     return f'''<!doctype html><html class="no-js" lang="zh-CN"><head>

@@ -90,7 +90,7 @@ for path in (OUT / 'assets').rglob('*'):
         assert target.resolve().is_file(), f'Missing asset import: {path.name} -> {ref}'
 for path in OUT.rglob('index.html'):
     if '/demos/' not in str(path):
-        assert re.findall(r'data-nav="([^" ]+)"', path.read_text()) == ['work', 'writing', 'index']
+        assert re.findall(r'data-nav="([^" ]+)"', path.read_text()) == ['home', 'work', 'writing', 'index']
 
 for post in posts:
     for prefix in ('writing', 'journal'):

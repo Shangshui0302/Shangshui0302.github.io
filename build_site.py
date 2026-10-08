@@ -43,7 +43,7 @@ def write(route, content):
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content)
 
-write('', page('开源作品与技术文章', render_home(ROOT, works, posts, topics, taxonomy), stellar=True))
+write('', page('开源作品与技术文章', render_home(ROOT, works, posts, topics, taxonomy), 'home', stellar=True))
 
 write('work', page('作品目录', render_work_directory(works), 'work'))
 related_work = partial(related_work_links, work_by_slug=work_by_slug)
