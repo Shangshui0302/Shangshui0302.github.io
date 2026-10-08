@@ -42,6 +42,8 @@ def render_case(item, works, posts, visual):
         prose+='</section>'
     idx=next(i for i,w in enumerate(works) if w['slug']==item['slug']);nxt=works[(idx+1)%len(works)]
     lab=shell_lab(study) if study else f'<div class="case-lab general-lab"><div class="lab-heading"><h2>拆开这个系统。</h2><span>结构示意 · 依据公开源码与文档</span></div>{visual(item)}</div>'
+    if item.get('preview'):
+        lab=f'<section class="case-lab preview-lab" aria-label="项目预览">{visual(item)}</section>'+(shell_lab(study) if study else '')
     if collection:
         lab=f'<section class="case-lab collection-lab" id="gallery"><div class="lab-heading"><h2>四帧，几种情绪。</h2><span>SELECTED WALLPAPERS / 个人收藏</span></div>{visual(item)}</section>'
     planet=esc(item.get('planet',item['slug']))

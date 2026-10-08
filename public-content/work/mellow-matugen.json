@@ -31,5 +31,21 @@
   "related": [
     "theme-nine-slice",
     "declarative-and-state"
-  ]
+  ],
+  "preview": {
+    "revision": "4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d",
+    "caption": "浅色主题 · README 效果展示",
+    "images": [
+      {
+        "src": "/assets/project-previews/mellow-matugen.png",
+        "source": "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/preview/wallpaper-1-light.png",
+        "width": 2880,
+        "height": 1800,
+        "alt": "Mellow 浅色输入法候选窗与青绿色桌面配色，来自项目 README",
+        "sha256": "80127df38552276c69e5fc43afe3c250239294af2395622573552329c490fff2"
+      }
+    ],
+    "source_url": "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/README.md#效果展示",
+    "source_label": "项目 README"
+  }
 }

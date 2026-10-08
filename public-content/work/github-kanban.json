@@ -44,5 +44,21 @@
       "https://github.com/noctalia-dev/community-plugins/pull/944"
     ]
   ],
-  "related": []
+  "related": [],
+  "preview": {
+    "source_url": "https://github.com/noctalia-dev/community-plugins/blob/1b32132ad8211aa35e3ccebfab8004afff3aeb9a/github-kanban/thumbnail.webp",
+    "source_label": "官方预览",
+    "revision": "1b32132ad8211aa35e3ccebfab8004afff3aeb9a",
+    "caption": "GitHub Kanban · 官方项目预览",
+    "images": [
+      {
+        "src": "/assets/project-previews/github-kanban.webp",
+        "source": "https://github.com/noctalia-dev/community-plugins/blob/1b32132ad8211aa35e3ccebfab8004afff3aeb9a/github-kanban/thumbnail.webp",
+        "width": 960,
+        "height": 540,
+        "alt": "GitHub Kanban 官方宣传图，展示项目概览与贡献日历面板",
+        "sha256": "a42c78a0ccef9c82162a599f2ea58b85ec6e59d067e54d7d1e797e36937e3498"
+      }
+    ]
+  }
 }

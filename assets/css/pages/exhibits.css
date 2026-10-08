@@ -1,4 +1,52 @@
-/* Portfolio exhibits use public source structure and unmodified collection images. */
+/* README screenshots and collection images retain their original proportions. */
+.project-preview {
+  margin:0;
+  background:#151719;
+  color:#f1efe9;
+  min-width:0
+}
+.project-preview-images {
+  display:grid;
+  gap:1px;
+  background:#ffffff20
+}
+.project-preview-images>a {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#111214;
+  outline-offset:4px
+}
+.project-preview img {
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:560px;
+  object-fit:contain
+}
+.project-preview figcaption {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:10px 20px;
+  padding:16px 20px;
+  font-size:11px;
+  line-height:1.8;
+  color:#aaa79f
+}
+.project-preview figcaption a {
+  color:inherit;
+  text-underline-offset:4px
+}
+.preview-lab {
+  padding:0;
+  background:transparent
+}
+.preview-lab .project-preview {
+  max-width:1200px;
+  margin:auto
+}
 .kanban-figure {
   background:#151719;
   color:#f1efe9;
