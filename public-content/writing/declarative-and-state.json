@@ -3,41 +3,69 @@
   "number": "005",
   "category": "NIXOS / STATE",
   "title": "配置可重现，应用为什么还会“失忆”？",
-  "deck": "把环境的构建、偏好的写入和数据的恢复分开考虑。",
+  "deck": "从 GNOME 默认值、Home Manager 激活到 Flatpak 管理范围，分清声明、偏好与数据。",
   "sections": [
     [
       "boundary",
-      "一份配置负责到哪里"
+      "声明描述的环境，不等于磁盘的完整快照"
+    ],
+    [
+      "defaults",
+      "GNOME：默认值、用户值与锁定"
     ],
     [
       "activation",
-      "写入一次，与持续锁定"
+      "Home Manager 写入的是一次激活结果"
+    ],
+    [
+      "capture",
+      "把界面里试好的偏好，有选择地带回配置"
+    ],
+    [
+      "packages",
+      "软件安装清单，管理范围也有边界"
     ],
     [
       "data",
-      "装回应用，数据从哪里来"
+      "应用回来了，内容还要另行恢复"
     ],
     [
       "choices",
-      "给每类状态安排去处"
+      "给每类状态安排一个明确去处"
     ]
   ],
-  "body": "<p class=\"article-lead\">重新构建环境后，软件都在，熟悉的偏好和历史记录却未必回来。排查之前，先列出想恢复的东西：程序、设置、数据，它们可能由不同机制负责。</p>\n<h2 id=\"boundary\">一份配置负责到哪里</h2>\n<p>NixOS 的系统代际提供了返回旧配置的入口；它并不是整块磁盘在那个时刻的照片。切回上一代系统，不会因此把后来编辑的文档或应用数据库一起恢复到昨天。<a class=\"ref\" href=\"https://nixos.org/manual/nixos/stable/#sec-rollback\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"concept-strip\"><div><small>01 / BUILD</small><strong>重建环境</strong></div><div><small>02 / APPLY</small><strong>应用配置</strong></div><div><small>03 / RESTORE</small><strong>恢复数据</strong></div></div>\n<p>因此，“配置已经进 Git”之后，还要问一句：哪些内容根本没有被这份配置描述？编辑器的安装方式可以写成声明，正在编辑的文档则需要自己的保存与备份方式。</p>\n<p>也不能直接用目录划界。用户目录里的某些文件可能由 Home Manager 管理，其他文件则由应用写入。判断依据应当是管理机制，而不是看到 <code>~/.config</code> 就把整棵目录都算成同一类。</p>\n<h2 id=\"activation\">写入一次，与持续锁定</h2>\n<p>以 Home Manager 的 <code>dconf.settings</code> 为例：它生成要写入的设置，并在激活阶段通过 dconf 加载。这个模块本身没有一个持续监视并立即纠正后续修改的循环。<a class=\"ref\" href=\"https://github.com/nix-community/home-manager/blob/fae6e9e42c3b762ab47635cddcfaf6f52374a61b/modules/misc/dconf.nix\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>这意味着“应用配置时写入”和“之后永远不能修改”需要分开理解。若没有额外锁定机制，应用或用户仍可能修改可写的设置；下一次执行相应激活流程，声明的值又会被写入。</p>\n<p>反过来，只完成构建并不代表这一步已经发生。检查偏好没有变化时，先确认所用 Home Manager 配置是否执行了激活，再看设置的类型、路径和应用是否读取了它。不要只凭构建成功就推断运行中的值。</p>\n<blockquote>先问这个选项何时生效、由谁写入、之后谁还能改它，再判断它有多“声明式”。</blockquote>\n<h2 id=\"data\">装回应用，数据从哪里来</h2>\n<p>Flatpak 提供了一个直观例子：普通卸载可以保留应用数据，而带 <code>--delete-data</code> 的卸载会删除 Flatpak 管理的相应应用数据。应用保存在其他位置的文件仍可能留下。包与数据原本就是两个管理对象。<a class=\"ref\" href=\"https://docs.flathub.org/docs/for-users/uninstallation\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<p>把应用安装清单写进配置，只解决恢复软件这一部分。项目文件、笔记、数据库以及需要延续的应用状态，还要明确存放位置、备份范围和恢复顺序。</p>\n<p>同样，保留了一份用户目录也不自动意味着一切都能恢复。更换应用版本后，数据格式和恢复方式仍需检查。完整的迁移计划，最好同时包含“怎样装回来”和“怎样把内容接回来”。</p>\n<h2 id=\"choices\">给每类状态安排去处</h2>\n<p>整理一个环境时，可以按下面这张表逐项判断。它是取舍方法，不要求把所有状态都塞进同一种工具。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"状态的管理方式\"><table><thead><tr><th scope=\"col\">想保留什么</th><th scope=\"col\">可采用的方式</th><th scope=\"col\">需要验证什么</th></tr></thead><tbody><tr><td>长期使用的软件和服务</td><td>声明配置，记录依赖</td><td>能否构建、激活并正常使用</td></tr><tr><td>稳定的快捷键和偏好</td><td>选取有明确接口的设置纳入配置</td><td>写入时机与后续覆盖关系</td></tr><tr><td>文档和重要应用数据</td><td>备份或同步，记录恢复步骤</td><td>内容是否完整、能否被应用读取</td></tr><tr><td>可重新生成的缓存</td><td>按成本决定是否保留</td><td>重建是否可接受</td></tr></tbody></table></div>\n<p>最有用的检查不是“还有多少东西没声明化”，而是选一项真正重要的内容，走完一次恢复流程。配置负责描述环境，数据有明确的归处，换机时才不会把缺失误认成系统忘记了什么。</p>",
+  "body": "<p class=\"article-lead\">把软件、服务和桌面选项写进 Nix 配置后，很容易期待“一次重建恢复整个环境”。但环境里还生活着可写偏好、应用数据库、文档和缓存。先找出每类内容由谁管理，才能知道配置能带回什么，以及还缺哪份备份。</p>\n<h2 id=\"boundary\">声明描述的环境，不等于磁盘的完整快照</h2>\n<p>NixOS 配置描述软件和系统服务等目标状态，构建产生相应结果，激活把它接到运行环境。系统代际允许回到旧配置，但不会因此把文档、聊天记录或应用数据库一起恢复到那个时间点。系统回滚与数据恢复是不同机制。<a class=\"ref\" href=\"https://nixos.org/manual/nixos/stable/#sec-rollback\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"concept-strip\"><div><small>01 / BUILD</small><strong>构建环境</strong></div><div><small>02 / ACTIVATE</small><strong>应用配置</strong></div><div><small>03 / RESTORE</small><strong>恢复数据</strong></div></div>\n<p>也不能直接拿目录划界：同在 <code>~/.config</code> 下，一些文件可能是 Home Manager 生成的链接，另一些由程序自行写入；dconf 中也可能同时存在声明写入的值与用户通过界面调整的值。位置只是线索，实际管理者与写入时机才是依据。</p>\n<p>“运行时状态”不等于无价值，也不等于无法版本化。文本偏好可以选择性导出，业务数据可以备份；只是不能期待一个没有声明或备份它们的系统自动知道该恢复什么。相反，带有密钥、历史记录或机器相关路径的状态，通常不应直接装进公开配置仓库。</p>\n<h2 id=\"defaults\">GNOME：默认值、用户值与锁定</h2>\n<p>GNOME 的 GSettings 为应用提供带类型的设置接口，schema 定义键及默认值，常见的 dconf 后端保存可写设置。用户看到的最终值，可能来自用户数据库，也可能回退到系统提供的值或 schema 默认值。系统管理员还可以通过 dconf profile 组织数据库及锁定规则。<a class=\"ref\" href=\"https://help.gnome.org/system-admin-guide/dconf-profiles.html\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<p>NixOS 的 GNOME 模块提供 <code>extraGSettingsOverrides</code>，用于补充 schema 默认值。下面采用当前模块的选项路径，展示默认显示电量百分比、星期与启用夜灯；它是现有 GNOME 系统配置中的片段，不是一份完整系统配置。<a class=\"ref\" href=\"https://github.com/NixOS/nixpkgs/blob/nixos-26.05/nixos/modules/services/desktop-managers/gnome.nix\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<pre><code>services.desktopManager.gnome.extraGSettingsOverrides = &#x27;&#x27;\n  [org.gnome.desktop.interface]\n  show-battery-percentage=true\n  clock-show-weekday=true\n\n  [org.gnome.settings-daemon.plugins.color]\n  night-light-enabled=true\n&#x27;&#x27;;</code></pre>\n<p>改默认值不保证覆盖用户已经写入的显式值。这解释了一个常见现象：新账户表现符合预期，旧账户仍保留之前的偏好。此时先检查是否有更高优先级的用户值，而不是把每次“不生效”都归因于构建失败。</p>\n<p>默认值也不是锁定。若要求用户不能改变某个键，需要另行设计 dconf locks；普通 schema override 与 Home Manager 写入设置本身都不等价于这一机制。<a class=\"ref\" href=\"https://help.gnome.org/system-admin-guide/dconf-lockdown.html\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<h2 id=\"activation\">Home Manager 写入的是一次激活结果</h2>\n<p>要表达某个用户的稳定偏好，可以使用 Home Manager 的 <code>dconf.settings</code>。这里路径采用 dconf 的斜线分组；它和 gsettings 命令使用的点分 schema 名看起来相近，但写法不同。</p>\n<pre><code>dconf.settings = {\n  &quot;org/gnome/desktop/interface&quot; = {\n    color-scheme = &quot;prefer-dark&quot;;\n    clock-show-weekday = true;\n    show-battery-percentage = true;\n  };\n};</code></pre>\n<p>当前核对的实现会在激活阶段生成并加载对应设置。它不是持续监视数据库的守护进程：激活之后，若没有其他锁定机制，界面或应用仍可能修改可写值；下一次相应激活又会应用声明。配置的是“何时写入什么”，不能据此宣称设置永远不能变。<a class=\"ref\" href=\"https://github.com/nix-community/home-manager/blob/fae6e9e42c3b762ab47635cddcfaf6f52374a61b/modules/misc/dconf.nix\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>仅构建成功，也不能证明这些值已写入当前会话。排查时分别确认：这份 Home Manager 配置是否被使用、是否完成激活、键路径与类型是否正确、当前应用读取到什么。对于数组、枚举和特殊数值类型，要遵守对应 schema，不能只因为 Nix 表达式能求值就判断语义正确。</p>\n<p>从声明中删掉一个键时，同样应检查模块的清理语义。该实现会处理此前管理而后来移除的键，不应把删除声明简单理解成“从此永远保留最后写进去的值”。</p>\n<h2 id=\"capture\">把界面里试好的偏好，有选择地带回配置</h2>\n<p>不必一次性猜出所有设置键。可以先在界面调整一个明确选项，再观察对应的小范围数据，理解后写回配置。下面的命令只针对桌面界面这一组，避免把整个 dconf 数据库连同无关状态全部导出。</p>\n<pre><code>gsettings get org.gnome.desktop.interface color-scheme\ndconf read /org/gnome/desktop/interface/color-scheme\ndconf dump /org/gnome/desktop/interface/ &gt; desktop-interface.ini</code></pre>\n<p><code>gsettings get</code> 通过 schema 接口读设置，<code>dconf read</code> 和 dump 面向 dconf 中的值；它们所回答的问题并不完全相同。缺少显式写入值时，schema 的默认值仍可能让应用得到有效设置。dump 是该子树的设置摘录，不应机械地把它当作“所有与默认值不同的项目清单”。</p>\n<p>接下来逐个挑选需要长期保留的键，去掉临时状态和机器相关值，把值转换为模块要求的类型。保留一个小而明确的声明，比把数据库整体复制成一大段看不懂的配置更容易维护。</p>\n<p>验证顺序也应清楚：配置能求值和构建，只证明前面的结构成立；完成授权的激活后，还要查询设置并观察应用实际表现。导出文件是观察记录，加入 Git 前仍需审阅内容。</p>\n<h2 id=\"packages\">软件安装清单，管理范围也有边界</h2>\n<p>把一个包从 <code>environment.systemPackages</code> 中移除，会改变新系统配置提供的那组软件。它不意味着这个程序在整台机器的所有来源都立刻消失：另一个用户 profile、容器或 Flatpak 可能仍提供同名程序，旧代际与 store 中也可能仍有对应对象。判断正在运行哪一个，应检查实际命中路径。</p>\n<p>Flatpak 的声明管理尤其适合用来观察“范围”问题。以外部模块 nix-flatpak 为例，假设已经导入对应的 NixOS 模块，可以在配置中声明应用：</p>\n<pre><code>services.flatpak = {\n  enable = true;\n  packages = [ &quot;org.gnome.Calculator&quot; ];\n  uninstallUnmanaged = false;\n};</code></pre>\n<p>这里依赖 nix-flatpak 模块提供 <code>packages</code> 等选项，并非只启用 NixOS 的基础 Flatpak 服务就自动获得这些能力；还需要可用的对应 remote。使用 Home Manager 版本时，应导入该项目的 Home Manager 模块，按用户安装范围理解它。</p>\n<p>该模块默认管理声明列出的项目，保留范围内其他手动安装的应用。设置 <code>uninstallUnmanaged = true</code> 才会要求清理未声明项目，而且仍受安装范围约束：系统安装与用户安装不是同一组对象。这个选项改变了清理权限边界，不能当作普通格式偏好随手开启。<a class=\"ref\" href=\"https://github.com/gmodena/nix-flatpak\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p>\n<h2 id=\"data\">应用回来了，内容还要另行恢复</h2>\n<p>安装应用与保存应用数据本来就是两条线。普通 Flatpak 卸载可以保留应用数据，带 <code>--delete-data</code> 的卸载会删除其管理的相应数据；应用写到其他位置的文件则可能另外存在。因此，“从清单删除软件”和“清理它的全部个人数据”也不能画等号。<a class=\"ref\" href=\"https://docs.flathub.org/docs/for-users/uninstallation\" target=\"_blank\" rel=\"noopener noreferrer\">[7]</a></p>\n<p>对于笔记、项目、数据库和需要延续的应用状态，应该明确：它存在哪里，备份是否覆盖，恢复时是否要求应用停止写入，目标版本能否读取。只备份启动配置，不会自动包含数据库；只复制数据目录，也不保证跨版本迁移无需处理。</p>\n<p>缓存可以按重建成本决定是否保留。能重新生成不等于一定值得每次重建，也不意味着绝对不存在配置接口。把“要不要保留”“如何生成”“谁负责生成”分别回答，比按文件扩展名一刀切更实际。</p>\n<h2 id=\"choices\">给每类状态安排一个明确去处</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"环境状态的管理分工\"><table><thead><tr><th scope=\"col\">对象</th><th scope=\"col\">适合的管理方式</th><th scope=\"col\">需要验证的结果</th></tr></thead><tbody><tr><td>长期使用的软件与服务</td><td>Nix 声明和依赖锁定</td><td>构建、激活及实际运行</td></tr><tr><td>稳定的桌面偏好</td><td>挑选键写入相应模块</td><td>写入时机、优先级与覆盖关系</td></tr><tr><td>试验性调整</td><td>保留观察记录，稳定后再纳入配置</td><td>是否值得成为长期约定</td></tr><tr><td>文档、数据库与重要状态</td><td>备份、同步及恢复步骤</td><td>完整性、版本兼容和可读取性</td></tr><tr><td>可再生缓存</td><td>按成本保留或重建</td><td>恢复耗时是否可接受</td></tr></tbody></table></div>\n<p>整理环境的验收可以具体到一件事：选择一个重要应用，在独立位置验证“软件装回来、设置应用上、数据读得出”这三步。配置仓库与备份各自承担清楚的职责，换机和回滚才有可预测的结果。</p>",
   "refs": [
     [
-      "NixOS 手册：回滚配置",
+      "NixOS：系统回滚",
       "https://nixos.org/manual/nixos/stable/#sec-rollback"
     ],
     [
-      "Home Manager dconf 激活实现（固定版本）",
+      "Home Manager dconf 激活实现",
       "https://github.com/nix-community/home-manager/blob/fae6e9e42c3b762ab47635cddcfaf6f52374a61b/modules/misc/dconf.nix"
+    ],
+    [
+      "GNOME：dconf profile 与优先级",
+      "https://help.gnome.org/system-admin-guide/dconf-profiles.html"
+    ],
+    [
+      "GNOME：设置锁定",
+      "https://help.gnome.org/system-admin-guide/dconf-lockdown.html"
+    ],
+    [
+      "NixOS GNOME 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-26.05/nixos/modules/services/desktop-managers/gnome.nix"
+    ],
+    [
+      "nix-flatpak 的声明与清理范围",
+      "https://github.com/gmodena/nix-flatpak"
     ],
     [
       "Flathub：卸载与应用数据",
       "https://docs.flathub.org/docs/for-users/uninstallation"
     ]
   ],
-  "date": "2026-10-07",
+  "date": "2026-10-08",
   "kind": "技术笔记整理",
   "related_work": [
     "nixos-config",

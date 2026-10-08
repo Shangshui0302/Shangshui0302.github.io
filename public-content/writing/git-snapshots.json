@@ -2,42 +2,70 @@
   "slug": "git-snapshots",
   "number": "001",
   "category": "GIT / WORKFLOW",
-  "title": "你提交的，真是刚改的那一版？",
-  "deck": "从三份快照看懂 Git 工作区、暂存区与提交。",
+  "title": "从第一次 add，到撤回一次修改。",
+  "deck": "走完 Git 单机工作流：暂存、分块提交、差异检查、恢复、历史改写与忽略规则。",
   "sections": [
     [
       "snapshots",
-      "先分清三份内容"
+      "工作区、暂存区与当前提交"
+    ],
+    [
+      "start",
+      "从一个新仓库开始"
     ],
     [
       "staging",
-      "add 之后，修改还在继续"
+      "add 的单位可以比文件更小"
     ],
     [
       "diff",
-      "让 diff 回答具体问题"
+      "用 diff 看清三个位置之间的差别"
+    ],
+    [
+      "commit",
+      "提交与 amend：生成记录，或替换当前记录"
     ],
     [
       "undo",
-      "撤回暂存，不丢掉修改"
+      "restore：先说清来源和目的地"
+    ],
+    [
+      "reset",
+      "reset：移动末端，以及决定哪些副本跟着动"
+    ],
+    [
+      "ignore",
+      "忽略文件，也要分清共享与本地"
     ]
   ],
-  "body": "\n        <p class=\"article-lead\">一个文件刚刚保存，为什么提交里却没有最后那几行？因为保存到磁盘，与放进下一次提交，是两件事。</p>\n        <h2 id=\"snapshots\">先分清三份内容</h2>\n        <p>理解日常 Git 操作时，可以先看三个位置：工作区是正在编辑的文件；暂存区（index）准备下一次提交的内容；HEAD 通常指向当前检出的提交。</p>\n        <p>它们不必保持一致。这个差异正是拆分提交的空间：可以一次修改很多地方，再选择把哪些改动放在同一个提交里。</p>\n        <div class=\"concept-strip\"><div><small>01 / WORKTREE</small><strong>正在改的</strong></div><div><small>02 / INDEX</small><strong>准备交的</strong></div><div><small>03 / HEAD</small><strong>已经记下的</strong></div></div>\n        <h2 id=\"staging\">add 之后，修改还在继续</h2>\n        <p>假设先在 <code>notes.md</code> 中修正一个术语，然后执行：</p>\n        <pre><code>git add notes.md</code></pre>\n        <p>这时，暂存区记录了修正术语后的版本。接着，又在文件末尾补了一段解释并保存。若此时直接执行普通的 <code>git commit</code>，新增的解释不会一起进入提交。</p>\n        <blockquote>git add 保存的是执行那一刻的内容，之后的编辑不会自动追进暂存区。</blockquote>\n        <p>想把补充内容也提交，就再次暂存。想将两件事分别记录，就先提交已有的暂存内容，再处理后面的修改。同一个文件同时显示为 staged 和 modified，并不矛盾。<a class=\"ref\" href=\"https://git-scm.com/docs/git-add\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n        <h2 id=\"diff\">让 diff 回答具体问题</h2>\n        <p>排查“少提交了什么”时，先确定要比较哪两份内容：</p>\n        <div class=\"command-list\"><div><code>git diff</code><span>已跟踪文件中，工作区相对暂存区又改了什么？</span></div><div><code>git diff --cached</code><span>暂存区相对 HEAD 改了什么？普通提交会记录这些。</span></div><div><code>git diff HEAD</code><span>已跟踪文件相对当前提交，总共发生了哪些变化？</span></div></div>\n        <p>新建且未跟踪的文件需要另外看 <code>git status</code>，不能因为 diff 为空就以为没有新内容。<a class=\"ref\" href=\"https://git-scm.com/docs/git-diff\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n        <p>若一次编辑混入了不同目的的改动，可以用 <code>git add -p</code> 按块选择。审查时沿着一个问题阅读一个提交，比把修复、重构和格式化混在一起更容易判断。</p>\n        <h2 id=\"undo\">撤回暂存，不丢掉修改</h2>\n        <p>对于已有提交的仓库，如果 <code>notes.md</code> 暂时不该进入下一次提交：</p>\n        <pre><code>git restore --staged notes.md</code></pre>\n        <p>这会把该路径的暂存内容恢复到 HEAD 的状态，保留工作区中的编辑。它和不带 <code>--staged</code> 的 <code>git restore notes.md</code> 不同：后者默认用暂存区覆盖工作区，会丢弃该文件尚未暂存的修改。<a class=\"ref\" href=\"https://git-scm.com/docs/git-restore\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n        <p>提交之前，花几秒看一遍 <code>git diff --cached</code>。确认下一份快照里到底有什么，比凭印象相信“我刚才都保存了”可靠得多。</p>\n        ",
+  "body": "<p class=\"article-lead\">Git 命令容易记混，往往是因为没有先分清它正在改哪份内容。文件已经保存、已经 add、已经 commit，是三个不同的位置。沿着一次单机工作流走下去，撤回和恢复也就不必靠猜。</p>\n<h2 id=\"snapshots\">工作区、暂存区与当前提交</h2>\n<p>工作区是编辑器正在修改的文件；暂存区也叫 index，用来组织下一次提交；HEAD 通常通过当前分支指向最近一次提交。提交保存的是一份目录树快照及其元数据，并记录父提交关系。它不是把编辑器从打开到关闭的操作逐条录下来。</p>\n<div class=\"concept-strip\"><div><small>01 / WORKTREE</small><strong>正在修改的文件</strong></div><div><small>02 / INDEX</small><strong>准备提交的版本</strong></div><div><small>03 / HEAD</small><strong>当前提交的快照</strong></div></div>\n<p>例如，先把文件从 A 改成 B，执行 add，再改成 C：工作区是 C，暂存区仍是 B，当前提交还是 A。此时直接 commit，提交进去的是 B。一次 add 不会把文件变成持续跟踪后续编辑的“待提交直播”。</p>\n<p>从对象关系看，文件内容由 blob 表示，tree 组织路径，commit 指向树并连接历史。分支是可移动的引用，而不是复制出来的一整份目录。日常操作不必直接改这些内部对象，但这能解释为什么移动分支指针、改工作区文件和删除历史对象并不是同一个动作。</p>\n<h2 id=\"start\">从一个新仓库开始</h2>\n<p>第一次提交前，先给提交记录配置作者身份。下面是在当前仓库设置的示例；若确实希望作为所有仓库的默认值，才加 <code>--global</code>。示例名字和邮箱应换成你愿意出现在提交记录中的信息。</p>\n<pre><code>git init\ngit config user.name &quot;Example Author&quot;\ngit config user.email &quot;author@example.com&quot;\ngit config --get user.name\ngit config --get user.email\ngit status</code></pre>\n<p>初始化不会自动把目录里的文件全部纳入版本管理。新文件会先显示为 untracked；只有把内容放进暂存区并提交，它才进入历史。已经被追踪的文件，也可能同时具有已暂存和未暂存的修改。</p>\n<h2 id=\"staging\">add 的单位可以比文件更小</h2>\n<p><code>git add</code> 把执行时选中的内容状态更新到暂存区。它既可以记录新增或修改，也可以记录删除。下面几种写法的范围不同，不必顺次执行：<a class=\"ref\" href=\"https://git-scm.com/docs/git-add\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"暂存命令的范围\"><table><thead><tr><th scope=\"col\">命令</th><th scope=\"col\">作用范围</th></tr></thead><tbody><tr><td><code>git add -- notes.md</code></td><td>只更新这个路径的暂存状态；-- 分开选项与路径</td></tr><tr><td><code>git add .</code></td><td>当前目录及其子目录；在仓库子目录执行时不等于整个仓库</td></tr><tr><td><code>git add -u</code></td><td>未给路径时，更新整个工作树中已追踪文件的修改和删除，不加入新文件</td></tr><tr><td><code>git add -p -- main.c</code></td><td>交互选择这个文件中的修改块</td></tr></tbody></table></div>\n<p>如果同一文件同时有错误修复和重构，按文件提交就会把两种目的绑在一起。<code>add -p</code> 允许逐块选择：<code>y</code> 接受当前块，<code>n</code> 跳过，<code>s</code> 尝试拆分，<code>q</code> 结束选择。不是每块都能继续拆开；退出也不会撤销此前已经接受的块。</p>\n<p>下面的流程假设两类修改可以分开选择。第一轮只选修复，再检查并提交；第二轮选重构。每次提交前都读一遍实际暂存内容，不能只凭刚才按了几个 y 判断。</p>\n<pre><code>git add -p -- main.c\ngit diff --cached\ngit commit -m &quot;fix: correct boundary check&quot;\n\ngit add -p -- main.c\ngit diff --cached\ngit commit -m &quot;refactor: simplify parser&quot;</code></pre>\n<p>暂存区的价值就在这里：它让一次提交围绕一个可解释的目的组织，不要求一次性收走工作目录里的所有变化。</p>\n<h2 id=\"diff\">用 diff 看清三个位置之间的差别</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"差异命令的比较对象\"><table><thead><tr><th scope=\"col\">命令</th><th scope=\"col\">比较对象</th><th scope=\"col\">适合回答的问题</th></tr></thead><tbody><tr><td><code>git diff</code></td><td>工作区 ↔ 暂存区</td><td>还有什么修改没有暂存？</td></tr><tr><td><code>git diff --cached</code></td><td>暂存区 ↔ HEAD</td><td>下一次普通提交准备带走什么？</td></tr><tr><td><code>git diff HEAD</code></td><td>工作区 ↔ HEAD</td><td>已追踪文件相对当前提交总共变了什么？</td></tr></tbody></table></div>\n<p>普通 diff 不会把 untracked 文件的内容当作已追踪差异展示。因此检查提交范围时，<code>git status</code> 和 diff 要一起看：前者列状态，后者读内容。首次提交还没有 HEAD 时，也不要照搬所有依赖 HEAD 的比较方式。</p>\n<p>查看已有历史时，可以按问题选输出：简图看分支与提交关系，stat 看文件规模，patch 看具体内容。<code>--all</code> 表示显示各引用可达的历史，不是承诺找回所有曾经出现过、后来已不可达的提交。</p>\n<pre><code>git log --oneline --graph --all\ngit log --stat -5\ngit log -p -1</code></pre>\n<h2 id=\"commit\">提交与 amend：生成记录，或替换当前记录</h2>\n<p>普通 <code>git commit</code> 用暂存区生成新提交，并把当前分支往前移。提交说明最好交代为什么改，以及改完有什么行为变化；以后排错时，“update” 很难提供线索。</p>\n<p>若刚提交后发现漏了一处，可以把补充修改暂存，再使用 <code>--amend</code>。它生成替代当前末端提交的新提交，并不是在原对象上打补丁；提交标识会改变。<code>--no-edit</code> 只表示沿用原说明，不表示沿用原提交对象。<a class=\"ref\" href=\"https://git-scm.com/docs/git-commit\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<pre><code>git add -- notes.md\ngit diff --cached\ngit commit --amend --no-edit</code></pre>\n<p>上面的例子适用于仍由自己整理的末端提交。若提交已经被其他人基于它继续工作，改写历史会带来同步问题，应按协作约定选择新增修正提交等方式。还要留意暂存区里是否已有其他内容：amend 同样会把它们带进去。</p>\n<h2 id=\"undo\">restore：先说清来源和目的地</h2>\n<p>“撤回修改”至少包含两种需求：保留文件编辑，只撤掉暂存；或者真的丢弃工作区编辑。默认来源不同，后果就不同。下面三行是互相独立的选择，不是一套连续执行的清理流程。<a class=\"ref\" href=\"https://git-scm.com/docs/git-restore\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<pre><code># 取消暂存：HEAD → 暂存区，保留工作区编辑\ngit restore --staged -- notes.md\n\n# 丢弃未暂存编辑：暂存区 → 工作区\ngit restore -- notes.md\n\n# 明确让两处都回到 HEAD：会丢弃这个路径的本地修改\ngit restore --source=HEAD --staged --worktree -- notes.md</code></pre>\n<p>回到前面的 A、B、C 例子：执行不带选项的 restore 后，工作区回到 B，不是 A，因为默认来源是暂存区。指定 <code>--staged</code> 时，默认来源才是 HEAD。这也是为什么“restore 就是回到上次提交”不够准确。</p>\n<p>这些引用 HEAD 的例子假设仓库已有提交。对相对 HEAD 新增的文件取消暂存后，它会重新成为 untracked，工作区文件仍在；不要把取消暂存理解为删除磁盘文件。真正会覆盖内容的操作，应先通过 diff 确认范围。</p>\n<h2 id=\"reset\">reset：移动末端，以及决定哪些副本跟着动</h2>\n<p><code>git reset &lt;mode&gt; &lt;commit&gt;</code> 与按路径重置暂存区的形式需要分开看。这里讨论前一种：在普通分支上，它把当前分支移到目标提交，模式决定暂存区与工作区是否一起更新。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"reset 的三种模式\"><table><thead><tr><th scope=\"col\">模式</th><th scope=\"col\">当前分支 / HEAD</th><th scope=\"col\">暂存区</th><th scope=\"col\">工作区</th></tr></thead><tbody><tr><td><code>--soft</code></td><td>移动到目标提交</td><td>保留</td><td>保留</td></tr><tr><td><code>--mixed</code>（默认）</td><td>移动到目标提交</td><td>重置到目标</td><td>保留</td></tr><tr><td><code>--hard</code></td><td>移动到目标提交</td><td>重置到目标</td><td>重置已追踪内容，会丢弃本地修改</td></tr></tbody></table></div>\n<p>例如目标为 <code>HEAD~1</code> 时，soft 适合把末次提交的改动保留为待提交内容；mixed 保留在工作区，重新挑选暂存。它们要求当前提交确实有父提交。hard 则是破坏性选择：不仅会丢掉相关已追踪文件的本地修改，挡住写入路径的未追踪文件或目录也可能被覆盖、删除；但它又不是一个“清空所有 untracked 文件”的通用命令。<a class=\"ref\" href=\"https://git-scm.com/docs/git-reset\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>同样，<code>git reset --hard origin/main</code> 不会自动从远端获取最新内容；它使用本地已有的远端跟踪引用，并移动当前分支。把它当作“随便同步一下”很容易改错对象。</p>\n<p>误移提交指针后，可以先通过 reflog 查找本地记录，再给找到的提交建立恢复分支，让它重新有明确引用。这里的提交标识需替换为实际核对过的值。</p>\n<pre><code>git reflog\ngit branch recovery/saved-tip &lt;commit-sha&gt;</code></pre>\n<p>reflog 不是无限期备份，也不会凭空恢复从未提交过的工作区编辑。回收策略、时间和对象是否仍存在都会影响可恢复性。发现误操作后先停下继续改写，保住已找到的提交，比反复试 hard 更可靠。<a class=\"ref\" href=\"https://git-scm.com/docs/git-reflog\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<h2 id=\"ignore\">忽略文件，也要分清共享与本地</h2>\n<p><code>.gitignore</code> 可以提交，适合团队共同排除构建产物；<code>.git/info/exclude</code> 留在当前克隆里，适合个人辅助文件。它们主要控制未追踪文件的发现，不会让已经追踪的文件突然停止记录变化。<a class=\"ref\" href=\"https://git-scm.com/docs/gitignore\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p>\n<pre><code># .gitignore 示例\n*.log\n/build/\n/node_modules/\n!important.log</code></pre>\n<p>开头的斜线把规则限定到这份 ignore 文件所在目录；末尾斜线表示目录。<code>!</code> 用于例外，但若父目录整体被排除，不能只写一条子文件例外就期待 Git 自动深入被忽略的目录寻找它。</p>\n<p>文件为什么没有出现在 status 中，可以先问规则本身，而不是盲目添加更多通配符：</p>\n<pre><code>git check-ignore -v -- docs/development-plan.local.md</code></pre>\n<p>它会在匹配时说明规则来源与行号。忽略规则还不是隐私清理工具：若敏感内容已经进入历史，后来添加 ignore 不会移除旧提交中的内容。回到日常流程，提交前始终确认状态、检查暂存差异，再记录一个边界清楚的快照。</p>",
   "refs": [
     [
-      "git-add 官方文档",
+      "Git：暂存内容",
       "https://git-scm.com/docs/git-add"
     ],
     [
-      "git-diff 官方文档",
-      "https://git-scm.com/docs/git-diff"
+      "Git：提交与 amend",
+      "https://git-scm.com/docs/git-commit"
     ],
     [
-      "git-restore 官方文档",
+      "Git：恢复路径",
       "https://git-scm.com/docs/git-restore"
+    ],
+    [
+      "Git：reset 模式",
+      "https://git-scm.com/docs/git-reset"
+    ],
+    [
+      "Git：本地引用日志",
+      "https://git-scm.com/docs/git-reflog"
+    ],
+    [
+      "Git：忽略规则",
+      "https://git-scm.com/docs/gitignore"
     ]
   ],
-  "date": "2026-10-07",
+  "date": "2026-10-08",
   "kind": "技术笔记整理",
   "related_work": []
 }

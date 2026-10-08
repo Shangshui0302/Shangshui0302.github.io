@@ -2,12 +2,20 @@
   "slug": "theme-nine-slice",
   "number": "004",
   "category": "INTERFACE / FCITX5",
-  "title": "一个主题为什么会被拉坏？",
-  "deck": "从一张 30 × 30 的背景图，拆开 Fcitx5 的九宫格与留白。",
+  "title": "从素材到候选窗：一个动态主题的完整链路。",
+  "deck": "Fcitx5 的九宫格、布局与模糊蒙版，如何接上 Matugen 配色和 Nix 运行目录。",
   "sections": [
     [
+      "pipeline",
+      "从壁纸到候选窗，经过哪些文件"
+    ],
+    [
+      "files",
+      "图片、颜色与布局参数各管哪一层"
+    ],
+    [
       "slices",
-      "先决定哪里可以伸展"
+      "九宫格决定哪里可以伸展"
     ],
     [
       "geometry",
@@ -15,29 +23,57 @@
     ],
     [
       "margins",
-      "两组边距，两种职责"
+      "三类 Margin，不是在重复设留白"
+    ],
+    [
+      "colors",
+      "配色模板需要同时覆盖背景和文字"
+    ],
+    [
+      "runtime",
+      "不可变输入与可写输出，需要两个位置"
+    ],
+    [
+      "blur",
+      "模糊蒙版也继承素材的几何约束"
     ],
     [
       "inspect",
-      "沿着切分线检查素材"
+      "按产物定位问题，再检查整个候选窗"
     ]
   ],
-  "body": "<p class=\"article-lead\">背景图单独打开时圆润完整，放进候选窗却出现缺口或变形。遇到这种问题，除了检查图画得对不对，还要看渲染器会从哪里把它切开。</p>\n<h2 id=\"slices\">先决定哪里可以伸展</h2>\n<p>Fcitx5 ClassicUI 的背景采用九宫格：四角保留尺寸，上下边沿水平方向伸展，左右边沿垂直方向伸展，中间区域在两个方向上缩放。这让一个小素材能够适应不同长度的候选内容。高亮背景也使用这套规则。<a class=\"ref\" href=\"https://fcitx-im.org/wiki/Fcitx_5_Theme#Background_images\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<figure class=\"slice-figure\"><div class=\"slice-grid\" role=\"img\" aria-label=\"九宫格示意：四角固定，上下边横向伸展，左右边纵向伸展，中心双向伸展。\"><span>固定角</span><span>横向伸展</span><span>固定角</span><span>纵向伸展</span><strong>双向伸展</strong><span>纵向伸展</span><span>固定角</span><span>横向伸展</span><span>固定角</span></div><figcaption>机制示意，不按像素比例绘制。渲染器认识切片边界，不会自动识别图里的圆角。</figcaption></figure>\n<p>由此可以推演：如果圆角曲线跨进了可伸展的区域，曲线的一部分也会被拉长。素材设计和切分位置必须一起考虑；“这是 SVG”并不能自动解决切片问题。</p>\n<h2 id=\"geometry\">30 减去 15，再减去 15</h2>\n<p>假设背景加载后的尺寸是 30 × 30，上下左右切片边距都设为 15。留给中心的区域就变成：</p>\n<pre><code>中心宽度 = 30 − 15 − 15 = 0\n中心高度 = 30 − 15 − 15 = 0</code></pre>\n<p>这不是一块很小的中心，而是没有面积的中心。Fcitx 维护者曾在公开问题中指出这种参数不合理，并建议将各边减去 1。这里引用的是公开案例，不是本文新增的运行实验。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/issues/1659#issuecomment-5564443731\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>四边改成 14 后，源中心剩下 2 × 2。若目标背景为 100 × 40，按相同边距计算，中心需要覆盖 72 × 12。它从哪里取样、往哪里伸展，现在都有了明确的区域。</p>\n<p>本次核对的源码会跳过宽或高不大于零的源切片。因此，应把前一种情况描述为切片退化，不能笼统地归因于“除零”。实现也会随版本变化。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp#L345-L374\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<h2 id=\"margins\">两组边距，两种职责</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"两种边距的职责\"><table><thead><tr><th scope=\"col\">参数</th><th scope=\"col\">回答的问题</th></tr></thead><tbody><tr><td><code>Background/Margin</code></td><td>背景图从哪里切，哪些部分参与伸展？</td></tr><tr><td><code>ContentMargin</code></td><td>内容区域外围留多少空间？</td></tr></tbody></table></div>\n<p>文字与边框太近，应先检查内容布局；背景角形异常，应先检查切片。两组数字可以恰好相同，但不能仅因为它们都叫 Margin，就认为它们可以互相替代。<a class=\"ref\" href=\"https://fcitx-im.org/wiki/Fcitx_5_Theme#Size_calculation\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<h2 id=\"inspect\">沿着切分线检查素材</h2>\n<p>检查时，先确认加载后的图像尺寸，再在素材上标出四条切分线。对 SVG 尤其要区分固有像素尺寸和 <code>viewBox</code> 坐标系；本次核验的加载路径读取固有像素宽高，不能只看 viewBox 就代入上面的算式。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp#L239-L247\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<p>接着观察圆角、边框、渐变和阴影是否跨过切分线，再分别检查短候选、长候选以及不同缩放比例下的效果。几何计算能排除零面积切片，实际外观仍需要渲染验证。</p>\n<blockquote>14 不是圆角主题的标准答案。它只是让这个 30 × 30 的例子，重新拥有一块可以伸展的中心。</blockquote>\n<p>制作主题时，可以把切分线也当成素材的一部分来设计：先约定哪些区域保持形状，哪些区域允许变化，再调整颜色和留白。</p>",
+  "body": "<p class=\"article-lead\">一个会跟着壁纸变色的 Fcitx5 主题，至少有三件事要一起成立：素材能够伸展，颜色生成到正确文件，输入法读到那份运行配置。只修圆角或只换配色，都可能留下另一半问题。沿着素材、模板与运行目录，把整条链拆开看。</p>\n<h2 id=\"pipeline\">从壁纸到候选窗，经过哪些文件</h2>\n<p>以 mellow-matugen 主题项目为例，Matugen 从图片生成调色方案，模板把颜色写入主题配置与高亮素材，ClassicUI 再读取生成后的主题。Nix 和 Home Manager 负责提供包、模板以及可写的运行主题目录；它们并不代替 Matugen 做每次图片配色。<a class=\"ref\" href=\"https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<pre><code>图片 → Matugen 调色方案\n              ├─ theme.conf.tpl → theme.conf\n              └─ highlight.svg.tpl → highlight.svg\n                                      ↓\n                        Fcitx5 ClassicUI 选择并读取主题\n\nNix 包 / Home Manager → 静态素材、模板、可写运行目录</code></pre>\n<p>主题目录里，<code>theme.conf</code> 组织布局与素材引用；<code>panel.svg</code> 提供面板背景；<code>highlight.svg</code> 绘制候选高亮；<code>blur-mask.svg</code> 提供模糊区域蒙版。模板目录里的文件是生成输入，Fcitx 最终读取的是生成后的配置和素材，不会替你展开模板占位符。</p>\n<p>这一项目选择让高亮与文字色动态生成，部分背景和蒙版维持静态。其他主题可以采用不同拆分，不应把这份项目结构误认成所有 Fcitx 主题的强制格式。</p>\n<h2 id=\"files\">图片、颜色与布局参数各管哪一层</h2>\n<p>ClassicUI 主题的 <code>InputPanel</code> 与 <code>Menu</code> 分别描述候选面板和菜单。下面摘取候选面板相关配置，展示字段之间的关系；它不是一份独立可用的完整主题，图片文件和其他必要字段仍需配齐。</p>\n<pre><code>[InputPanel]\nHighlightCandidateColor=#ffffff\nHighlightColor=#ffffff\n\n[InputPanel/Background]\nImage=panel.svg\n\n[InputPanel/Background/Margin]\nLeft=14\nRight=14\nTop=14\nBottom=14\n\n[InputPanel/Highlight]\nImage=highlight.svg\n\n[InputPanel/ContentMargin]\nLeft=9\nRight=9\nTop=7\nBottom=7\n\n[InputPanel/TextMargin]\nLeft=9\nRight=9\nTop=6\nBottom=7</code></pre>\n<p>背景绘制首先要分清使用图像还是配置色。设置 <code>Image</code> 时，相应背景主要走图像素材的绘制路径；修改 <code>Color</code> 或 <code>BorderColor</code> 不会自动重写 SVG 中的 fill。这也是“模板颜色变了，但窗口看起来没变”的常见来源：改动没有落在真正控制那块像素的文件上。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>文字色也有具体作用对象。选中候选的文字色需要与高亮背景一起设计；面板普通文字、候选高亮、菜单高亮则不能因为名字相似就全部当作同一层。检查配置时应沿实际绘制对象找字段。</p>\n<h2 id=\"slices\">九宫格决定哪里可以伸展</h2>\n<p>背景图放大时，并非简单把整张图等比拉伸。九宫格把它分成四角、四边和中心：角部保留形状，上下边沿水平方向伸展，左右边沿垂直方向伸展，中间区域则在两个方向上缩放。高亮背景也使用相关规则。<a class=\"ref\" href=\"https://fcitx-im.org/wiki/Fcitx_5_Theme#Background_images\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<figure class=\"slice-figure\"><div class=\"slice-grid\" role=\"img\" aria-label=\"九宫格：四角固定，边缘沿一个方向伸展，中心沿两个方向伸展。\"><span>固定角</span><span>横向伸展</span><span>固定角</span><span>纵向伸展</span><strong>双向伸展</strong><span>纵向伸展</span><span>固定角</span><span>横向伸展</span><span>固定角</span></div><figcaption>切片机制示意，不按像素比例绘制。</figcaption></figure>\n<p>渲染器认识切分线，不会自动识别图里的圆角。若曲线跨进可伸展区域，曲线的一部分也会跟着拉长。SVG 能平滑缩放，不等于它能跳过这套切片规则；素材里的渐变、描边和阴影也要考虑边界。</p>\n<h2 id=\"geometry\">30 减去 15，再减去 15</h2>\n<p>假设加载后的素材是 30 × 30，四边切片边距都设为 15，留给中心的尺寸就是：</p>\n<pre><code>源中心宽度 = 30 − 15 − 15 = 0\n源中心高度 = 30 − 15 − 15 = 0</code></pre>\n<p>这已经不是“中心很窄”，而是没有面积的中心。Fcitx 维护者在公开问题中指出这种参数不合理，并建议将各边减去 1。这里的 14 是针对这组尺寸的修正，不能成为所有圆角素材的通用数字。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/issues/1659#issuecomment-5564443731\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<pre><code>四边设为 14：\n源中心 = (30 − 14 − 14) × (30 − 14 − 14) = 2 × 2\n\n若目标为 100 × 40：\n目标中心 = (100 − 14 − 14) × (40 − 14 − 14) = 72 × 12</code></pre>\n<p>现在可伸展区域有了实际取样面积。本文引用的源码会跳过宽或高不大于零的源切片，因此应将零面积情况描述为切片退化，而不是凭直觉断言发生“除零”。几何关系说明参数是否合理，最终边框外观还取决于素材以及渲染结果。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp#L345-L374\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>对 SVG 还要核对加载器取得的固有尺寸。<code>viewBox</code> 是内部坐标系，不能直接把它当作这里的像素宽高；本文核对的加载路径读取固有像素尺寸。只看到 viewBox 写着 30 × 30，就把所有计算建立在 30 上，可能从第一步便用错数据。</p>\n<h2 id=\"margins\">三类 Margin，不是在重复设留白</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"主题边距分工\"><table><thead><tr><th scope=\"col\">字段</th><th scope=\"col\">主要职责</th><th scope=\"col\">先检查的现象</th></tr></thead><tbody><tr><td><code>Background/Margin</code></td><td>决定素材切片边界</td><td>圆角、边框被拉坏</td></tr><tr><td><code>ContentMargin</code></td><td>安排内容区域外围的空间</td><td>内容离面板边缘过近或过远</td></tr><tr><td><code>TextMargin</code></td><td>参与文字条目的布局与尺寸</td><td>文字周围留白、高亮与文字关系</td></tr></tbody></table></div>\n<p>这三类数字可能偶然相同，但不能互相替代。为了让文字往里挪就不断增大背景切片边距，可能没有解决布局，反而让中心退化。候选面板与菜单又有各自参数；修好面板后，仍需单独观察菜单。<a class=\"ref\" href=\"https://fcitx-im.org/wiki/Fcitx_5_Theme#Size_calculation\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<h2 id=\"colors\">配色模板需要同时覆盖背景和文字</h2>\n<p>Matugen 的配色角色有对应关系：例如 <code>primary</code> 可用于强调背景，<code>on_primary</code> 用于其上的内容。若只更换高亮背景而保持原文字色，浅色与深色方案切换后就容易失去对比。</p>\n<p>下面是模板中的两处摘录，分别属于不同文件。SVG 的路径数据省略了，不能把这段摘录当成完整 SVG 文件。</p>\n<pre><code># theme.conf.tpl：选中候选的文字色\nHighlightCandidateColor={{colors.on_primary.light.hex}}\n\n# highlight.svg.tpl：高亮素材中的填充色\n&lt;path fill=&quot;{{colors.primary.light.hex}}&quot; d=&quot;...&quot; /&gt;</code></pre>\n<p>浅色主题固定取 <code>light</code>，深色主题固定取 <code>dark</code>，就能一次生成成对主题。<code>default</code> 则跟随本次选择的模式；若本来要维护一浅一深两套文件，却都用 default，两个输出就可能取到同一模式。当前项目模板采用明确分支，形状与非动态布局则维持原有结构。<a class=\"ref\" href=\"https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/templates/mellow-matugen/theme.conf.tpl\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<p>登记输出时，不能只注册 theme.conf 而漏掉 highlight.svg。下面四段 TOML 分别登记两套主题的两个产物；所有 <code>/path/to/...</code> 都是待替换的绝对路径，应指向实际模板位置与可写运行主题目录。</p>\n<pre><code>[templates.fcitx5-light-theme]\ninput_path = &quot;/path/to/templates/mellow-matugen/theme.conf.tpl&quot;\noutput_path = &quot;/path/to/themes/mellow-matugen/theme.conf&quot;\n\n[templates.fcitx5-light-highlight]\ninput_path = &quot;/path/to/templates/mellow-matugen/highlight.svg.tpl&quot;\noutput_path = &quot;/path/to/themes/mellow-matugen/highlight.svg&quot;\n\n[templates.fcitx5-dark-theme]\ninput_path = &quot;/path/to/templates/mellow-matugen-dark/theme.conf.tpl&quot;\noutput_path = &quot;/path/to/themes/mellow-matugen-dark/theme.conf&quot;\n\n[templates.fcitx5-dark-highlight]\ninput_path = &quot;/path/to/templates/mellow-matugen-dark/highlight.svg.tpl&quot;\noutput_path = &quot;/path/to/themes/mellow-matugen-dark/highlight.svg&quot;</code></pre>\n<p>Matugen 的模板登记负责把同一调色方案渲染到各输出。下面是从图片生成的示例，需先准备好配置与可写输出目录：<a class=\"ref\" href=\"https://github.com/InioX/matugen/blob/main/example/config.toml\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p>\n<pre><code>matugen image /path/to/wallpaper.png -m dark -t scheme-content</code></pre>\n<p>生成后先读文件：theme.conf 是否仍残留花括号占位符，highlight.svg 的填充色是否实际变化，浅深两套是否分别取了正确角色。配置里有正确颜色，与 Fcitx 已经加载这份配置，仍是两个检查点。</p>\n<h2 id=\"runtime\">不可变输入与可写输出，需要两个位置</h2>\n<p>Nix 包可以把主题与模板安装到 store 中作为固定输入，但 Matugen 不能把动态结果直接写进不可变 store。Home Manager 模块为运行主题准备可写副本，模板输入则可以继续来自包提供的文件。</p>\n<p>下面的片段要求项目已作为名为 <code>fcitx5-matugen-theme</code> 的 flake input，并且 <code>inputs</code> 已传入相应 Home Manager 模块。它展示该项目的接口，不涉及自动执行系统激活。</p>\n<pre><code># 已将项目作为 flake input，并将 inputs 参数传给模块时\nimports = [ inputs.fcitx5-matugen-theme.homeManagerModules.default ];\nprograms.fcitx5-matugen = {\n  enable = true;\n  themeSet = &quot;both&quot;;\n  style = &quot;blur&quot;;\n  installMatugenTemplates = true;\n  installRuntimeThemes = true;\n};</code></pre>\n<p>ClassicUI 随后需要选择实际主题目录名。下面是配置键摘录，应合并进现有受管理配置；其中并没有额外的 section 标题。</p>\n<pre><code>Theme=mellow-matugen\nDarkTheme=mellow-matugen-dark\nUseDarkTheme=True</code></pre>\n<p>在本文固定的项目版本中，Home Manager 每次激活会重新复制运行主题。因此，可写并不代表保留上一次生成结果：完成激活后，还需要按自己的流程重新生成动态颜色。若不清楚这层覆盖关系，就会把“激活刷新了素材”误诊为 Matugen 随机失效。<a class=\"ref\" href=\"https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/home-manager.nix\" target=\"_blank\" rel=\"noopener noreferrer\">[7]</a></p>\n<p>还要区分主题确实被生成、配置确实指向它、运行中的 ClassicUI 确实加载它。多个同名主题来源、浅深主题选项和更新时机，都可能使屏幕上的结果与刚查看的文件不同。</p>\n<h2 id=\"blur\">模糊蒙版也继承素材的几何约束</h2>\n<p>相关源码构造模糊蒙版配置时，会复制背景配置，再替换蒙版图像并清除叠加图。也就是说，背景切片边距会参与蒙版处理，蒙版并不是脱离背景几何规则的另一张任意图片。素材尺寸与圆角区域应一起核对。<a class=\"ref\" href=\"https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp#L1070-L1075\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>蒙版描述请求模糊的区域，最终效果还依赖 compositor 支持、相关协议以及用户配置。面板透明、蒙版文件存在，都不能单独证明桌面模糊已经生效。检查时应把主题图像渲染与 compositor 模糊分开观察。</p>\n<h2 id=\"inspect\">按产物定位问题，再检查整个候选窗</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"主题链路排查\"><table><thead><tr><th scope=\"col\">现象</th><th scope=\"col\">优先核对</th></tr></thead><tbody><tr><td>圆角或边框异常</td><td>固有尺寸、切分线、中心是否有面积</td></tr><tr><td>文字位置不合适</td><td>TextMargin、ContentMargin 及面板与菜单各自参数</td></tr><tr><td>文字变色，高亮仍旧</td><td>highlight.svg 是否登记、生成并被当前主题读取</td></tr><tr><td>生成时报写入失败</td><td>输出是否指向 store、目录是否可写</td></tr><tr><td>生成正确，屏幕仍旧</td><td>当前选中的主题、浅深选项与加载时机</td></tr><tr><td>激活后恢复初始配色</td><td>运行副本是否被刷新，是否需要重新生成</td></tr><tr><td>透明却没有模糊</td><td>蒙版几何、compositor 支持与配置</td></tr></tbody></table></div>\n<p>视觉验收应覆盖短候选、长候选、不同缩放、浅深主题和菜单。代码检查能排除无效切片与缺失产物，不能代替实际渲染；本文的九宫格图是机制示意，不是运行截图。</p>\n<p>维护上还存在一个容易遗漏的地方：基础配置与浅深模板里重复的非动态布局字段，需要同步调整。若长期维护多个变体，可以把布局提取为共同来源，再生成各份配置；这是减少重复的改进方向，并不表示当前项目已经完成这一重构。把动态色与固定布局的责任分清，之后改动才不会互相覆盖。</p>",
   "refs": [
     [
-      "Fcitx 5 官方主题文档",
+      "主题项目结构与使用说明（固定版本）",
+      "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/README.md"
+    ],
+    [
+      "Fcitx ClassicUI 绘制与蒙版源码",
+      "https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp"
+    ],
+    [
+      "Fcitx 5 官方主题格式",
       "https://fcitx-im.org/wiki/Fcitx_5_Theme"
     ],
     [
-      "Fcitx 维护者对零面积中心的说明",
+      "零面积切片的维护者说明",
       "https://github.com/fcitx/fcitx5/issues/1659#issuecomment-5564443731"
     ],
     [
-      "ClassicUI 切片与 SVG 加载源码（固定版本）",
-      "https://github.com/fcitx/fcitx5/blob/d82ac1100ee2d125ed61df7c5c287028354bc528/src/ui/classic/theme.cpp"
+      "主题的 Matugen 模板",
+      "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/templates/mellow-matugen/theme.conf.tpl"
+    ],
+    [
+      "Matugen 模板登记示例",
+      "https://github.com/InioX/matugen/blob/main/example/config.toml"
+    ],
+    [
+      "主题 Home Manager 模块（固定版本）",
+      "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/home-manager.nix"
     ]
   ],
-  "date": "2026-10-07",
+  "date": "2026-10-08",
   "kind": "技术笔记整理",
   "related_work": [
     "mellow-matugen"

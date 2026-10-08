@@ -88,6 +88,7 @@
 .reading-page .article-layout{padding-top:60px;padding-bottom:70px;grid-template-columns:190px minmax(0,740px);gap:75px}
 .reading-page .article-toc summary{font:10px/1.8 var(--mono);letter-spacing:.03em}.reading-page .article-toc nav{gap:18px}
 .reading-page .article-toc nav a{font-size:12px}.reading-page .article-toc .reading-status>span{margin:0;color:#a73b24}
+@media(min-width:761px){.reading-page .article-toc{max-height:calc(100dvh - 132px);overflow-y:auto;scrollbar-width:thin;padding-right:8px}}
 .reading-page .prose{max-width:none;font-size:17px;line-height:1.95}
 .reading-page .prose h2{font-size:28px;margin-top:54px;margin-bottom:24px;line-height:1.5;letter-spacing:-.025em}
 .reading-page .prose .article-lead{font-size:21px;line-height:1.9;padding-bottom:34px;margin-bottom:38px}

@@ -3,49 +3,69 @@
   "number": "006",
   "category": "CONTAINERS / DISTROBOX",
   "title": "Distrobox 导出的，到底是什么？",
-  "deck": "桌面图标和命令出现在宿主机，程序仍然在哪里运行？",
+  "deck": "完整走过 GUI 与 CLI 导出、参数、包装脚本、共享路径、排障和撤销入口。",
   "sections": [
     [
       "entry",
-      "出现在桌面上的，是入口"
+      "两种入口，同一个来源容器"
+    ],
+    [
+      "gui",
+      "先导出 GUI，再看生成的实际文件"
+    ],
+    [
+      "desktop",
+      "Desktop Entry 改了什么"
+    ],
+    [
+      "options",
+      "参数要分清：传给应用，还是传给进入过程"
     ],
     [
       "paths",
-      "图标与命令走两条路"
+      "CLI 导出后，先用完整路径验证"
+    ],
+    [
+      "wrapper",
+      "包装脚本会按所在环境选择执行路径"
     ],
     [
       "shared",
-      "文件可见，不代表环境相同"
+      "共享 home，改变的是数据路径的判断"
+    ],
+    [
+      "diagnose",
+      "打不开时，把入口与程序分别验证"
     ],
     [
       "remove",
-      "取消导出，取消了什么"
+      "撤销入口，与卸载应用分开处理"
     ]
   ],
-  "body": "<p class=\"article-lead\">容器里装好的应用出现在宿主启动器中，点开就能用，很容易让人以为它已经被装到了宿主。要弄清它依赖哪里、该去哪里排障，可以从启动入口一路往里追。</p>\n<h2 id=\"entry\">出现在桌面上的，是入口</h2>\n<p>Distrobox 的导出把容器中的应用接到宿主桌面或命令行。桌面模式处理启动条目与图标，命令行模式生成包装脚本；导出本身不会把应用连同整套依赖转换成宿主机的软件包。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-export/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"session-flow\"><div><small>HOST / 宿主入口</small><strong>桌面条目，或命令包装器</strong><p>决定用户从哪里发起启动。</p></div><span class=\"flow-label\">通过 Distrobox 进入来源容器</span><div><small>CONTAINER / 执行目标</small><strong>容器内的应用程序</strong><p>程序及其容器内安装的依赖仍属于这个环境。</p></div></div>\n<p>理解这条路径后，排障顺序就清楚了：入口是否存在、它指向哪个容器、容器里的命令能否运行。这三件事需要分别确认。<code>distrobox enter</code> 正是进入指定容器并执行命令的入口。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-enter/\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<h2 id=\"paths\">图标与命令走两条路</h2>\n<p>下面用 <code>gedit</code> 和 <code>jq</code> 作示意，假设它们已经安装在容器内，前者有桌面条目，后者位于 <code>/usr/bin/jq</code>。示例采用默认共享 home；执行前应确认宿主没有会冲突的同名导出入口。</p>\n<pre><code># 在容器内：导出桌面入口\ndistrobox-export --app gedit\n\n# 在容器内：导出命令包装器\ndistrobox-export --bin /usr/bin/jq --export-path ~/.local/bin</code></pre>\n<p>第一条让宿主启动器获得改写后的桌面入口。第二条在指定位置生成 wrapper；从宿主调用这个 wrapper 时，再进入来源容器执行 <code>jq</code>。这些是文档与源码核对过的写法，本文没有运行容器实验。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-export/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<p>导出不等于自动配置 PATH。先从宿主使用明确路径 <code>~/.local/bin/jq</code>，可以避免把导出成功和命令查找混在一起。若想直接输入 <code>jq</code>，还要确认该目录在宿主 PATH 中，并检查 <code>command -v jq</code> 实际命中了哪个入口。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<h2 id=\"shared\">文件可见，不代表环境相同</h2>\n<p>Distrobox 默认与宿主紧密集成，包括共享 home 和连接桌面资源。因此，应用可以打开同一份文件，并不意味着它使用的是同一套安装环境。这种便利也意味着它不适合被当作运行不可信程序的安全沙箱。<a class=\"ref\" href=\"https://distrobox.it/#security-implications\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>如果创建容器时设置了 <code>--home</code>，容器里的 <code>~</code> 就不能直接当成宿主 home。此时要重新确认导出目录实际落在哪里；上面的默认路径示例不能不加判断地照搬。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-create/\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<p>遇到“能打开窗口，但行为不同”，可以分别检查容器中的程序与依赖、双方能访问的文件，以及桌面或设备集成。只确认某个目录可见，还不足以解释整条运行路径。</p>\n<h2 id=\"remove\">取消导出，取消了什么</h2>\n<p>对应的取消导出操作仍在同一个容器内执行。CLI 使用原来的目标目录：</p>\n<pre><code># 在来源容器内：取消桌面导出\ndistrobox-export --app gedit --delete\n\n# 在来源容器内：取消命令导出\ndistrobox-export --bin /usr/bin/jq --export-path ~/.local/bin --delete</code></pre>\n<p><code>--delete</code> 不会卸载容器里的软件，也不删除容器。稳定版 1.8.2.5 的 GUI 清理还涉及图标和同名桌面条目，不能把它理解成“只删除眼前这一枚图标”；使用前应核对已有的同名入口。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<blockquote>宿主上的入口、容器里的软件、两边可访问的数据，分别有自己的生命周期。</blockquote>\n<p>准备清理时，先说清要撤掉哪一层。撤掉入口之后仍能从容器内启动程序，并不矛盾；程序是否保留、数据是否保留，需要各自作决定。</p>",
+  "body": "<p class=\"article-lead\">把容器里的应用导出后，桌面多了一个图标，终端也能直接输入命令。但程序并没有搬到宿主机上：导出建立的是进入原容器的入口。看清入口、执行环境和数据这三层，才能解释“图标有了却打不开”“同名命令跑错版本”等问题。</p>\n<h2 id=\"entry\">两种入口，同一个来源容器</h2>\n<p><code>distrobox-export</code> 的常用对象有两类：GUI 应用导出桌面条目及相关图标，CLI 工具导出包装脚本。点击图标或执行脚本时，再把调用接回来源容器。软件包及其大部分运行依赖仍留在容器内。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-export/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"concept-strip\"><div><small>01 / HOST</small><strong>图标或命令入口</strong></div><div><small>02 / ENTER</small><strong>进入来源容器</strong></div><div><small>03 / APPLICATION</small><strong>执行已安装程序</strong></div></div>\n<p>这里以 Distrobox 1.8.2.5 的导出脚本说明细节。示例假设 Distrobox、来源容器和目标程序已经准备好；<code>arch-dev</code> 只是容器名示例。所有命令都标出执行位置，不能在宿主机和容器中不加区分地粘贴。</p>\n<p>导出也不会把容器变成隔离沙箱。Distrobox 为桌面与开发体验共享较多宿主资源，应用可访问哪些数据，需要按实际挂载、home 配置与权限判断。桌面入口看起来像原生应用，不会改变这些边界。<a class=\"ref\" href=\"https://distrobox.it/#security-implications\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<h2 id=\"gui\">先导出 GUI，再看生成的实际文件</h2>\n<p>先从宿主进入准备好的容器：</p>\n<pre><code># 宿主机\ndistrobox enter arch-dev</code></pre>\n<p>在来源容器内，确认应用已经安装，并且有有效的 Desktop Entry。导出可以按应用名查找，也可以明确给出 desktop 文件的绝对路径；名称不必机械等同于 PATH 中的可执行文件名。</p>\n<pre><code># 来源容器：按应用名导出，附带便于识别的标签\ndistrobox-export --app gedit --export-label &quot;(Dev)&quot;\n\n# 或者改用实际的 desktop 文件路径；与上一种是二选一\ndistrobox-export --app /usr/share/applications/org.gnome.gedit.desktop\n\n# 查看当前来源容器导出的应用\ndistrobox-export --list-apps</code></pre>\n<p>标签只帮助人在启动器里辨认来源，不会为应用建立新的数据隔离。多个容器都导出同一款软件时，清楚的容器名与标签能减少误点；仍应检查实际条目，确认它进入哪个容器。</p>\n<h2 id=\"desktop\">Desktop Entry 改了什么</h2>\n<p>该版本通常按“容器名 + 原 desktop 文件名”的方式生成带前缀的条目，例如源文件 <code>org.example.Editor.desktop</code> 对应带来源容器前缀的文件。不要凭“应用名加容器名”的猜测拼路径，应从导出结果或列表找到实际文件。</p>\n<p>导出脚本会改写 Exec，使应用经由进入容器的命令启动，并处理额外参数和 desktop 的字段占位符。它还移除不适合宿主直接验证的 TryExec，以及 <code>DBusActivatable=true</code> 这类会让启动绕过预期 Exec 路径的设置，并处理图标引用与复制。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export#L324-L338\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>这解释了为什么手工把容器内的 desktop 文件原样复制出来，未必能得到正确入口：宿主可能找不到相同命令和图标，或者走进另一条启动机制。排查时应读产物中的 Exec 和 Icon，而不是只看启动器显示的名字。</p>\n<pre><code># 宿主机：替换为实际导出的文件路径\nsed -n &#x27;1,160p&#x27; /path/to/exported.desktop\ndesktop-file-validate /path/to/exported.desktop\n\n# 会启动应用，用于验证这个入口\ngio launch /path/to/exported.desktop</code></pre>\n<p>这里需要对应工具已安装。语法校验只能发现 Desktop Entry 的格式问题，不能证明容器内程序能够运行；通过 gio 启动测试的也是入口，最终还要观察应用结果。<code>update-desktop-database</code> 主要维护 MIME 关联缓存，并不是所有桌面启动器通用的“强制刷新图标”按钮。</p>\n<h2 id=\"options\">参数要分清：传给应用，还是传给进入过程</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"Distrobox 导出参数\"><table><thead><tr><th scope=\"col\">参数</th><th scope=\"col\">用途与边界</th></tr></thead><tbody><tr><td><code>--app / -a</code></td><td>导出应用，接受应用名或相应 desktop 路径</td></tr><tr><td><code>--bin / -b</code></td><td>导出可执行文件，使用容器内的绝对路径</td></tr><tr><td><code>--export-path / -ep</code></td><td>指定 CLI 包装脚本的宿主目标目录，不是 GUI 图标输出目录</td></tr><tr><td><code>--export-label / -el</code></td><td>为 GUI 条目设置标签；none 可禁用标签</td></tr><tr><td><code>--extra-flags / -ef</code></td><td>附加给应用的参数</td></tr><tr><td><code>--enter-flags / -nf</code></td><td>附加给进入容器过程的参数</td></tr><tr><td><code>--sudo / -S</code></td><td>请求以容器内相应特权身份执行，不等于为宿主安装程序</td></tr><tr><td><code>--list-apps</code></td><td>列出导出的应用</td></tr><tr><td><code>--list-binaries</code></td><td>列出导出的命令；自定义目录需带对应 export-path</td></tr><tr><td><code>--delete / -d</code></td><td>撤销对应导出</td></tr></tbody></table></div>\n<p>例如，已安装的 vim 支持以标签页打开文件时，可以把 <code>-p</code> 放进应用参数；下面依旧是在来源容器中执行，目标目录需要存在。</p>\n<pre><code>distrobox-export --bin /usr/bin/vim \\\n  --export-path &quot;$HOME/.local/bin&quot; \\\n  --extra-flags &quot;-p&quot;</code></pre>\n<p>在本文固定的脚本版本里，重复给出 <code>--extra-flags</code> 会覆盖此前赋值，而不是逐次追加。多个参数应按该选项接受的方式合在同一个值里，并检查最终产物。应用自身是否支持某个选项，要看对应程序；不能把某个 Electron 应用的启动经验推广成所有应用都必须带同一套参数。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export#L164-L181\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>这个版本的导出动作围绕应用、二进制与列表展开，并不提供 <code>--service</code> 导出 systemd 服务。需要跨环境管理服务时，应单独设计服务的生命周期，不应套用不存在的参数。</p>\n<h2 id=\"paths\">CLI 导出后，先用完整路径验证</h2>\n<p>下面假设容器使用默认共享 home，且 <code>$HOME/.local/bin</code> 已存在。在来源容器中，将 jq 的实际绝对路径导出：</p>\n<pre><code># 来源容器\ndistrobox-export --bin /usr/bin/jq --export-path &quot;$HOME/.local/bin&quot;\ndistrobox-export --list-binaries --export-path &quot;$HOME/.local/bin&quot;</code></pre>\n<p>回到宿主后，先明确执行生成的包装脚本，再检查不带路径时会命中什么：</p>\n<pre><code># 宿主机\n&quot;$HOME/.local/bin/jq&quot; --version\ncommand -v jq\ntype -a jq\nsed -n &#x27;1,120p&#x27; &quot;$HOME/.local/bin/jq&quot;</code></pre>\n<p>完整路径能够排除 PATH 查找顺序的干扰。宿主也安装 jq 时，直接输入 jq 可能仍运行宿主版本，也可能先命中包装脚本；取决于实际 PATH、别名等环境，不能说“导出必然覆盖宿主命令”。读包装脚本还能确认来源容器和参数转发方式。</p>\n<p>多个容器导出同名工具时，最好提前安排不同目标子目录，再决定是否以及如何加入 PATH。这样可以明确选择来源，避免同一路径上的包装脚本被后一次导出替换。</p>\n<h2 id=\"wrapper\">包装脚本会按所在环境选择执行路径</h2>\n<p>该版本生成的脚本按 <code>CONTAINER_ID</code> 区分调用环境：在宿主运行时进入来源容器；从其他容器调用时，先借助 host-exec 回到宿主，再进入来源容器；已经在来源容器中时则直接调用目标程序。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export#L624-L709\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"CLI 包装脚本的执行分支\"><table><thead><tr><th scope=\"col\">调用位置</th><th scope=\"col\">调用走向</th></tr></thead><tbody><tr><td>宿主</td><td>包装脚本 → 进入来源容器 → 目标程序</td></tr><tr><td>其他容器</td><td>包装脚本 → host-exec → 宿主进入来源容器 → 目标程序</td></tr><tr><td>来源容器本身</td><td>包装脚本 → 容器内目标程序</td></tr></tbody></table></div>\n<p>这是对官方生成逻辑的说明，不建议据此手写一个只剩一行的替代 wrapper。实际脚本还需要处理参数、进入方式等细节。若行为异常，直接检查当前生成文件，比拿教程里的伪代码与本机猜测对照更可靠。</p>\n<h2 id=\"shared\">共享 home，改变的是数据路径的判断</h2>\n<p>默认共享 home 时，应用可能直接读写宿主的同一份配置和文档。这带来便利，也意味着两个容器中的不同程序版本可能接触同一份状态；“在不同容器里”不自动等于“使用不同应用配置”。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-create/\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>如果创建容器时使用自定义 home，容器中的 <code>~</code> 就不该直接当作宿主 home。导出目录尤其需要确认：预期放在宿主 PATH 中的脚本，不能仅凭容器内的路径外观判断位置。可以先读取 Distrobox 提供的宿主 home 信息：</p>\n<pre><code># 来源容器：只查看路径，再据实际挂载确定导出位置\nprintf &#x27;%s\\n&#x27; &quot;$DISTROBOX_HOST_HOME&quot;</code></pre>\n<p>进一步诊断文件找不到时，应同时问：哪个环境在解析路径，传入的是绝对还是相对路径，对应文件是否在该环境可见。导出入口负责衔接启动，并不把所有程序数据同步到一套新的目录。</p>\n<h2 id=\"diagnose\">打不开时，把入口与程序分别验证</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"导出后的排查顺序\"><table><thead><tr><th scope=\"col\">现象</th><th scope=\"col\">先验证什么</th><th scope=\"col\">后续方向</th></tr></thead><tbody><tr><td>启动器里找不到条目</td><td>导出是否成功，实际 desktop 文件及语法</td><td>启动器的发现范围与刷新机制</td></tr><tr><td>有图标但窗口打不开</td><td>产物中的 Exec、来源容器和应用输出</td><td>容器内依赖、显示与桌面集成</td></tr><tr><td>CLI 版本不符合预期</td><td>完整包装脚本路径、command -v、type -a</td><td>PATH 顺序、同名脚本及来源容器</td></tr><tr><td>程序能开但文件找不到</td><td>参数路径由哪个环境解析</td><td>挂载、home 和应用实际访问位置</td></tr></tbody></table></div>\n<p>如果怀疑 GUI 导出入口有问题，可以从宿主直接进入容器启动相同应用，观察终端输出。它会启动程序，不是只读查询；容器名和程序应使用实际值。</p>\n<pre><code># 宿主机\ndistrobox enter arch-dev -- gedit</code></pre>\n<p>若直接启动也失败，先解决程序或容器集成问题；若直接启动成功而导出失败，再比较生成条目传入的参数和环境。<code>distrobox enter</code> 是进入来源的这一层，应用自己的错误则需按其日志继续诊断。<a class=\"ref\" href=\"https://distrobox.it/usage/distrobox-enter/\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<h2 id=\"remove\">撤销入口，与卸载应用分开处理</h2>\n<p>撤销导出应回到原来源容器，使用原来的应用或二进制路径。CLI 采用自定义导出目录时，也要带上同一个 export-path。</p>\n<pre><code># 原来源容器；各行对应各自的导出对象\ndistrobox-export --app gedit --delete\ndistrobox-export --bin /usr/bin/jq \\\n  --export-path &quot;$HOME/.local/bin&quot; \\\n  --delete</code></pre>\n<p>先通过列表确认目标，再执行对应删除。GUI 清理还涉及 desktop 与图标；该脚本有处理原文件名条目的逻辑，因此有同名宿主入口时应先核对，不能承诺它绝不会影响任何同名文件。<a class=\"ref\" href=\"https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export#L546-L599\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<p>撤销入口不会等同于卸载容器中的软件，也不会等同于删除容器或个人数据。计划移除一个容器前，可以先整理其导出入口；移除后若发现残留，也应逐项核对来源再清理。把入口生命周期单独记清，宿主桌面与 PATH 才不会慢慢积累失效指针。</p>",
   "refs": [
     [
-      "Distrobox 官方导出文档",
+      "Distrobox 导出官方说明",
       "https://distrobox.it/usage/distrobox-export/"
     ],
     [
-      "Distrobox enter 文档",
-      "https://distrobox.it/usage/distrobox-enter/"
-    ],
-    [
-      "导出与清理实现（1.8.2.5）",
+      "Distrobox 1.8.2.5 导出实现",
       "https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export"
     ],
     [
-      "Distrobox 的共享与安全边界",
-      "https://distrobox.it/#security-implications"
+      "Distrobox enter",
+      "https://distrobox.it/usage/distrobox-enter/"
     ],
     [
-      "自定义容器 home",
+      "Distrobox create 与 home 配置",
       "https://distrobox.it/usage/distrobox-create/"
+    ],
+    [
+      "Distrobox 安全与共享边界",
+      "https://distrobox.it/#security-implications"
     ]
   ],
-  "date": "2026-10-07",
+  "date": "2026-10-08",
   "kind": "技术笔记整理",
   "related_work": []
 }

@@ -3,37 +3,61 @@
   "number": "003",
   "category": "WAYLAND / ARCHITECTURE",
   "title": "登录之后，谁来接管桌面？",
-  "deck": "拆开 greetd、greeter 和 uwsm 各自负责的那一层。",
+  "deck": "从认证、会话条目到环境、自启动与注销，沿着一次登录追踪各层如何交接。",
   "sections": [
     [
       "login",
-      "先把登录界面拆开"
+      "先拆开登录服务和登录界面"
+    ],
+    [
+      "greeter",
+      "换界面，究竟换了哪一层"
     ],
     [
       "session",
-      "桌面启动，是另一段流程"
+      "uwsm 接手的是图形会话"
     ],
     [
-      "boundary",
-      "用交接关系理解组件"
+      "entry",
+      "真正的衔接点是启动命令"
     ],
     [
-      "choices",
-      "把两个选择分开"
+      "environment",
+      "桌面已出现，环境仍可能没交接完"
+    ],
+    [
+      "autostart",
+      "自启动不是一个 target 的魔法"
+    ],
+    [
+      "diagnose",
+      "沿着交接点读配置与日志"
     ]
   ],
-  "body": "\n        <p class=\"article-lead\">换了登录界面，是否也要换会话管理器？先沿着一次登录的过程走一遍，答案会清楚很多。</p>\n        <h2 id=\"login\">先把登录界面拆开</h2>\n        <p>在 greetd 的组合里，后台服务与用户看见的界面是分开的。greetd 负责登录服务和启动会话；greeter 提供交互，通过协议与服务交换认证信息，并请求启动选定的命令。</p>\n        <p>greeter 可以是图形界面，也可以在终端中显示。界面看起来不同，不代表底层登录机制必须重写。认证的处理也不能简单归为“界面自己检查密码”：greeter 参与交互，认证流程由服务端处理。</p>\n        <p>至于是否列出会话、从哪里读取会话条目、怎样记住选择，要看具体 greeter 的功能与配置。不能从“它使用 greetd”直接推断这些行为。</p>\n        <h2 id=\"session\">桌面启动，是另一段流程</h2>\n        <p>认证成功并不意味着整个图形会话已经被妥善管理。compositor 启动后，环境变量怎样传递、应用如何自启动、注销时哪些进程需要结束，仍然需要有人组织。</p>\n        <p>uwsm 面向独立的 Wayland compositor，用 systemd 用户单元管理图形会话。它处理环境准备与清理、自启动，以及会话的启动和关闭关系；它本身并不提供密码登录界面。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n        <h2 id=\"boundary\">用交接关系理解组件</h2>\n        <div class=\"session-flow\"><div><small>交互与登录</small><strong>greeter + greetd</strong><p>显示界面、交换认证信息、请求并启动会话命令</p></div><span class=\"flow-label\">通过正确配置的启动命令交接</span><div><small>图形会话生命周期</small><strong>uwsm + systemd</strong><p>组织环境、compositor、自启动与退出清理</p></div><span class=\"flow-label\">运行桌面与应用</span><div><small>窗口与显示</small><strong>Wayland compositor</strong><p>例如 Hyprland 或 niri</p></div></div>\n        <p>这是职责示意，不是每个发行版都完全一致的进程树。uwsm 可以读取 Wayland 会话的 Desktop Entry，也可以被会话条目的启动命令调用。两边接上的关键，是登录端实际启动了什么。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm#concepts-and-features\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n        <h2 id=\"choices\">把两个选择分开</h2>\n        <p>想改变登录画面时，先检查登录服务和 greeter。想改善环境传递、自启动或注销清理时，再看图形会话的管理方式。它们处于相邻层，但解决的问题不同。</p>\n        <p>更换 greeter 后，原有 uwsm 启动方式有可能继续使用，前提是新组件能正确发现或配置相应会话命令。不要把“通常可以衔接”当成“任何组合都自动兼容”。</p>\n        <p>排障也可以沿着这条边界：是认证没有成功、会话命令没有启动，还是 compositor 已运行但环境不完整？把故障定位到具体一层，才知道该看谁的配置和日志。</p>\n        ",
+  "body": "<p class=\"article-lead\">换成终端风格的登录界面，要不要把桌面启动方式一起换掉？桌面能打开，为什么自启动和注销又不正常？这两类问题经常被混在一起，因为从输入密码到进入桌面，看起来只是一次动作，实际却经过了几次职责交接。</p>\n<h2 id=\"login\">先拆开登录服务和登录界面</h2>\n<p>在 greetd 的组合里，greetd 是后台登录服务，greeter 是用户看见并操作的界面。greetd 按配置启动 greeter；greeter 收集用户名，并与服务交换认证提示、用户回答和结果。界面负责呈现交互，服务端负责推进认证与会话流程。</p>\n<p>因此，“greeter 认证通过后把命令发过去”只是口语化描述。更准确的过程是：greeter 请求创建会话，greetd 发回需要回答的认证消息，greeter 把回答交回，直到认证成功；然后才请求启动所选命令。提示不一定只有一轮密码输入，界面不能假设认证永远只有一次问答。<a class=\"ref\" href=\"https://github.com/kennylevinsen/greetd/blob/master/man/greetd-ipc-7.scd\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<div class=\"session-flow\"><div><small>01 / INTERACT</small><strong>greeter 呈现登录交互</strong><p>显示认证提示、接收回答，提供具体实现支持的会话选择。</p></div><span class=\"flow-label\">通过 greetd IPC 交换认证消息和启动请求</span><div><small>02 / AUTHENTICATE</small><strong>greetd 组织登录流程</strong><p>处理认证和用户会话，接收通过认证后要启动的命令。</p></div><span class=\"flow-label\">执行选定的会话入口</span><div><small>03 / START</small><strong>会话管理器或桌面启动命令</strong><p>可以接到 uwsm，也可以接到桌面环境自己的启动流程。</p></div></div>\n<p>IPC 的 <code>start_session</code> 请求携带命令参数数组 <code>cmd</code> 与环境数组 <code>env</code>，并不是“命令名、独立 args 字段、环境”三件任意拼接的数据。配置 greeter 时通常不必自己构造协议，但理解这层边界有助于分清：身份是否验证成功，与最终是否启动了正确命令，是两个检查点。</p>\n<h2 id=\"greeter\">换界面，究竟换了哪一层</h2>\n<p>greetd 的 <code>default_session</code> 指默认启动的会话，通常就是登录界面。这里的 <code>user</code> 是运行 greeter 的账户，不是你随后在界面里选择登录的账户。把两个身份混在一起，会误读配置的作用。</p>\n<p>下面是结构示例：假设 tuigreet 和 sway 已安装、运行 greeter 的账户及服务由系统正确配置。它展示参数之间的关系，不是一份可以覆盖任意发行版现有配置的安装脚本。NixOS 等管理这些文件的系统，应使用对应模块表达配置。<a class=\"ref\" href=\"https://github.com/kennylevinsen/greetd/blob/master/man/greetd-5.scd\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<pre><code>[default_session]\ncommand = &quot;tuigreet --cmd sway&quot;\nuser = &quot;greeter&quot;</code></pre>\n<p>这里 greetd 启动的是 tuigreet；<code>--cmd sway</code> 是 tuigreet 提供的默认会话命令。前者决定登录界面怎么出现，后者决定登录之后启动什么。</p>\n<p>tuigreet 还可以读取会话目录中的 Desktop Entry，提供会话选择。它支持记住用户名、记住会话等不同选项；例如 <code>--remember</code> 与 <code>--remember-session</code> 不是同一件事。扫描目录、缓存权限和命令覆盖关系仍要按当前版本配置，不能仅凭“基于 greetd”就推断其他 greeter 也有同样行为。<a class=\"ref\" href=\"https://github.com/NotAShelf/tuigreet#sessions\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<p>选型时先区分两个动作：保留 greetd 而更换 greeter，是更换登录交互实现；改用自行组织登录流程的另一套登录管理器，则连后台登录服务也换了。后者还要重新核对服务、认证配置、会话发现和恢复入口，不能当作只换一个皮肤。</p>\n<h2 id=\"session\">uwsm 接手的是图形会话</h2>\n<p>登录成功之后，compositor 负责窗口与显示，但图形会话还包含其他工作：准备环境，把程序放进合适的 systemd 用户单元，组织自启动，以及退出时按依赖关系清理。uwsm 面向独立的 Wayland compositor，把这些工作接到 systemd 的用户管理器上；它不提供密码登录界面。</p>\n<p>这里至少有三个容易混淆的对象：systemd-logind 记录的登录会话、systemd 用户管理器中的单元，以及 compositor 显示出来的桌面。它们有联系，但不是三个名字指同一件事。一个登录会话可以启动图形会话，而用户管理器中的某些服务也可能早于桌面存在。</p>\n<p>uwsm 组织 compositor 单元、环境准备与就绪过程，并与图形会话相关 target 衔接。应用若经 <code>uwsm app</code> 启动，会得到相应的 systemd 管理方式；这里的进程与资源管理，不应被误读成对不可信程序的安全隔离。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm/blob/f82dece2cedf308c897513f093f45025fbfdda4f/README.md#concepts-and-features\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>对于本来就有完整会话管理器的桌面环境，不要先假定还需要再包一层 uwsm。应先遵循该桌面的启动方式，再判断是否有受支持的集成路径。选择 uwsm 的理由，应当是补足当前 compositor 组合的会话管理，而不是因为它与 greeter 出现在同一篇配置教程里。</p>\n<h2 id=\"entry\">真正的衔接点是启动命令</h2>\n<p>登录界面列出的会话名称，并不能证明它启动的是哪一层。关键是所选条目的 <code>Exec</code> 最终执行什么。uwsm 官方文档给出了通过 Desktop Entry 接入显示管理器的方式；下面用通用名称保留这个结构：</p>\n<pre><code>[Desktop Entry]\nName=Example compositor (UWSM)\nType=Application\nTryExec=uwsm\nExec=uwsm start -- example-compositor.desktop\nDesktopNames=example;</code></pre>\n<p>这里假设另有一个真正启动 compositor 的 <code>example-compositor.desktop</code>。外层条目应使用不同文件名，不能指向自己，也不能再引用一个已经包了 uwsm 的条目，否则会把启动层重复包进去。示例中的 compositor 名称需替换为实际安装且受支持的入口。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm/blob/f82dece2cedf308c897513f093f45025fbfdda4f/README.md#from-a-display-manager\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>条目放在哪里还取决于登录端如何发现会话。常见路径位于数据目录下的 <code>wayland-sessions</code>，但具体 greeter 可以配置自己的扫描目录。即使文件已经存在，新登录界面没有扫描到那个目录，也不会凭空列出它。</p>\n<p>所以，“换 greeter 与选 uwsm 可以分别决定”是一种架构上的分工，并不意味着任意组合都自动兼容。替换登录界面后，至少重新核对条目能否被发现、命令参数是否被正确传递，以及所需环境是否可用。</p>\n<h2 id=\"environment\">桌面已出现，环境仍可能没交接完</h2>\n<p>在终端里执行 <code>export</code> 会影响该进程后续启动的子进程；这并不自动修改一个早已运行的 systemd 用户管理器的激活环境。于是，同一个应用从终端打开正常，从服务或自动启动入口打开却失败，是值得沿环境传递链检查的线索。</p>\n<p>Wayland compositor 启动后才能确定的一些变量，需要交给后续应用使用。uwsm 文档特别讨论了 <code>WAYLAND_DISPLAY</code>、可能存在的 <code>DISPLAY</code> 和就绪通知；某些 compositor 已完成所需集成，另一些需要在其启动流程的合适位置执行 <code>uwsm finalize</code>。不要在不了解现有集成的情况下重复导入整份环境。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm/blob/f82dece2cedf308c897513f093f45025fbfdda4f/README.md#2-service-startup-notification-and-vars-set-by-compositor\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>从 kmscon 启动图形会话时，还多了一层终端与图形会话的交接。那属于控制台与图形程序之间的终端、显示资源交接，不能只靠更换 greeter 解释。排查黑屏时，应先确认登录端、启动端和图形端的实际组合，再查对应日志；“黑屏一定是 DRM master 未释放”这样的单一根因判断并不成立。</p>\n<h2 id=\"autostart\">自启动不是一个 target 的魔法</h2>\n<p><code>graphical-session.target</code> 用来表达图形会话的生命周期关系，但它的 active 状态不能独自证明所有应用已就绪。XDG 自启动还涉及条目生成、依赖拉起、环境准备和条目条件。</p>\n<p>在 systemd 这条路径上，<code>systemd-xdg-autostart-generator</code> 将符合条件的 Desktop Entry 转换为用户服务，再由桌面会话接入 <code>xdg-desktop-autostart.target</code>。条目中的 <code>Hidden</code>、<code>OnlyShowIn</code>、<code>NotShowIn</code> 或 <code>TryExec</code> 等条件都可能影响是否启动。<a class=\"ref\" href=\"https://www.freedesktop.org/software/systemd/man/latest/systemd-xdg-autostart-generator.html\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<p>这也是为什么“输入法没自启动，所以肯定没走 uwsm”过于武断。条目可能没生成，生成后可能没有被拉起，也可能已经启动却因环境或程序错误退出。应先确定失败发生在哪一步，再决定修改谁。</p>\n<h2 id=\"diagnose\">沿着交接点读配置与日志</h2>\n<p>下面是一组观察用命令，需要相应工具和读取日志的权限。单元名称可能随安装组合不同而变化；先列出实际名称，再针对目标看日志。不要把示例中的名字直接当作本机一定存在的服务。</p>\n<pre><code>systemctl status greetd.service\njournalctl -b -u greetd.service --no-pager\n\nsystemctl --user status graphical-session.target\nsystemctl --user status xdg-desktop-autostart.target\nsystemctl --user list-units --all &#x27;wayland-*&#x27; &#x27;app-*@autostart.service&#x27;\nsystemctl --user --failed\n\n# 在列出的实际服务名上继续检查\njournalctl --user -b -u example.service --no-pager</code></pre>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"登录与会话排查顺序\"><table><thead><tr><th scope=\"col\">现象</th><th scope=\"col\">先确认什么</th><th scope=\"col\">不要直接下的结论</th></tr></thead><tbody><tr><td>看不到登录界面</td><td>greetd 服务、greeter 命令及运行身份</td><td>compositor 配置一定坏了</td></tr><tr><td>认证后又回到登录界面</td><td>认证结果、最终会话命令及退出日志</td><td>一定是密码错误</td></tr><tr><td>找不到预期桌面选项</td><td>会话条目、扫描目录和 TryExec 条件</td><td>桌面软件没有安装</td></tr><tr><td>桌面能显示，自启动失败</td><td>条目生成、target 依赖、环境及服务错误</td><td>一定要重新安装登录管理器</td></tr><tr><td>注销后下一次启动受阻</td><td>旧会话与相关用户单元是否仍存活</td><td>先把所有用户进程一并结束</td></tr></tbody></table></div>\n<p>若需要退出由 uwsm 管理的会话，应按其退出机制处理；<code>uwsm stop</code> 会结束图形会话相关单元，可能使绑定的登录会话一并结束，执行前要保存工作。它不是只读排查命令，也不应被放进自动尝试的修复循环。<a class=\"ref\" href=\"https://github.com/Vladimir-csp/uwsm/blob/f82dece2cedf308c897513f093f45025fbfdda4f/README.md#how-to-stop\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>把这条链读清楚之后，选择就具体了：想换登录外观，调整登录交互；想改变会话启动，检查 Desktop Entry 和启动命令；想解决自启动或退出清理，检查会话依赖与环境。每次改动都能对应到一个明确的交接点。</p>",
   "refs": [
     [
-      "uwsm 项目文档",
-      "https://github.com/Vladimir-csp/uwsm"
+      "greetd IPC 协议",
+      "https://github.com/kennylevinsen/greetd/blob/master/man/greetd-ipc-7.scd"
     ],
     [
-      "greetd 项目与手册",
-      "https://sr.ht/~kennylevinsen/greetd/"
+      "greetd 配置手册",
+      "https://github.com/kennylevinsen/greetd/blob/master/man/greetd-5.scd"
+    ],
+    [
+      "tuigreet 的会话发现与配置",
+      "https://github.com/NotAShelf/tuigreet#sessions"
+    ],
+    [
+      "uwsm 文档（固定源码版本）",
+      "https://github.com/Vladimir-csp/uwsm/blob/f82dece2cedf308c897513f093f45025fbfdda4f/README.md"
+    ],
+    [
+      "systemd XDG 自启动生成器",
+      "https://www.freedesktop.org/software/systemd/man/latest/systemd-xdg-autostart-generator.html"
     ]
   ],
-  "date": "2026-10-07",
+  "date": "2026-10-08",
   "kind": "技术笔记整理",
   "related_work": [
     "shell-switcher"
