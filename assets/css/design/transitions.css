@@ -73,5 +73,17 @@ html[data-reduced-motion="true"]::view-transition-new(*) {
   }
 }
 html[data-reduced-motion="true"] *, html[data-reduced-motion="true"] *::before, html[data-reduced-motion="true"] *::after  {
+  animation: none !important;
   transition: none !important;
+}
+html[data-reduced-motion="true"] { scroll-behavior: auto; }
+/* Reveal clips animate; icon rotations and sliced lettering are static geometry. */
+html[data-reduced-motion="true"] .cut-reveal { clip-path: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .cut-reveal { clip-path: none !important; }
 }

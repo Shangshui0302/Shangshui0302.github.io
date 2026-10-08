@@ -1,0 +1,17 @@
+{
+  "featured_work": "shell-switcher",
+  "work": [
+    "mellow-matugen",
+    "some-nixos-skills",
+    "github-kanban",
+    "wallpaper-collection"
+  ],
+  "writing": [
+    "wine-proton-gaming",
+    "wine-bottles-manager",
+    "wine-proton-bottles-relationships",
+    "wine-nixos-management",
+    "wine-proton-troubleshooting",
+    "wine-advanced-configuration"
+  ]
+}

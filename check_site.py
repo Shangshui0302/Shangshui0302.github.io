@@ -9,9 +9,17 @@ from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
 import json
 import re
+import argparse
+from site_builder.release import check_release_output
 
 ROOT = Path(__file__).parent
 OUT = ROOT / 'dist'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--release', action='store_true', help='Reject preview origins and non-release output')
+args = parser.parse_args()
+config = json.loads((ROOT / 'site_config.json').read_text())
+if args.release:
+    check_release_output(OUT, config)
 manifest = json.loads((ROOT / 'public-content/manifest.json').read_text())
 taxonomy = json.loads((ROOT / 'public-content/taxonomy.json').read_text())
 posts = [json.loads((ROOT / 'public-content/writing' / f'{slug}.json').read_text()) for slug in manifest['writing']]
@@ -114,14 +122,40 @@ assert len(directory.rows) == len(posts)
 for post, row in zip(posts, directory.rows):
     assert set(row['data-topics'].split()) == {topic['slug'] for topic in topics if post['slug'] in topic['articles']}
 
-feed = ElementTree.parse(OUT / 'feed.xml').findall('channel/item')
+feed_root = ElementTree.parse(OUT / 'feed.xml')
+origin = (config.get('site_url') or 'http://127.0.0.1:4173').rstrip('/')
+assert feed_root.findtext('channel/link') == origin + '/writing/', 'RSS channel origin mismatch'
+feed = feed_root.findall('channel/item')
 assert len(feed) == len(posts)
 for post, item in zip(posts, feed):
+    for field in ('link', 'guid'):
+        assert item.findtext(field) == f'{origin}/writing/{post["slug"]}/', f'RSS {field} mismatch: {post["slug"]}'
     assert [node.text for node in item.findall('category')] == [taxonomy['categories'][post['category_id']]['label'], *[taxonomy['tags'][tag] for tag in post['tags']]]
+
+# The directory shell stays small enough for the application's page cache.
+search_html = (OUT / 'index/index.html').read_text()
+assert len(search_html.encode('utf-16-le')) <= 800_000, 'Search HTML exceeds the page cache budget'
+assert 'data-search=' not in search_html, 'Full-text data must stay outside the page HTML'
+index_path = re.search(r'data-search-index="([^"]+)"', search_html)[1]
+records = json.loads((OUT / index_path.lstrip('/')).read_text())
+expected_urls = {f'/work/{slug}/' for slug in manifest['work']} | {f'/writing/{slug}/' for slug in manifest['writing']} | {f'/writing/topics/{slug}/' for slug in manifest['topics']}
+assert len(records) == len(expected_urls) and {record['url'] for record in records} == expected_urls, 'Search index coverage mismatch'
+assert all(isinstance(record['text'], str) and record['text'] for record in records)
+
+def json_text(value):
+    """Inspect decoded strings so JSON quote escapes cannot become path characters."""
+    if isinstance(value, dict):
+        return '\n'.join(json_text(item) for pair in value.items() for item in pair)
+    if isinstance(value, list):
+        return '\n'.join(json_text(item) for item in value)
+    return value if isinstance(value, str) else ''
+
 
 for path in OUT.rglob('*'):
     if path.suffix in ('.html', '.css', '.js', '.json', '.xml', '.svg'):
         text = path.read_text()
+        if path.suffix == '.json':
+            text = json_text(json.loads(text))
         # Public source URLs may contain repository paths named home/; inspect local data separately.
         local_text = re.sub(r'https?://[^\s<>"\']+', '', text)
         # Reviewed generic examples retain absolute paths where ~ would change code semantics.

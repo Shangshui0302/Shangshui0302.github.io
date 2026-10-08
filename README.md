@@ -19,11 +19,13 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 ## 内容与结构
 
 - `public-content/manifest.json`：明确允许进入预览的项目、文章与专题清单。
+- `public-content/home.json`：按 slug 明确首页主推项目、精选作品与文章；与发布清单的顺序无关，重复或未知引用会阻止构建。项目 `case_study.steps` 将稳定 ID、控件标签、流程节点、说明及来源放在同一条记录中，模板不另存流程事实。
 - `public-content/work/`：6 个公开项目（含壁纸收藏）的说明、边界和固定 revision 证据。
 - `public-content/writing/`：去除私人信息、保留完整章节的技术文章；每篇有一个 `category_id` 和一组规范化 `tags`。内容数量以清单和构建报告为准。
 - `public-content/taxonomy.json`：领域分类与技术标签的稳定 ID、名称和说明。
 - `public-content/topics/`：专题的介绍、文章顺序与逐篇阅读引导；文章可被多个专题引用，正文只保存一份。
-- `site_builder/content.py`：只从明确清单读取内容；不涉及页面或交互。
+- `site_builder/content.py`：读取明确清单，验证首页引用与案例场景；不涉及页面或交互。
+- `site_builder/search.py`：从同一份公开内容生成带内容哈希的全文索引，与目录 HTML 分离。
 - `site_builder/templates/`：页面与服务端组件。`layout.py` 管理共享导航与页脚，`library.py` 管理文章/专题/标签视图，`search.py` 管理统一搜索，`components.py` 放复用条目；文章、作品、星系和技术图示各自独立。
 - `assets/js/app.js`：装配页面组件。`core/` 管理路由、页面资源清理与动效偏好；`pages/` 管理文章筛选、搜索、阅读进度；`components/` 放选择框、代码复制、进入视口动效；`scenes/` 放按需加载的星系。
 - `assets/css/design/`：颜色、字体、间距和动效规则；`components/`：导航、控件；`pages/`：文章、作品、专题、首页星系。`site_builder/assets.py` 在构建时合并为一个 CSS 入口，避免浏览器逐层请求样式。
@@ -40,7 +42,7 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 
 分类描述领域，标签连接具体技术，专题提供有顺序的阅读路线。文章目录使用复用的选择控件，支持分类、标签与专题交集筛选，并把条件保存在 URL 中；静态分类页、标签页和专题页无需 JavaScript。专题及分类标签同样进入全站搜索。新增内容时先更新分类标签元数据和明确清单，再检查对应专题的文章顺序与阅读引导。
 
-全文搜索在页面挂载时建立一次小写文本快照，输入时只做匹配和必要的可见性更新；正文里的 HTML 字符实体先解码，代码符号也能直接检索。批量内容导入使用一次性编辑工具，日常构建仍只依赖 Python 标准库。
+全文搜索在首次输入关键词时按需加载独立 JSON 索引，同一文档内跨页面切换复用同一版本与并发请求；索引文件名包含内容哈希，内容更新后自动使用新版本。小写文本只建立一次，输入时只做匹配和必要的可见性更新；加载中和失败时保留目录并显示状态，失败可以重试，卸载后的异步响应不修改页面。正文里的 HTML 字符实体先解码，代码符号也能直接检索。批量内容导入使用一次性编辑工具，日常构建仍只依赖 Python 标准库。
 
 ## 页面生命周期与交互
 
@@ -55,7 +57,7 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 - 星系按明暗批量绘制网格和粒子，背景 Canvas 使用约百万像素预算；离开星系区域或切换到后台时停止绘制，作品行星只在所在区域可见时转动。DOM 状态仅在数值变化时写入，进度条使用 `transform`，避免逐帧触发布局。
 - 阅读进度只在文章和案例页监听滚动，同一帧先读取几何信息，再更新变化的进度与目录状态。
 - 选择框保留原生 `select` 作为值与 change 接口，增强为 combobox/listbox。箭头/Home/End/typeahead 浏览，Enter/空格/Tab 提交，Escape 取消，外点关闭；URL 恢复后同步显示。
-- 系统和站内“减少动效”同时约束页面过渡、控件和星系；焦点随新页面/段落移动，阅读历史仅在当前浏览器 history 中。
+- 系统和站内“减少动效”同时约束页面过渡、控件和星系；全局只关闭动画与过渡，图标旋转等静态几何保留，揭示组件自行解除动画裁切。拖拽在暂停、失焦、取消、失去指针捕获和卸载时统一清理。焦点随新页面/段落移动，阅读历史仅在当前浏览器 history 中。
 
 组件键盘行为参考 [WAI select-only combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-select-only/)。保持无运行依赖，不为页面展示引入框架或组件包。
 
@@ -69,6 +71,22 @@ Archivo Variable、IBM Plex Mono 与思源黑体的许可证位于 `assets/fonts
 
 ## 发布边界
 
-Sites 项目已经注册，尚未部署。后续发布必须先取得作者对预览和内容的确认，复用 `.openai/hosting.json` 的现有项目。确认后填写 `site_config.json` 的正式 `site_url`，再构建，以确保 RSS 使用正式域名。当前 RSS 使用本机预览地址。
+Sites 项目已经注册，尚未部署。后续发布必须先取得作者对预览和内容的确认，复用 `.openai/hosting.json` 的现有项目。确认后填写 `site_config.json` 的正式 `site_url`，再构建，以确保 RSS 使用正式域名。当前 RSS 使用本机预览地址。正式发布应运行以下独立门禁（仅构建与检查，不会部署）：
+
+```sh
+python3 build_site.py --release
+python3 check_site.py --release
+```
+
+发布构建拒绝缺失、预览或私网域名；发布检查额外拒绝 Demo、隐藏文件、符号链接及非发布目录，并校验 RSS 的频道地址、文章链接和 GUID 与配置完全一致。普通检查同时覆盖搜索索引条目及目录 HTML 的缓存预算。
+
+结构回归检查使用 Python 与 Node 标准库，无需安装依赖：
+
+```sh
+python3 -m unittest discover -s tests
+node --test tests/search-cache.test.mjs
+```
+
+Node 检查需要先完成本地构建，验证实际搜索页面能进入缓存，以及索引跨挂载复用、失败后重试。
 
 旧版快照、构建缓存、字体覆盖报告和本地验证记录保存在被 Git 忽略的 `.sites-runtime/` 中，不进入发布目录。

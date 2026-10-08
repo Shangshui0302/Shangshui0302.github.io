@@ -186,6 +186,13 @@ export function initStellar(root, scope) {
       if(hadFlares&&!flares.length&&!dragging&&!charging)status.textContent='自由运行';
       draw();
     }
+    function endDrag(){
+      const captured=heldPointer;
+      heldPointer=null;dragging=false;hero.classList.remove('is-dragging');
+      pointer.inside=false;pointer.tx=pointer.ty=0;
+      if(captured!==null&&hero.hasPointerCapture(captured))hero.releasePointerCapture(captured);
+    }
+    function cancelInteraction(){endDrag();cancelCharge();inertia=0;}
     function sync(){
       if (scope.disposed) return;
       reduced=reducedQuery.matches||document.documentElement.dataset.reducedMotion==='true';paused=manual||reduced;
@@ -193,7 +200,7 @@ export function initStellar(root, scope) {
       pause.setAttribute('aria-pressed',String(paused));pause.innerHTML=reduced?'静态星系 <span aria-hidden="true">○</span>':manual?'继续运行 <span aria-hidden="true">▷</span>':'暂停星系 <span aria-hidden="true">Ⅱ</span>';
       status.textContent=paused?'静态轨道':'自由运行';
       if(frame)cancelAnimationFrame(frame);frame=0;last=0;
-      if(paused||document.hidden||!visible)cancelCharge();
+      if(paused||document.hidden||!visible)cancelInteraction();
       if(reduced){pointer.x=pointer.y=pointer.gain=0;flares=[];setStyle('--type-kick','0px');}
       measureJourney();
       if(visible&&!document.hidden&&!paused)frame=scope.frame(tick);
@@ -248,12 +255,15 @@ export function initStellar(root, scope) {
       if(e.pointerType!=='touch'&&fine.matches){dragging=true;hero.classList.add('is-dragging');hero.setPointerCapture(e.pointerId);status.textContent='轨道牵引';}
     });
     scope.on(hero,'pointerup',e=>{
-      if(paused||interactive(e)||e.pointerId!==heldPointer)return;
-      heldPointer=null;
-      if(dragging){dragging=false;hero.classList.remove('is-dragging');if(hero.hasPointerCapture(e.pointerId))hero.releasePointerCapture(e.pointerId);if(dragTravel<7)ignite(e.clientX,e.clientY);else status.textContent='自由运行';}
+      if(e.pointerId!==heldPointer)return;
+      const wasDragging=dragging;
+      endDrag();
+      if(paused||interactive(e))return;
+      if(wasDragging){if(dragTravel<7)ignite(e.clientX,e.clientY);else status.textContent='自由运行';}
       else if(e.pointerType==='touch'&&Math.hypot(e.clientX-downX,e.clientY-downY)<10)ignite(e.clientX,e.clientY);
     });
-    scope.on(hero,'pointercancel',()=>{heldPointer=null;dragging=false;hero.classList.remove('is-dragging');pointer.inside=false;});
+    scope.on(hero,'pointercancel',e=>{if(e.pointerId===heldPointer)cancelInteraction();});
+    scope.on(hero,'lostpointercapture',e=>{if(e.pointerId===heldPointer)cancelInteraction();});
     scope.on(pause,'click',()=>{manual=!manual;sync();});
     scope.on(pulseButton,'pointerdown',e=>{
       if(e.button!==0||paused)return;e.stopPropagation();beginCharge();chargePointer=e.pointerId;pulseButton.setPointerCapture(e.pointerId);
@@ -268,7 +278,7 @@ export function initStellar(root, scope) {
     scope.on(pulseButton,'keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();releaseCharge();}});
     scope.on(pulseButton,'blur',()=>{if(charging)cancelCharge();});
     scope.on(pulseButton,'click',()=>{if(performance.now()>ignoreClickUntil&&!charging)ignite();});
-    scope.on(reset,'click',()=>{cancelCharge();yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?'静态轨道':'自由运行';draw();});
+    scope.on(reset,'click',()=>{cancelInteraction();yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?'静态轨道':'自由运行';draw();});
     scope.on(window,'pageshow',sync);
     scope.on(window,'scroll',updateScroll,{passive:true});
     const resizeObserver = new ResizeObserver(resize);
@@ -282,12 +292,11 @@ export function initStellar(root, scope) {
     motionObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-reduced-motion']});
     scope.on(document,'visibilitychange',sync);
     scope.on(reducedQuery,'change',sync);
-    scope.on(window,'blur',cancelCharge);
-    scope.on(hero,'stellar:replay',()=>{cancelCharge();t=orbitalTime=0;manual=false;yawDrag=pitchDrag=inertia=0;flares=[];sync();});
+    scope.on(window,'blur',cancelInteraction);
+    scope.on(hero,'stellar:replay',()=>{cancelInteraction();t=orbitalTime=0;manual=false;yawDrag=pitchDrag=inertia=0;flares=[];sync();});
     scope.own(() => {
       resizeObserver.disconnect(); intersectionObserver.disconnect(); motionObserver.disconnect(); atlasObserver.disconnect();
-      cancelAnimationFrame(frame); cancelCharge();
-      if (heldPointer !== null && hero.hasPointerCapture(heldPointer)) hero.releasePointerCapture(heldPointer);
+      cancelAnimationFrame(frame); cancelInteraction();
     });
     resize();sync();
   });

@@ -33,19 +33,40 @@
         "title": "成功：先交接，再记录",
         "text": "停止全部已注册服务，确认它们不再报告 active；启动目标，轮询到 active 后尝试写入选择记录。目标已独占 active 时，仅尝试更新记录。",
         "label": "状态确认后完成",
-        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L249-L295"
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L249-L295",
+        "id": "normal",
+        "control_label": "正常交接",
+        "nodes": [
+          "停止已注册服务",
+          "启动目标服务",
+          "确认 active · 尝试记录"
+        ]
       },
       {
         "title": "停止超时 / 启动命令失败",
         "text": "停止后仍有服务报告 active，或启动目标的命令失败时，程序尝试启动默认服务并返回错误。恢复结果没有进一步确认。",
         "label": "恢复尝试",
-        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L261-L280"
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L261-L280",
+        "id": "recovery",
+        "control_label": "停止超时 / 启动失败",
+        "nodes": [
+          "停止超时 / 启动命令失败",
+          "尝试启动默认服务",
+          "返回错误 · 恢复未确认"
+        ]
       },
       {
         "title": "等待 active 超时",
         "text": "启动命令成功后，目标在 15 秒轮询窗口内仍未报告 active，程序返回错误；此分支不启动默认服务，也不更新选择记录。",
         "label": "边界明确",
-        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L283-L296"
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L283-L296",
+        "id": "active-timeout",
+        "control_label": "等待 active 超时",
+        "nodes": [
+          "启动命令成功",
+          "轮询等待 active",
+          "超时返回 · 不回退"
+        ]
       }
     ],
     "snippet": {
@@ -69,6 +90,8 @@
         "text": "boot 选择有效记录，否则选择默认服务，然后直接 start；没有 stop-all，也没有 active 轮询确认。",
         "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L301-L329"
       }
-    ]
+    ],
+    "heading": "一次切换，三种路径。",
+    "note": "判断依据是 systemd 是否报告 active；写入选择记录和默认服务恢复都可能失败。"
   }
 }

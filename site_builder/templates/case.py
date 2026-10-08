@@ -6,13 +6,11 @@ def source_link(url, label):
 
 def shell_lab(study):
     panels=[]
-    labels=['正常交接','停止超时 / 启动失败','等待 active 超时']
-    flows=[['停止已注册服务','启动目标服务','确认 active · 尝试记录'],['停止超时 / 启动命令失败','尝试启动默认服务','返回错误 · 恢复未确认'],['启动命令成功','轮询等待 active','超时返回 · 不回退']]
-    controls=''.join(f'<label><input type="radio" name="shell-scenario" value="{i}"'+(' checked' if i==0 else '')+f'><span>{label}</span></label>' for i,label in enumerate(labels))
-    for i,(step,nodes) in enumerate(zip(study['steps'],flows)):
-        boxes=''.join(f'<div class="flow-node"><span>0{n+1}</span><strong>{esc(text)}</strong></div>' for n,text in enumerate(nodes))
-        panels.append(f'<section class="scenario-panel" data-scenario="{i}"'+(' hidden' if i else '')+f'><h3 class="sr-only">{labels[i]}</h3><div class="flow-nodes">{boxes}</div><p>{esc(step["text"])}</p>{source_link(step["source"],"查看这一分支")}</section>')
-    return f'<div class="case-lab"><div class="lab-heading"><h2>一次切换，三种路径。</h2><span>源码流程示意 · 不执行系统命令</span></div><fieldset class="scenario-controls"><legend class="sr-only">选择切换情境</legend>{controls}</fieldset>{"".join(panels)}<p class="lab-footnote">判断依据是 systemd 是否报告 active；写入选择记录和默认服务恢复都可能失败。</p></div>'
+    controls=''.join(f'<label><input type="radio" name="shell-scenario" value="{esc(step["id"], quote=True)}"'+(' checked' if i==0 else '')+f'><span>{esc(step["control_label"])}</span></label>' for i,step in enumerate(study['steps']))
+    for i,step in enumerate(study['steps']):
+        boxes=''.join(f'<div class="flow-node"><span>{n+1:02d}</span><strong>{esc(text)}</strong></div>' for n,text in enumerate(step['nodes']))
+        panels.append(f'<section class="scenario-panel" data-scenario="{esc(step["id"], quote=True)}"'+(' hidden' if i else '')+f'><h3 class="sr-only">{esc(step["title"])}</h3><div class="flow-nodes">{boxes}</div><p>{esc(step["text"])}</p>{source_link(step["source"],"查看这一分支")}</section>')
+    return f'<div class="case-lab"><div class="lab-heading"><h2>{esc(study["heading"])}</h2><span>源码流程示意 · 不执行系统命令</span></div><fieldset class="scenario-controls"><legend class="sr-only">选择切换情境</legend>{controls}</fieldset>{"".join(panels)}<p class="lab-footnote">{esc(study["note"])}</p></div>'
 
 def code_excerpt(study):
     snippet=study['snippet']

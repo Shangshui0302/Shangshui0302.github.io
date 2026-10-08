@@ -5,7 +5,7 @@ import re
 
 def validate_taxonomy(taxonomy, posts, topics):
     categories, tags = taxonomy['categories'], taxonomy['tags']
-    for slug in [*categories, *tags]:
+    for slug in [*categories, *tags, *(topic['slug'] for topic in topics)]:
         if not re.fullmatch(r'[a-z0-9-]+', slug) or slug == 'all':
             raise ValueError(f'Invalid taxonomy slug: {slug}')
     post_ids = {post['slug'] for post in posts}

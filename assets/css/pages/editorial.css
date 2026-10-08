@@ -1082,15 +1082,6 @@
 .motion-ready .cut-reveal.visible {
   clip-path:inset(0)
 }
-html[data-reduced-motion="true"] {
-  scroll-behavior:auto
-}
-html[data-reduced-motion="true"] *,html[data-reduced-motion="true"] *:before,html[data-reduced-motion="true"] *:after {
-  animation:none!important;
-  transition:none!important;
-  transform:none!important;
-  clip-path:none!important
-}
 @media(min-width:1800px) {
   :root {
     --gutter:max(32px,calc((100vw - 1736px)/2))
@@ -1689,19 +1680,6 @@ html[data-reduced-motion="true"] *,html[data-reduced-motion="true"] *:before,htm
   }
   .related-item p {
     font-size:.8125rem
-  }
-}
-@media(prefers-reduced-motion:reduce) {
-  html {
-    scroll-behavior:auto
-  }
-  *,*:before,*:after {
-    animation:none!important;
-    transition:none!important;
-    clip-path:none!important
-  }
-  .cut-reveal {
-    clip-path:none!important
   }
 }
 .sr-only {
