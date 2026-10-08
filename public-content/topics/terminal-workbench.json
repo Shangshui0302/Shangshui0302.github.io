@@ -1,0 +1,14 @@
+{
+  "slug": "terminal-workbench",
+  "title": "终端文件工作台",
+  "deck": "从 Yazi 的配置职责，到导航、批量操作和 Shell 目录交接。",
+  "description": "把终端文件管理器当作一条有明确对象和边界的工作流。先接好文件打开方式，再让浏览、选择与 Shell 操作连贯起来。",
+  "reading_guide": [
+    "先接好打开方式：分清配置职责、匹配规则、打开器与预览。",
+    "再串起日常操作：定位、选择、批量处理，以及退出时的目录交接。"
+  ],
+  "articles": [
+    "yazi-config-and-openers",
+    "yazi-navigation-and-shell"
+  ]
+}

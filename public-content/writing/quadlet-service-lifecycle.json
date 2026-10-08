@@ -1,0 +1,77 @@
+{
+  "slug": "quadlet-service-lifecycle",
+  "title": "Quadlet 如何把容器声明变成服务？",
+  "deck": "走完源文件、systemd 生成、启动验证、持久数据与就绪判断，再定位服务失败。",
+  "category": "CONTAINERS / PODMAN",
+  "kind": "技术笔记整理",
+  "sections": [
+    [
+      "generator",
+      "Quadlet 描述资源，systemd 管运行过程"
+    ],
+    [
+      "example",
+      "三个文件组成一个完整的本机服务"
+    ],
+    [
+      "load",
+      "生成、检查、启动是三个动作"
+    ],
+    [
+      "data",
+      "重启容器时，数据必须有自己的位置"
+    ],
+    [
+      "dependencies",
+      "依赖顺序与应用就绪不是一回事"
+    ],
+    [
+      "boot",
+      "登录、开机与镜像更新各有条件"
+    ],
+    [
+      "diagnose",
+      "找不到服务时，先检查生成阶段"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">Quadlet 把容器参数放进资源描述文件，由 systemd generator 生成服务。分清“源文件 → 生成 unit → 运行容器”，才能判断改动在哪一步生效，以及为什么文件已经写好，服务却仍不存在。</p>\n<h2 id=\"generator\">Quadlet 描述资源，systemd 管运行过程</h2>\n<p>本文基于 2026 年 10 月核验的 stable 文档与 v6.1.3 源码，前提是 Linux、本地 rootless Podman、systemd 用户管理器及 cgroup v2。Podman、生成器和网络工具应已配置；NixOS 继续通过 Nix 声明安装。示例未经本机部署或运行验证。</p>\n<p>.container 中的 [Container] 由 Quadlet 转换，常见 [Unit]、[Service] 交给 systemd 处理。web-demo.container 通常生成 web-demo.service，默认容器名是 systemd-web-demo，ContainerName 可以显式改名。服务名和容器名属于不同入口：systemctl 接受前者，podman logs 接受后者。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-systemd.unit.5.html\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<p>generator 在管理器启动和 daemon-reload 时读取源文件、生成运行时 unit；daemon-reload 不会因此启动新服务，也不会重新创建已运行容器。生成文件是产物，应修改 .container 源或其 drop-in，而不是手改生成的 .service。</p>\n<h2 id=\"example\">三个文件组成一个完整的本机服务</h2>\n<p>以公共 BusyBox 镜像提供静态页面：web-demo.container 引用一个命名卷和一个 bridge 网络。文件放在 $XDG_CONFIG_HOME/containers/systemd/；未设置该变量时使用 ~/.config/containers/systemd/。以下名称仅供演示，先确认没有同名资源。</p>\n<pre><code># web-data.volume\n[Volume]\nVolumeName=web-demo-data\n\n# web-net.network\n[Network]\nNetworkName=web-demo-net\nDriver=bridge\n\n# web-demo.container\n[Unit]\nDescription=Local Quadlet Web Demo\n\n[Container]\nImage=docker.io/library/busybox:1.37\nContainerName=quadlet-web-demo\nNetwork=web-net.network\nVolume=web-data.volume:/www\nPublishPort=127.0.0.1:8080:8080\nExec=sh -c &#x27;test -e /www/index.html || printf &quot;Quadlet demo\\n&quot; &gt; /www/index.html; exec httpd -f -p 8080 -h /www&#x27;\nLogDriver=journald\n\n[Service]\nRestart=on-failure\nRestartSec=5\nTimeoutStartSec=300\n\n[Install]\nWantedBy=default.target</code></pre>\n<p>代码块表示三个独立文件，不应把它们合进同一个 .container。卷保存 /www；首次启动仅在页面不存在时写入示例内容。httpd 前台运行，由 systemd 管理生命周期；宿主只发布 127.0.0.1:8080。这里固定的是标签而非不可变摘要，长期运行前应记录实际镜像 digest。</p>\n<p>Volume=web-data.volume:/www 与 Network=web-net.network 引用的是 Quadlet 源文件名。转换器会解析实际资源名，并添加相应服务依赖；卷 unit 通常叫 web-data-volume.service，网络 unit 通常叫 web-net-network.service。它们与 VolumeName、NetworkName 分别控制的 Podman 资源名不同。<a class=\"ref\" href=\"https://github.com/podman-container-tools/podman/blob/v6.1.3/pkg/systemd/quadlet/quadlet.go\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a><a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-volume.unit.5.html\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a><a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-network.unit.5.html\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<h2 id=\"load\">生成、检查、启动是三个动作</h2>\n<p>保存文件后，先加载和看产物。重载和读取产物不会启动容器；start 才可能拉镜像、创建资源并运行。</p>\n<pre><code>systemctl --user daemon-reload\nsystemctl --user cat web-demo.service\n\n# 明确会启动服务\nsystemctl --user start web-demo.service\nsystemctl --user status web-demo.service\njournalctl --user -u web-demo.service -n 80 --no-pager\n\n# 服务运行后，从宿主验证 HTTP 行为\ncurl --fail --show-error http://127.0.0.1:8080/</code></pre>\n<p>cat 检查转换参数，status 观察服务状态，curl 验证 HTTP 行为。TimeoutStartSec=300 延长拉镜像或初始化的等待时间，不能修复镜像或网络错误。</p>\n<p>不要对生成的 web-demo.service 再执行 systemctl enable。生成服务不能按普通持久 unit 那样 enable；Quadlet 在生成时处理源文件的 [Install]，建立 WantedBy 等关联。default.target 关联用户管理器的目标，已运行的目标不会因为一次 daemon-reload 就自动重新启动新服务，所以首次启用仍需显式 start。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-systemd.unit.5.html\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<h2 id=\"data\">重启容器时，数据必须有自己的位置</h2>\n<p>v6.1.3 转换器生成 podman run 及退出清理逻辑，停止服务时会清理相应容器。不能依赖容器可写层跨服务重启保留数据。命名卷与 bind mount 的生命周期独立，示例页面保存在 web-demo-data。<a class=\"ref\" href=\"https://github.com/podman-container-tools/podman/blob/v6.1.3/pkg/systemd/quadlet/quadlet.go\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n<pre><code># 读取已有资源\npodman ps -a --filter name=quadlet-web-demo\npodman volume inspect web-demo-data\npodman logs --tail 40 quadlet-web-demo\n\n# 这两条会改变服务运行状态\nsystemctl --user stop web-demo.service\nsystemctl --user start web-demo.service</code></pre>\n<p>修改源文件后，daemon-reload 再 restart 才会更新运行参数。服务停止不等于删除数据卷；删除 .volume 文件也不等于有意识地销毁数据。撤销服务时先 stop、移除或调整源文件与 [Install]、再 daemon-reload，最后分别盘点保留的卷和网络。数据清理要按已确认资源执行，不能顺手全局 prune。</p>\n<p>若改为 Volume=%h/path/to/site:/www:ro，文件读写权限仍服从 rootless UID 映射与宿主目录权限。此时 Exec 应改为直接启动 httpd。SELinux 的 Z 只用于专用目录，不能对整个 home 添加。</p>\n<h2 id=\"dependencies\">依赖顺序与应用就绪不是一回事</h2>\n<p>After=db.service 只约束相关作业的先后，不会主动拉起 db；Requires=db.service 再加 After 才把拉起关系和顺序组合起来。即便依赖服务达到 active，也不代表数据库完成迁移、监听端口或可以接受请求。业务还需重试连接，或者设计实际健康状态参与就绪判断。</p>\n<p>默认 .container 采用 notify 类型，v6.1.3 默认通知来自 conmon。Notify=true 适用于应用自己正确发送 sd_notify；Notify=healthy 则等 Podman 健康检查通过后通知 systemd，需要同时提供有效 HealthCmd。不能给任何镜像机械加 Notify=true，否则可能一直等待从未发生的通知。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-container.unit.5.html\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a><a class=\"ref\" href=\"https://github.com/podman-container-tools/podman/blob/v6.1.3/pkg/systemd/quadlet/quadlet.go\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p>\n\n<p>健康检查命令在容器内部执行，必须有对应工具，且实际代表应用可用。unhealthy 不自动等于进程退出；Restart=on-failure 依据服务失败。若要据持续 unhealthy 重启，应另行设计 HealthOnFailure 策略。</p>\n<h2 id=\"boot\">登录、开机与镜像更新各有条件</h2>\n<p>WantedBy=default.target 表示用户管理器启动目标时的关联；通常登录会带起用户管理器。若要求未登录也启动、退出登录后继续运行，则需要用户 lingering 政策。可先只查询：</p>\n<pre><code>loginctl show-user &quot;$USER&quot; -p Linger</code></pre>\n<p>是否启用 linger 是系统管理决定；NixOS 应通过系统配置表达。用户 unit 不能靠在系统服务中写 User=某人就自动变为 rootless Quadlet，应放到对应用户搜索路径并由其用户管理器运行。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-systemd.unit.5.html\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a><a class=\"ref\" href=\"https://github.com/podman-container-tools/podman/blob/v6.1.3/troubleshooting.md\" target=\"_blank\" rel=\"noopener noreferrer\">[7]</a></p>\n<p>AutoUpdate=registry 只设置更新标签，还需 podman-auto-update 的服务、timer 或手动调用驱动检查、拉取和服务重启。先安排完整镜像名、更新窗口与数据备份。本例不启用自动更新；也可以固定摘要，再计划修改 Image。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-auto-update.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p>\n<h2 id=\"diagnose\">找不到服务时，先检查生成阶段</h2>\n<p>Unit not found 首先意味着管理器没有找到服务，可能是搜索路径、语法、缺少被引用文件，或所用字段超出已安装版本。它还没有进入容器应用运行阶段。使用发行版实际提供的 generator 路径做 dryrun：</p>\n<pre><code># 路径示意；NixOS 应查实际安装的生成器，不照抄 /usr/lib 路径\n/path/to/podman-system-generator --user --dryrun\n\n# 只检查专用测试目录中的源文件\nQUADLET_UNIT_DIRS=/path/to/quadlet-test \\\n  /path/to/podman-system-generator --user --dryrun\n\n# systemd 版本支持该选项时，验证生成服务\nsystemd-analyze --user --generators=true verify web-demo.service</code></pre>\n<p>dryrun 输出翻译结果和生成错误，不启动服务。出现未知 key 时先对照 podman version 与该版本手册，不要用最新版网页反推旧安装必然支持。服务能生成却启动失败，再看 journal、镜像名称、网络组件和存储权限；active 但 HTTP 失败，继续查端口与应用日志。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-systemd.unit.5.html\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p>\n<p>源文件、生成 unit 和请求结果分别说明意图、参数与实际行为。</p>",
+  "refs": [
+    [
+      "Quadlet 的生成、搜索路径与启用规则",
+      "https://docs.podman.io/en/stable/markdown/podman-systemd.unit.5.html"
+    ],
+    [
+      "Podman 6.1.3 Quadlet 转换源码",
+      "https://github.com/podman-container-tools/podman/blob/v6.1.3/pkg/systemd/quadlet/quadlet.go"
+    ],
+    [
+      "Quadlet container 字段与通知机制",
+      "https://docs.podman.io/en/stable/markdown/podman-container.unit.5.html"
+    ],
+    [
+      "Quadlet volume 字段",
+      "https://docs.podman.io/en/stable/markdown/podman-volume.unit.5.html"
+    ],
+    [
+      "Quadlet network 字段",
+      "https://docs.podman.io/en/stable/markdown/podman-network.unit.5.html"
+    ],
+    [
+      "Podman 自动更新",
+      "https://docs.podman.io/en/stable/markdown/podman-auto-update.1.html"
+    ],
+    [
+      "Podman 官方 rootless 服务排障",
+      "https://github.com/podman-container-tools/podman/blob/v6.1.3/troubleshooting.md"
+    ]
+  ],
+  "related_work": [],
+  "tags": [
+    "podman",
+    "quadlet",
+    "systemd"
+  ],
+  "number": "012",
+  "date": "2026-10-08",
+  "category_id": "containers"
+}

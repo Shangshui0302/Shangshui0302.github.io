@@ -1,0 +1,16 @@
+{
+  "slug": "linux-desktop-layers",
+  "title": "桌面之下，谁在工作？",
+  "deck": "从文件权限到登录会话，再到屏幕上的一个候选窗。",
+  "description": "桌面上的结果，常常来自几个不同层次的协作。沿着权限、会话与主题往里走，先认清每层负责什么，再找到真正应该修改的位置。",
+  "reading_guide": [
+    "先读权限：理解文件内容、目录条目与路径访问。",
+    "再读会话：追踪认证、桌面启动、自启动与退出。",
+    "最后读主题：把素材、配色和运行目录连成一条链。"
+  ],
+  "articles": [
+    "linux-permissions",
+    "login-and-session",
+    "theme-nine-slice"
+  ]
+}

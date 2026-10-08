@@ -1,0 +1,72 @@
+{
+  "slug": "yazi-config-and-openers",
+  "title": "把 Yazi 配置拆开，再接好打开方式。",
+  "deck": "从配置文件职责走到打开器、匹配规则和按键入口，按 Yazi 26.9.1 校正旧例子。",
+  "category": "TOOLS / YAZI",
+  "kind": "技术笔记整理",
+  "sections": [
+    [
+      "files",
+      "先把配置职责拆开"
+    ],
+    [
+      "display",
+      "用小配置表达浏览习惯"
+    ],
+    [
+      "opener",
+      "打开器定义命令和进程关系"
+    ],
+    [
+      "rules",
+      "规则决定哪些文件交给谁"
+    ],
+    [
+      "keys",
+      "按键是动作入口，不是打开规则"
+    ],
+    [
+      "preview",
+      "预览与打开是两条路径"
+    ],
+    [
+      "diagnosis",
+      "按版本和调用链排错"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">把文件管理器配顺手，通常不需要先装一排插件。先分清“列表怎样显示”“文件交给谁”“哪一个键触发动作”，配置就能逐层检查。本文按 Yazi 26.9.1 核对示例；已有配置应先确认版本，再迁移字段。</p><h2 id=\"files\">先把配置职责拆开</h2><p>Unix 系统通常把用户配置放在 <code>~/.config/yazi/</code>，Windows 使用 <code>%AppData%\\yazi\\config\\</code>。不存在的用户文件会采用发布版本内置值，所以只写想调整的部分即可。复制整套默认文件会把当时的默认值冻结在自己的配置里，之后升级就更难判断哪些是主动选择。<a class=\"ref\" href=\"https://yazi-rs.github.io/docs/configuration/overview/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p><div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"Yazi 配置文件职责\"><table><thead><tr><th scope=\"col\">文件或目录</th><th scope=\"col\">负责的事情</th></tr></thead><tbody><tr><td><code>yazi.toml</code></td><td>列表、打开规则、预览、任务等行为</td></tr><tr><td><code>keymap.toml</code></td><td>各界面层级的按键与动作</td></tr><tr><td><code>theme.toml</code></td><td>颜色、样式与 flavor 选择</td></tr><tr><td><code>init.lua</code></td><td>需要时调用插件初始化或添加 Lua 逻辑</td></tr><tr><td><code>plugins/</code>、<code>flavors/</code></td><td>插件和主题包；不等同于静态配置字段</td></tr></tbody></table></div><p>测试另一套配置时，可以让一次启动使用独立目录。下面只改变该进程的配置来源，不会替换默认目录。Yazi 还支持 <code>vfs.toml</code> 配置虚拟文件系统；普通本地浏览先把前三份 TOML 分清就足够。</p><pre><code>YAZI_CONFIG_HOME=&quot;$HOME/.config/yazi-test&quot; yazi</code></pre><h2 id=\"display\">用小配置表达浏览习惯</h2><p><code>[mgr]</code> 控制列表。三栏比例依次是父目录、当前目录和预览；<code>[1, 4, 3]</code> 表示把可用宽度分成八份。某栏设为零可以隐藏它，但不能把所有栏都设为零。下例采用自然排序，让 <code>2.md</code> 排在 <code>10.md</code> 前面。</p><pre><code># yazi.toml\n[mgr]\nratio = [1, 4, 3]\nsort_by = &quot;natural&quot;\nsort_dir_first = true\nsort_sensitive = false\nsort_reverse = false\nshow_hidden = true\nshow_symlink = true\nlinemode = &quot;mtime&quot;\nscrolloff = 5</code></pre><p>时间排序值是 <code>mtime</code> 和 <code>btime</code>，不能把解释文字“modified”“created”直接当成配置值。<code>linemode</code> 决定列表右侧显示什么，和排序是两件事：显示修改时间不等于按修改时间排序。旧笔记的 <code>[manager]</code>、<code>tab_width</code> 等字段也不应直接塞进当前配置。以对应发行版的 preset 为基线，比拿一份未知年份的配置补丁更可靠。<a class=\"ref\" href=\"https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-config/preset/yazi-default.toml\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p><h2 id=\"opener\">打开器定义命令和进程关系</h2><p><code>[opener]</code> 给命令组命名。命令组本身不负责文件类型匹配；它说明程序怎样启动、在哪个平台可用，以及 Yazi 是否让出终端。以下示例要求系统已有 Neovim、mpv 和 xdg-open，分别处理编辑、播放和桌面默认应用。</p><pre><code># yazi.toml\n[opener]\nedit = [\n  { run = &quot;nvim %s&quot;, block = true, for = &quot;unix&quot;, desc = &quot;Edit in Neovim&quot; },\n]\nplay = [\n  { run = &quot;mpv %s&quot;, orphan = true, for = &quot;unix&quot;, desc = &quot;Play in mpv&quot; },\n]\ndesktop = [\n  { run = &quot;xdg-open %s1&quot;, for = &quot;linux&quot;, desc = &quot;Desktop application&quot; },\n]</code></pre><p><code>block = true</code> 让交互程序取得终端控制权，直到它退出，再回到 Yazi；终端编辑器应采用这个方式。<code>orphan = true</code> 则让进程脱离 Yazi 的任务调度，Yazi 退出后仍可继续运行。只写 <code>block = false</code> 不等于脱离调度，不能把它理解成完整的“启动后不再管”。<a class=\"ref\" href=\"https://yazi-rs.github.io/docs/configuration/yazi/#opener\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p><p>当前接口用 <code>%s</code> 传入全部选中文件路径，<code>%s1</code> 是第一个，<code>%d1</code> 是第一个文件的父目录。Yazi 会按 Shell 语境转义替换的路径；不要把整段 <code>%s</code> 再用双引号包成一个参数。xdg-open 一次接收一个文件，所以示例用 <code>%s1</code>。旧版教程中的 <code>$@</code> 不是这套格式参数，按当前版本照抄会改变命令含义。</p><h2 id=\"rules\">规则决定哪些文件交给谁</h2><p>现在才给文件分流。在同一份 <code>yazi.toml</code> 里加上下段：代码文件先用编辑器，HTML 提供桌面应用与编辑器两个选择，媒体走播放器。这里使用 <code>prepend_rules</code>，把规则放到默认规则之前，保留未涉及的压缩包、空文件和其他默认行为。</p><pre><code>[open]\nprepend_rules = [\n  { url = &quot;*.{md,txt,nix,rs,py,js,ts,json,toml,yaml,lua}&quot;, use = &quot;edit&quot; },\n  { url = &quot;*.html&quot;, use = [&quot;desktop&quot;, &quot;edit&quot;] },\n  { mime = &quot;{audio,video}/*&quot;, use = &quot;play&quot; },\n  { mime = &quot;image/*&quot;, use = &quot;desktop&quot; },\n]</code></pre><p><code>url</code> 是 URL 的 glob 匹配字段，<code>mime</code> 按识别到的 MIME 类型匹配，<code>use</code> 引用上面的打开器名称。旧规则里的 <code>name</code> 需要迁移到 <code>url</code>。普通打开执行命中规则提供的第一条可用命令；交互打开会列出规则提供的全部可用命令。HTML 例子因此默认交给桌面应用，也能临时选择编辑器。<a class=\"ref\" href=\"https://yazi-rs.github.io/docs/configuration/yazi/#open\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p><p>不要为了加一条规则就改成 <code>rules = [...]</code>：这会重写整套默认规则。<code>append_rules</code> 用于后置扩展，但其中的通配 fallback 会优先于默认 fallback，不能简单理解为“写在最后就绝对最低优先级”。排错时先检查是否被更早的具体规则命中，再看兜底。</p><h2 id=\"keys\">按键是动作入口，不是打开规则</h2><p>默认 <code>l</code> 只进入目录，<code>o</code> 或 Enter 才打开文件，<code>O</code> 进入“打开方式”菜单。若想加书签或明确的交互打开键，把绑定写到 <code>keymap.toml</code>，不要放进 <code>yazi.toml</code>。</p><pre><code># keymap.toml\n[mgr]\nprepend_keymap = [\n  { on = [&quot;g&quot;, &quot;p&quot;], run = &quot;cd ~/Projects&quot;, desc = &quot;Go to projects&quot; },\n  { on = [&quot;g&quot;, &quot;&lt;Space&gt;&quot;], run = &quot;cd --interactive&quot;, desc = &quot;Enter a directory path&quot; },\n  { on = &quot;&lt;C-o&gt;&quot;, run = &quot;open --interactive&quot;, desc = &quot;Choose an opener&quot; },\n]</code></pre><p><code>on = [\"g\", \"p\"]</code> 是依次按 g、p，不是一个组合键；Ctrl 组合键才写成 <code>&lt;C-o&gt;</code>。Yazi 在当前界面层级寻找第一条匹配绑定，前置表可覆盖默认键，后置表则不能抢走已命中的键。直接设置 <code>keymap</code> 会替换该层整张默认表。主列表属于 <code>[mgr]</code>，输入框、确认弹窗、选择菜单分别属于 <code>[input]</code>、<code>[confirm]</code>、<code>[pick]</code>，因此同一个 j 在不同面板可以做不同的事。<a class=\"ref\" href=\"https://yazi-rs.github.io/docs/configuration/keymap/\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p><h2 id=\"preview\">预览与打开是两条路径</h2><p>预览成功不表示外部程序能打开，打开成功也不保证终端能显示图片。预览使用 <code>[preview]</code> 的尺寸、换行等参数，再由对应预览器和依赖处理内容；opener 是明确要求启动另一程序时才走的路径。</p><pre><code># yazi.toml\n[preview]\nwrap = &quot;yes&quot;\ntab_size = 4\nmax_width = 800\nmax_height = 1000\nimage_filter = &quot;triangle&quot;\nimage_quality = 75</code></pre><p>改图片最大尺寸后，旧缓存可能还在，当前清理命令是 <code>ya cache clear</code>。图片质量范围是 50–90，滤镜名包括 <code>nearest</code>、<code>triangle</code>、<code>catmull-rom</code>、<code>lanczos3</code>。不要照抄旧笔记里的 <code>sixel_fraction</code>、<code>catmull-roman</code>，或把外部程序名直接当内置 preloader 名。普通使用先保留默认 previewer/preloader 表；换用插件时只增加明确需要的规则。</p><h2 id=\"diagnosis\">按版本和调用链排错</h2><p>排查“不生效”时，按调用链找问题：版本与配置目录 → TOML 字段 → 当前按键动作 → 命中规则 → 可用打开器 → 外部程序。路径错误、规则错误和程序缺失应分别处理，反复清缓存不会修复写错的字段。</p><pre><code>yazi --version\nya --version\nya env\ncommand -v nvim\ncommand -v mpv\ncommand -v xdg-open</code></pre><p><code>ya</code> 与 <code>yazi</code> 应使用相同版本。26.9.1 用 <code>ya env</code> 查看环境和配置信息；本版本启动参数没有 <code>--debug</code> 和 <code>--clear-cache</code>，也没有通过 <code>ya pub dump</code> 获取默认配置的通用承诺。查看默认配置应访问对应版本 preset。文件类型疑问可以按 Tab 打开详情，按键冲突则用 <code>~</code> 或 F1 查当前帮助。以上是文档与源码核对结果，不代表某台机器已经完成运行验证。<a class=\"ref\" href=\"https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-cli/src/args.rs\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p>",
+  "refs": [
+    [
+      "Yazi：配置职责与混合",
+      "https://yazi-rs.github.io/docs/configuration/overview/"
+    ],
+    [
+      "Yazi 26.9.1：默认主配置",
+      "https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-config/preset/yazi-default.toml"
+    ],
+    [
+      "Yazi：打开器",
+      "https://yazi-rs.github.io/docs/configuration/yazi/#opener"
+    ],
+    [
+      "Yazi：文件打开规则",
+      "https://yazi-rs.github.io/docs/configuration/yazi/#open"
+    ],
+    [
+      "Yazi：按键与动作",
+      "https://yazi-rs.github.io/docs/configuration/keymap/"
+    ],
+    [
+      "Yazi 26.9.1：辅助 CLI 参数",
+      "https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-cli/src/args.rs"
+    ]
+  ],
+  "related_work": [],
+  "tags": [
+    "yazi",
+    "terminal"
+  ],
+  "number": "009",
+  "date": "2026-10-08",
+  "category_id": "development"
+}

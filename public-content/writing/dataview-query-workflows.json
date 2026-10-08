@@ -1,0 +1,72 @@
+{
+  "slug": "dataview-query-workflows",
+  "title": "把项目、任务与阅读，组织成能用的查询。",
+  "deck": "按五类实际问题搭建查询页，保留分组与展开的完整过程，并把时间边界、任务状态和缺失字段说清。",
+  "category": "KNOWLEDGE / DATAVIEW",
+  "kind": "技术笔记整理",
+  "sections": [
+    [
+      "contract",
+      "仪表板从问题和字段约定开始"
+    ],
+    [
+      "projects",
+      "活跃项目：让缺失值有明确去处"
+    ],
+    [
+      "recent",
+      "最近修改：分清七天窗口与修改含义"
+    ],
+    [
+      "tasks",
+      "任务聚合：完成状态属于任务本身"
+    ],
+    [
+      "groups",
+      "按月份分组后，一行已经不是一篇笔记"
+    ],
+    [
+      "flatten",
+      "一个记录多个主题，先展开再统计"
+    ],
+    [
+      "audit",
+      "完整度检查，先检查缺失再检查内容"
+    ],
+    [
+      "inlines",
+      "需要嵌入一句话时，再选 Inline DQL"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">按五类实际问题搭建查询页，保留分组与展开的完整过程，并把时间边界、任务状态和缺失字段说清。</p><h2 id=\"contract\">仪表板从问题和字段约定开始</h2><p>把查询排满一页，并不等于得到可用的仪表板。先决定这页要支持什么动作：挑出活跃项目、找回最近修改、检查到期待办，还是复盘一个月的阅读。每个问题用独立查询回答，字段与条件才能逐项检查。</p><p>以下仍是虚构的 Studio 笔记库。项目页使用 type、status、priority、archived；阅读页使用 type: reading、date_finished、topics。status 约定为 active、paused、done，priority 越大越优先，archived 只能写布尔值。所有查询放在标记为 dataview 的 Markdown 代码块里；网页展示的是写法示例，并非个人运行结果。</p><pre><code>---\ntype: reading\ndate_finished: 2030-04-18\ntopics:\n  - search\n  - systems\narchived: false\n---\n# 雾岛索引手册\n\n- [ ] 补写索引结构的比较 [due:: 2030-05-10]\n- [x] 整理术语 [completion:: 2030-04-18]</code></pre><p>日期写成 ISO 形式；如果已完成阅读但没有记录日期，月度统计就只能显示“缺日期”。不能从文件最后修改时间替它推断完成月份。项目目录和阅读目录只是示例范围，应换成自己确实存在的目录。</p><h2 id=\"projects\">活跃项目：让缺失值有明确去处</h2><pre><code>```dataview\nTABLE priority AS &quot;优先级&quot;, status AS &quot;状态&quot;, due AS &quot;到期日&quot;\nFROM &quot;Studio/Projects&quot;\nWHERE type = &quot;project&quot; AND status = &quot;active&quot; AND archived = false\nSORT priority DESC, due ASC\n```</code></pre><p>这张表回答“当前可以继续推进什么”。用 status = \"active\" 表达活跃，比 status != \"done\" 更明确：后者会把暂停、拼写错误甚至缺状态的记录带进候选范围。先确定状态集合，再写查询，后续增加状态时也容易知道该不该显示。</p><p>priority 必须保持数值类型；如果缺失值允许存在，可以单独列待补项目。due 不一定是每个项目都有的业务字段，因此这里展示原值；若实际问题是“先处理最近到期的活跃项目”，应要求 due != null，并把 due ASC 放在优先级排序之前。列顺序属于展示，SORT 顺序决定处理顺序，两者不必相同。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/queries/data-commands/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p><h2 id=\"recent\">最近修改：分清七天窗口与修改含义</h2><pre><code>```dataview\nLIST file.mtime\nFROM &quot;Studio&quot;\nWHERE file.mtime &gt;= date(now) - dur(7 days)\nSORT file.mtime DESC\nLIMIT 10\n```</code></pre><p>这里使用 date(now)，窗口从当前时刻往前推七天。若改用 date(today)，起点会落在当天午夜再减七天，适合按日期边界回顾，但不是精确的最近 168 小时。日期窗口的起点应与问题一致，避免标题写“最近七天”，实际却用另一个边界。</p><p>LIST 附带修改时间，方便判断条目为何出现。先排最新，再取十条，因此这页只展示一个回顾入口，不代表窗口内一共只有十篇。要看全量就移除 LIMIT；要排除某些类别，应明确加业务字段或来源限制。同步、属性补齐和格式调整都会影响修改时间，这张表不能当作写作时长或学习效果统计。</p><h2 id=\"tasks\">任务聚合：完成状态属于任务本身</h2><pre><code>```dataview\nTASK\nFROM &quot;Studio/Projects&quot;\nWHERE !completed\nGROUP BY file.link\n```</code></pre><p>未完成任务按所属笔记分组，这样既能看到待办，也能回到上下文。TASK 查询中 completed 指任务自身的勾选状态，不是项目页的 status。任务还会继承父页面字段，但任务自身也有 status 等隐式字段；给项目筛选与任务状态使用不同理解，能避开同名字段造成的误读。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/annotation/metadata-tasks/\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p><pre><code>```dataview\nTASK\nFROM &quot;Studio/Projects&quot;\nWHERE !completed AND due != null AND due &lt;= date(today)\nSORT due ASC\nGROUP BY file.link\n```</code></pre><p>第二条把范围缩到今天到期和已经逾期的任务。任务的 due 应来自任务上的 [due:: 日期] 等可识别标注；没有日期的任务留在未完成列表里，另行补齐。带时间的自定义到期值需要先统一为日期，才适合按 date(today) 判断。</p><p>completed 只看这一条是否用 x 标记完成，不会替你检查全部子任务。若问题是“父任务和所有子任务都完成了吗”，应使用 fullyCompleted；checked 只说明方框里有非空状态，像 [-] 这样的自定义状态也会为真。这三种判断不能互换。Dataview 任务视图中的勾选会更新源任务，查询视图并非始终只读。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/queries/query-types/\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p><p>还有一个显示条件：父任务匹配查询时，子任务会作为父任务的一部分呈现，即使某个子任务没有单独满足条件。因此未完成列表可能带出已完成子任务，到期列表也可能带出没有该到期日的子任务；不能把屏幕上的每一条都当成独立命中。若需要严格逐条统计，应先展开 file.tasks，再按每条任务字段筛选，并说明统计单位。</p><h2 id=\"groups\">按月份分组后，一行已经不是一篇笔记</h2><pre><code>```dataview\nTABLE rows.file.link AS &quot;阅读记录&quot;, length(rows) AS &quot;数量&quot;\nFROM &quot;Studio/Library&quot;\nWHERE type = &quot;reading&quot; AND date_finished != null\nGROUP BY dateformat(date_finished, &quot;yyyy-MM&quot;) AS month\nSORT month DESC\n```</code></pre><p>先过滤有完成日期的阅读记录，再把日期格式化成月份并分组。使用 yyyy-MM 保留年份且月份补零，跨年时仍能按文本顺序排月份。dateformat 返回文本，所以这里的 month 用于分组和显示；若要比较真实日期，应在格式化之前比较 date_finished。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/reference/functions/\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p><p>GROUP BY 改变结果的形状：原来每行对应一篇页面，现在每行对应一个月份组，组里的原记录放在 rows 数组中。rows.file.link 取出组内链接，length(rows) 计算该组条目数。分组别名 month 是组的值；列表或表格默认标识也会展示组信息。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/queries/data-commands/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p><p>需要按某个属性看全部项目时，同样可写 GROUP BY status，再用 rows.file.link 展示成员。不要在分组后继续把 file.link 当成某一篇原记录；它不再代表当前行的数据单位。反过来，如果某个筛选要针对原页面，应把它放在分组之前，避免错误地对整组判断。</p><h2 id=\"flatten\">一个记录多个主题，先展开再统计</h2><pre><code>```dataview\nTABLE rows.file.link AS &quot;记录&quot;, length(rows) AS &quot;主题关联数&quot;\nFROM &quot;Studio/Library&quot;\nWHERE type = &quot;reading&quot; AND topics != null\nFLATTEN topics AS topic\nGROUP BY topic\nSORT topic ASC\n```</code></pre><p>假想阅读记录的 topics 为 [search, systems]，FLATTEN 会把它展开为两行，再分别进入 search 和 systems 的组。先展开再分组，就能看“每个主题关联哪些记录”；直接 GROUP BY topics 则是在按整个列表值分组，不是逐个主题拆开。</p><p>这种统计的单位是“记录与主题的关联”。一篇多主题记录会出现在多个组，所有分组数量相加可能大于阅读篇数，这是查询定义的结果。若同一列表重复写了同一个主题，重复值也会被展开；要统计不同页面数，应先规范列表，或使用 length(unique(rows.file.link)) 明确去重。</p><p>列表展开也适用于 file.etags。若用 file.tags，父级标签会一同展开，统计范围不同。FLATTEN 后再 WHERE topic = \"search\" 可以只保留这个主题；这个条件必须放在 topic 产生之后。展开、筛选和分组顺序要围绕数据单位来设计，而不是把命令名称记成固定模板。</p><h2 id=\"audit\">完整度检查，先检查缺失再检查内容</h2><pre><code>```dataview\nTABLE type AS &quot;类型&quot;, status AS &quot;状态&quot;, priority AS &quot;优先级&quot;\nFROM &quot;Studio/Projects&quot;\nWHERE type = null OR status = null OR priority = null\n```</code></pre><p>用 null 判断这里列出的缺失字段，比 WHERE !priority 更贴近“有没有填”：数字 0、布尔 false 也是假值，却未必缺失。空字符串、错误类型和非法枚举又是另外的问题，这条查询不会自动证明记录完整。对一个字段的检查应分成“存在”“类型正确”“取值符合约定”，不要把三者都塞进一句模糊的“有属性”。</p><pre><code>```dataview\nLIST\nFROM &quot;Studio/Projects&quot;\nWHERE type = &quot;project&quot; AND status != null\n      AND !contains(list(&quot;active&quot;, &quot;paused&quot;, &quot;done&quot;), status)\n```</code></pre><p>第二条专门找状态集合以外的值，便于发现拼写与旧约定。维护字段时，先看原记录再修正；查询给出候选，不负责裁定哪个状态才正确。显示用 default 可以让表格好看，但应在审计中保留原值，否则缺失状态很容易被后备文本掩盖。</p><h2 id=\"inlines\">需要嵌入一句话时，再选 Inline DQL</h2><pre><code>当前记录：`= this.file.name`\n\n主题数量：`= length(this.topics)`</code></pre><p>默认前缀为 = 的行内代码是 Inline DQL。它显示一个表达式的结果，可访问 this 代表的当前页面和链接页面；不能在这个位置写 FROM、WHERE 或整张 TABLE。它适合一项状态或一个计算值，跨页面清单仍放在 dataview 代码块里。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/queries/dql-js-inline/\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p><p>dataviewjs 代码块和默认前缀 $= 的行内表达式属于 DataviewJS，使用 dv API。它们需要相应 JavaScript 查询设置，具有更大的访问能力；不能把 $= dv.pages(...) 叫作普通 Inline DQL。只有 DQL 无法清楚表达所需逻辑时，才有必要增加这层编程与维护成本。</p><p>收尾时按问题验收各块：活跃项目是否排除了暂停项；近期窗口是否符合标题；没有 due 的任务是否仍有入口；月份是否使用业务完成日期；多主题统计是否解释了重复归属。最后再检查字段审计页是否为空。空表表示没有匹配当前条件的数据，必须结合来源和约定判断，不能自动视为“整个库都正确”。</p>",
+  "refs": [
+    [
+      "Dataview：数据命令与顺序",
+      "https://blacksmithgu.github.io/obsidian-dataview/queries/data-commands/"
+    ],
+    [
+      "Dataview：任务与列表字段",
+      "https://blacksmithgu.github.io/obsidian-dataview/annotation/metadata-tasks/"
+    ],
+    [
+      "Dataview：函数参考",
+      "https://blacksmithgu.github.io/obsidian-dataview/reference/functions/"
+    ],
+    [
+      "Dataview：DQL、JavaScript 与行内查询",
+      "https://blacksmithgu.github.io/obsidian-dataview/queries/dql-js-inline/"
+    ],
+    [
+      "Dataview：任务视图与子任务",
+      "https://blacksmithgu.github.io/obsidian-dataview/queries/query-types/"
+    ]
+  ],
+  "related_work": [],
+  "tags": [
+    "obsidian",
+    "dataview"
+  ],
+  "number": "008",
+  "date": "2026-10-08",
+  "category_id": "knowledge"
+}

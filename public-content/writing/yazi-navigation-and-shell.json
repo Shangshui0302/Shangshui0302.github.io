@@ -1,0 +1,72 @@
+{
+  "slug": "yazi-navigation-and-shell",
+  "title": "从选择一组文件，到把目录交回 Shell。",
+  "deck": "区分查找、过滤、选择和文件缓冲，完成批量操作与退出目录交接。",
+  "category": "TOOLS / YAZI",
+  "kind": "技术笔记整理",
+  "sections": [
+    [
+      "entry",
+      "先到目录，再定位文件"
+    ],
+    [
+      "locate",
+      "查找、过滤与递归搜索分开用"
+    ],
+    [
+      "select",
+      "悬停、选择和剪切缓冲是三个状态"
+    ],
+    [
+      "batch",
+      "复制、移动与批量重命名"
+    ],
+    [
+      "shell",
+      "Shell 输入不是 Vim 命令行"
+    ],
+    [
+      "cwd",
+      "让父 Shell 接住最后浏览的目录"
+    ],
+    [
+      "chooser",
+      "把文件选择结果交给其他程序"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">Yazi 的日常价值在于把定位、选择和文件操作接成一条连续流程。先看清当前目录和操作对象，再执行动作，最后把结果交回 Shell。下面按 26.9.1 默认按键说明；个人插件可能覆盖绑定，使用前可在帮助面板确认。</p><h2 id=\"entry\">先到目录，再定位文件</h2><p>启动目录直接作为位置参数传入；给多个路径会建立多个标签页。传入一个已有文件时，会打开它的父目录并定位该文件。路径有空格时仍要遵循启动 Shell 的引号规则。</p><pre><code>yazi\nyazi ~/Downloads\nyazi ~/Downloads ~/Pictures\nyazi ./examples/report.md</code></pre><p>当前版本不需要、也不提供旧笔记里的 <code>--cwd</code> 或 <code>-i</code>。进入列表后，j/k 上下移动，h 返回父目录，l 进入子目录；H/L 是浏览历史中的后退、前进。g、g 连按到顶部，G 到底部，Ctrl-u/Ctrl-d 移动半页。J/K 用于滚动预览，不能把它们当列表的半页移动键。<a class=\"ref\" href=\"https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-boot/src/args.rs\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p><p>跨目录工作可以 t、t 连按在当前目录新建标签页，1–9 切换指定页，[ 和 ] 切换相邻页。单独一个 t 不再是完整的新建标签页绑定。普通文件用 o 或 Enter 打开，O 选择打开方式；l 直接打开文件属于额外的 smart-enter 等定制，不能作为出厂行为讲解。<a class=\"ref\" href=\"https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-config/preset/keymap-default.toml\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p><h2 id=\"locate\">查找、过滤与递归搜索分开用</h2><div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"定位文件的方法\"><table><thead><tr><th scope=\"col\">默认键</th><th scope=\"col\">范围和作用</th></tr></thead><tbody><tr><td><code>/</code>、<code>?</code></td><td>在当前列表向前或向后查找名称，n/N 跳到匹配项</td></tr><tr><td><code>f</code></td><td>过滤当前列表，暂时只显示匹配的项</td></tr><tr><td><code>s</code></td><td>通过 fd 递归按文件名搜索</td></tr><tr><td><code>S</code></td><td>通过 ripgrep 递归搜索文件内容</td></tr><tr><td><code>z</code>、<code>Z</code></td><td>分别调用 fzf 跳转和 zoxide 目录跳转，需要对应依赖</td></tr></tbody></table></div><p>目录里有一百个文件，只想找到某个名称，用 / 不必进入递归搜索；只想把 .jpg 项留在眼前，可以用 f；不知道文件藏在哪一层，才考虑 s 或 S。筛选只是改变眼前列表，不会移动文件。搜索会生成结果视图，也不能据此把“结果只剩几个”理解成原目录被删减了。</p><p>显示隐藏文件用点号，排序用逗号开头的序列，例如 <code>, m</code> 按修改时间、<code>, n</code> 自然排序；<code>~</code> 是帮助。退出筛选或搜索时，Esc 按当前状态逐层取消；若要明确清掉某类状态，可以把 <code>escape --filter</code>、<code>escape --search</code> 或 <code>escape --select</code> 绑定到自己的键。<a class=\"ref\" href=\"https://yazi-rs.github.io/docs/configuration/keymap/#mgr.escape\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p><h2 id=\"select\">悬停、选择和剪切缓冲是三个状态</h2><p>悬停项是光标所在的文件，选择集是你主动勾选的对象，yank 缓冲则是等待复制或移动的来源。默认 Space 切换当前项选中状态，然后向下移一项；因此连续按空格很适合挑选不相邻的文件。v 进入范围选择模式，V 进入取消范围选择的模式；V 并不是“退出时撤销所有选择”。</p><p>多个动作会优先处理选择集，所以把光标移到另一个文件，不一定就改变了操作对象。<code>open --hovered</code>、<code>rename --hovered</code> 等显式选项才强制只对悬停项处理。Esc 可按当前状态退出视觉模式或清理选择，但不要预期一次 Esc 会把所有状态都清空。跨目录保留的选择尤其需要在批量操作前核对。</p><div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"三种复制相关动作\"><table><thead><tr><th scope=\"col\">按键或动作</th><th scope=\"col\">得到什么</th></tr></thead><tbody><tr><td><code>y</code> / <code>yank</code></td><td>复制模式的文件来源，等待 p</td></tr><tr><td><code>x</code> / <code>yank --cut</code></td><td>移动模式的文件来源，等待 p</td></tr><tr><td><code>c c</code> / <code>copy path</code></td><td>复制路径文本到剪贴板</td></tr><tr><td><code>Y</code> 或 <code>X</code> / <code>unyank</code></td><td>取消等待粘贴的文件来源</td></tr></tbody></table></div><p>把路径粘贴进编辑器，与把文件复制到另一个目录，是两条不同的数据通路。系统剪贴板中的一段路径文字不是文件对象；某个剪贴板工具可用，也不说明 Yazi 文件粘贴能跨程序接收文件。</p><h2 id=\"batch\">复制、移动与批量重命名</h2><p>以整理下载目录为例，先用 Space 选中两份虚构报告，按 y，再进入目标目录，按 p。若要移动，则把 y 换成 x。默认 p 粘贴到当前目录，不会因为光标正悬停在某个子目录上就自动进入它；那是 smart-paste 一类插件的行为。复制或移动开始后，用 w 查看任务及失败信息，不能只凭列表闪了一下就认定全部完成。</p><pre><code># 操作顺序，不是 Shell 命令\n源目录：选择 report-a.pdf 和 report-b.pdf → y\n目标目录：进入 archive/ → p\n移动时：选择来源 → x → 进入目标目录 → p\n取消待粘贴来源：Y</code></pre><p>P 采用强制覆盖粘贴，适用范围应先确认。d 移到回收站，D 永久删除，两者默认都有对应确认流程；回收站是否可用受平台和文件系统环境影响，不能承诺所有路径都可无条件恢复。不要为了“更快删除”另写绕过 Yazi 确认的 rm -rf 绑定。</p><p>创建文件按 a，目录名称末尾加斜线，例如 <code>archive/</code>。单文件按 r 修改名字；多选后按 r 会通过文本编辑器进入批量重命名。下面展示文件名清单应怎样修改，保留行数和顺序，只改每行目标名字，然后保存退出，核对映射和确认提示。</p><pre><code># 编辑前：每行一个名字\nphoto-01.JPG\nphoto-02.JPG\nphoto-03.JPG\n\n# 编辑后：保留对应顺序\nphoto-01.jpg\nphoto-02.jpg\nphoto-03.jpg</code></pre><p>不要把 <code>:rename img-{i}.jpg</code> 当成内置批量模板。当前实现通过文本打开规则寻找阻塞编辑器，并显示改名前后的映射；目标重名、文件变化等可能使部分项目失败。一次批量操作也不是可整体回滚的事务，要读失败报告，不要重复对已成功的部分盲目执行。<a class=\"ref\" href=\"https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-actor/src/mgr/bulk_rename.rs\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p><h2 id=\"shell\">Shell 输入不是 Vim 命令行</h2><p>默认分号打开非阻塞 Shell 输入，冒号打开阻塞 Shell 输入。输入的是外部 Shell 命令，不是 Vim 风格的 <code>:cd</code>、<code>:touch</code> 或 <code>:!...</code>。即使在这里执行 cd，改变的也是子 Shell 的目录，不会替代 Yazi 的 <code>cd</code> 动作。目录输入应使用 g、Space 或自己绑定 <code>cd --interactive</code>。</p><p>当前格式参数中，<code>%h</code> 指悬停路径，<code>%s</code> 指全部选择路径；内置格式中的字面百分号用 <code>%%</code>。旧式 <code>$0</code>/<code>$@</code> 文件传参不能混入这套模板。下面给出只读信息动作，保存于 <code>keymap.toml</code>，调用系统 file 检查所选对象；<code>--</code> 后保留原始命令模板，避免再嵌套一层动作参数引号。</p><pre><code>[[mgr.prepend_keymap]]\non = [&quot;g&quot;, &quot;i&quot;]\nrun = &quot;shell --block -- file -- %s&quot;\ndesc = &quot;Inspect selected file types&quot;</code></pre><p>模板能传入路径，不代表任意工具都支持多个输入。写外部命令前，先核对工具参数、路径数量和它会修改的对象；有交互或需要看输出时采用阻塞方式。这里保留的是文档示例，没有在真实文件上执行。<a class=\"ref\" href=\"https://yazi-rs.github.io/docs/configuration/keymap/#mgr.shell\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p><h2 id=\"cwd\">让父 Shell 接住最后浏览的目录</h2><p>子进程不能直接改变父 Shell 的工作目录。退出后自动 cd 依靠函数：Yazi 把最后目录写入临时文件，当前 Shell 在它返回后读取并执行自己的 cd。以下是官方 Bash/Zsh wrapper 的当前写法，函数名可以自行选择；它不适用于所有 POSIX Shell。</p><pre><code>function y() {\n    local tmp cwd; tmp=&quot;$(mktemp -t &quot;yazi-cwd.XXXXXX&quot;)&quot;\n    command yazi &quot;$@&quot; --cwd-file=&quot;$tmp&quot;\n    IFS= read -r -d &#x27;&#x27; cwd &lt; &quot;$tmp&quot;\n    [ &quot;$cwd&quot; != &quot;$PWD&quot; ] &amp;&amp; [ -d &quot;$cwd&quot; ] &amp;&amp; builtin cd -- &quot;$cwd&quot; || builtin true\n    command rm -f -- &quot;$tmp&quot;\n}</code></pre><p>用 y 启动，q 退出后接收目录；Q 的默认动作是 <code>quit --no-cwd-file</code>，不输出目录，因而留在原位置。<code>IFS=</code> 与 <code>read -r</code> 保留空白和反斜线，空分隔符读取不会像简单命令替换那样剥掉目录名末尾的换行。目录存在性检查也避免对空结果执行 cd。别名 <code>alias y=yazi</code> 没有这段退出后的读取逻辑。<a class=\"ref\" href=\"https://yazi-rs.github.io/docs/quick-start/\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p><p>这个交接只作用于调用函数的 Shell；另一终端、另一 tmux pane 不会跟着跳转。NixOS/Home Manager 用户应在声明式配置中安排对应 Shell 集成，不要再手改受管理的 rc 文件。是否已存在 wrapper，需要在自己的配置和当前 Shell 中确认，文章中的函数并不是任何人的既有系统状态证明。</p><h2 id=\"chooser\">把文件选择结果交给其他程序</h2><p><code>--cwd-file</code> 输出目录，<code>--chooser-file</code> 输出选中文件，不能混为一个接口。选择器模式中触发打开动作会写出选择并退出；q 可以用来取消。调用方应先处理空结果，再逐项读取，不能把多行路径整体当成一个文件。下面是 Bash 的只读接收示例：</p><pre><code>#!/usr/bin/env bash\nselected=&quot;$(mktemp -t yazi-selection.XXXXXX)&quot; || exit 1\ntrap &#x27;rm -f -- &quot;$selected&quot;&#x27; EXIT\ncommand yazi --chooser-file=&quot;$selected&quot;\nwhile IFS= read -r path || [ -n &quot;$path&quot; ]; do\n    [ -n &quot;$path&quot; ] || continue\n    printf &#x27;Selected: %s\\n&#x27; &quot;$path&quot;\ndone &lt; &quot;$selected&quot;</code></pre><p>该文件格式按换行分隔路径，若文件名本身包含换行，这段通用脚本就无法无歧义拆分；调用方应明确输入边界。把接收结果传给编辑器或桌面应用时，还要检查是否允许多文件，以及取消时是否应直接结束。一个可靠的终端工作台，最终依靠的是每一段交接都说清对象和边界。</p>",
+  "refs": [
+    [
+      "Yazi 26.9.1：启动参数",
+      "https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-boot/src/args.rs"
+    ],
+    [
+      "Yazi 26.9.1：默认按键",
+      "https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-config/preset/keymap-default.toml"
+    ],
+    [
+      "Yazi：退出与取消状态",
+      "https://yazi-rs.github.io/docs/configuration/keymap/#mgr.escape"
+    ],
+    [
+      "Yazi 26.9.1：批量重命名",
+      "https://github.com/sxyazi/yazi/blob/v26.9.1/yazi-actor/src/mgr/bulk_rename.rs"
+    ],
+    [
+      "Yazi：Shell 命令模板",
+      "https://yazi-rs.github.io/docs/configuration/keymap/#mgr.shell"
+    ],
+    [
+      "Yazi：Shell wrapper",
+      "https://yazi-rs.github.io/docs/quick-start/"
+    ]
+  ],
+  "related_work": [],
+  "tags": [
+    "yazi",
+    "terminal"
+  ],
+  "number": "010",
+  "date": "2026-10-08",
+  "category_id": "development"
+}

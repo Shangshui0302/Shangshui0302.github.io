@@ -70,5 +70,10 @@
   "related_work": [
     "nixos-config",
     "mellow-matugen"
+  ],
+  "category_id": "linux-desktop",
+  "tags": [
+    "nixos",
+    "home-manager"
   ]
 }

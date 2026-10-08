@@ -1,0 +1,42 @@
+{
+  "categories": {
+    "development": {
+      "label": "开发工具",
+      "description": "版本管理、终端工具与可复用的日常工作流。"
+    },
+    "linux-desktop": {
+      "label": "系统与桌面",
+      "description": "权限、会话、主题与声明式桌面配置。"
+    },
+    "containers": {
+      "label": "容器与基础设施",
+      "description": "理解执行环境、权限边界和服务生命周期。"
+    },
+    "knowledge": {
+      "label": "知识管理",
+      "description": "把笔记组织成可以查找、查询和持续维护的知识。"
+    }
+  },
+  "tags": {
+    "git": "Git",
+    "version-control": "版本管理",
+    "linux": "Linux",
+    "permissions": "权限",
+    "wayland": "Wayland",
+    "greetd": "greetd",
+    "uwsm": "uwsm",
+    "fcitx5": "Fcitx5",
+    "matugen": "Matugen",
+    "nixos": "NixOS",
+    "home-manager": "Home Manager",
+    "distrobox": "Distrobox",
+    "containers": "容器",
+    "obsidian": "Obsidian",
+    "dataview": "Dataview",
+    "yazi": "Yazi",
+    "terminal": "终端",
+    "podman": "Podman",
+    "systemd": "systemd",
+    "quadlet": "Quadlet"
+  }
+}

@@ -21,7 +21,7 @@ All copyright and license texts must accompany distribution. Adobe subsets are m
 
 ## Distributed Chinese subsets
 
-The website ships 3 disjoint current-content subsets named Offset Han Sans, totaling 453688 bytes and covering 1010 codepoints used by the current curated pages and UI. The original 14 MB font and optional Archivo Latin subset are not distributed. Rebuild the subsets when content changes; system CJK fonts cover other characters.
+The website ships 4 disjoint current-content subsets named Offset Han Sans, totaling 493836 bytes and covering 1096 codepoints used by the current curated pages and UI. The original 14 MB font and optional Archivo Latin subset are not distributed. Rebuild the subsets when content changes; system CJK fonts cover other characters.
 
 Internal font family, full, PostScript and variable instance names were renamed away from Source. Original copyright and license records remain intact. `prepare_fonts.py` uses FontTools with Brotli, preserves the variable weight axis and layout features, and verifies the subset cmap and names. `assets/fonts/NOTICE.txt` records the derivative relationship.
 

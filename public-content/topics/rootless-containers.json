@@ -1,0 +1,14 @@
+{
+  "slug": "rootless-containers",
+  "title": "容器的权限与生命周期",
+  "deck": "以 Podman 的用户映射和 Quadlet 的服务生成，读清容器在宿主上的边界。",
+  "description": "两篇独立的 Podman 技术笔记：先判断进程身份、文件与数据归属，再把容器声明交给 systemd 管理。保留命令、配置前提与排障路径。",
+  "reading_guide": [
+    "先确定权限与归属：理解 rootless UID 映射、挂载、存储及端口边界。",
+    "再管理服务生命周期：从 Quadlet 源文件到生成 unit，最后核对运行行为。"
+  ],
+  "articles": [
+    "podman-rootless-boundaries",
+    "quadlet-service-lifecycle"
+  ]
+}

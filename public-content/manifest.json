@@ -14,6 +14,19 @@
     "login-and-session",
     "theme-nine-slice",
     "declarative-and-state",
-    "distrobox-export"
+    "distrobox-export",
+    "dataview-data-model",
+    "dataview-query-workflows",
+    "yazi-config-and-openers",
+    "yazi-navigation-and-shell",
+    "podman-rootless-boundaries",
+    "quadlet-service-lifecycle"
+  ],
+  "topics": [
+    "queryable-notes",
+    "terminal-workbench",
+    "rootless-containers",
+    "linux-desktop-layers",
+    "rebuildable-workspaces"
   ]
 }

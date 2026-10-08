@@ -61,5 +61,12 @@
   "kind": "技术笔记整理",
   "related_work": [
     "shell-switcher"
+  ],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "wayland",
+    "greetd",
+    "uwsm"
   ]
 }

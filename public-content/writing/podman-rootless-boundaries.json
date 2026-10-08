@@ -1,0 +1,82 @@
+{
+  "slug": "podman-rootless-boundaries",
+  "title": "Rootless 容器，文件权限到底算谁的？",
+  "deck": "从 UID 映射走到 bind mount、持久数据和网络边界，解释 Podman 的权限判断。",
+  "category": "CONTAINERS / PODMAN",
+  "kind": "技术笔记整理",
+  "sections": [
+    [
+      "identity",
+      "先确认是谁在运行 Podman"
+    ],
+    [
+      "mapping",
+      "容器里的 root，要经过 UID 翻译"
+    ],
+    [
+      "mounts",
+      "目录能挂进去，不代表进程能写"
+    ],
+    [
+      "example",
+      "一个保留宿主文件归属的最小例子"
+    ],
+    [
+      "storage",
+      "存储驱动、镜像和数据卷各有位置"
+    ],
+    [
+      "network",
+      "端口发布与 rootless 网络分开判断"
+    ],
+    [
+      "diagnose",
+      "权限错误按证据逐层收窄"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">Rootless 的价值，是让容器进程在普通用户的权限边界内运行。容器里的 UID 0 仍能管理自己的文件系统视图，却没有因此获得宿主机管理员身份。真正使用时，最常卡住的地方不是“容器有没有 root”，而是宿主文件归谁、容器应用用哪个 UID，以及数据最终留在哪里。</p>\n<h2 id=\"identity\">先确认是谁在运行 Podman</h2>\n<p>本文整理已有 Podman 笔记，并按 2026 年 10 月核验的 stable 文档与 v6.1.3 源码校正。示例针对 Linux 本地 rootless Podman；远程客户端、Podman Machine 的路径属于服务端或虚拟机，不能直接套用。以下命令是可复现说明，未在本文中执行容器实验。</p>\n<p>先用准备运行容器的同一个普通用户查询：</p>\n<pre><code>id\npodman version\npodman info --format &#x27;rootless={{.Host.Security.Rootless}} remote={{.Host.ServiceIsRemote}}&#x27;\npodman info --format &#x27;{{.Store.GraphRoot}}&#x27;\npodman ps -a</code></pre>\n<p>rootless、是否连接远端、存储根目录应一起看。换成 sudo 会进入 root 的 Podman 存储与管理视图；“列表为空”不证明原容器消失。不同普通用户也分别管理自己的容器。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a><a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-info.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p>\n<h2 id=\"mapping\">容器里的 root，要经过 UID 翻译</h2>\n<p>默认 rootless 用户命名空间通常把调用者的宿主 UID 映射为容器 UID 0，再把其他容器 UID 映射到授权的 subordinate ID 区间。假设宿主用户 UID 为 1000，分配的 subuid 从 100000 开始，概念上的映射可以是：</p>\n<pre><code># 解释用例，不是本机输出\n# 容器起始 UID   宿主起始 UID   连续数量\n0                1000            1\n1                100000          65536</code></pre>\n<p>第一行让容器 root 对应宿主普通用户；第二行才是附加 UID。比如该映射中的容器 UID 1000 对应宿主 UID 100999，而不是 101000。实际映射受 userns 模式、已有配置和容器所在 Pod 影响，不能把这张表写成所有容器的固定答案。</p>\n<pre><code>podman unshare cat /proc/self/uid_map /proc/self/gid_map\n# 若已有运行中的容器，用实际容器名替换\npodman top demo pid user hpid huser</code></pre>\n<p>unshare 展示 rootless 基础命名空间；keep-id 或 auto 容器可能再建不同映射。top 的 user 是容器视图，huser 是宿主视图，它们可以不同。单看容器内 id 显示 root，或者 mknod 失败，都不足以独立证明整套隔离状态。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-unshare.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a><a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-top.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p>\n<p>/etc/subuid 与 /etc/subgid 记录分配给用户的额外 ID 范围，newuidmap/newgidmap 等辅助工具完成映射。可只查询当前用户名对应的记录。缺少范围时，应由管理员检查未重叠的分配和发行版配置；NixOS 应在系统声明中处理，不能照抄一个区间改宿主文件。修改范围还牵涉现有容器命名空间和已有文件归属，不能把重新登录当成通用迁移办法。</p>\n<h2 id=\"mounts\">目录能挂进去，不代表进程能写</h2>\n<p>bind mount 只把路径接入容器；内核仍检查实际宿主 UID/GID、权限位、ACL，以及启用时的 SELinux 标签。默认 rootless 容器中的 root，往往能写调用用户本来就可写的目录；镜像中以另一个 UID 运行的应用，则可能映射成 subuid，无法写由宿主用户拥有且没有相应授权的目录。</p>\n<p>先明确应用需要哪个用户。keep-id 把调用者映射到容器同号 UID/GID，并默认以该身份启动；如果镜像要求容器内固定 UID，可选择 keep-id:uid=… ,gid=… 的映射形式并显式核对 --user。它改变身份映射，不会自动满足镜像要求的用户名、home、可写运行目录。<a class=\"ref\" href=\"https://github.com/podman-container-tools/podman/blob/v6.1.3/docs/source/markdown/options/userns.container.md\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p>\n<p>ro 控制挂载只读；z/Z 控制 SELinux 重标记，z 用于共享标签，Z 用于私有标签。二者都不会纠正 Unix 属主。:U 会递归改变源目录的归属，带来宿主可见的持久修改；不要把它、递归 chown 或宽泛 chmod 当作“权限报错就加上”的修复。共享 home、系统目录也不应为了容器方便整体重标记。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-run.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<h2 id=\"example\">一个保留宿主文件归属的最小例子</h2>\n<p>下面用 mktemp -d 在临时目录创建唯一演示目录，再写入文件。前提是 Podman 已安装，且公共 BusyBox 镜像可访问。run 会拉取缺失镜像、创建并启动一次性容器；它不会连接个人账户。SELinux 主机可在确认该目录仅供此例使用后，把挂载选项 rw 改成 rw,Z。</p>\n<pre><code>demo_dir=$(mktemp -d &quot;${TMPDIR:-/tmp}/podman-permission-demo.XXXXXX&quot;)\nprintf &#x27;demo directory: %s\\n&#x27; &quot;$demo_dir&quot;\nprintf &#x27;host input\\n&#x27; &gt; &quot;$demo_dir/input.txt&quot;\n\npodman run --rm --network=none \\\n  --userns=keep-id --user &quot;$(id -u):$(id -g)&quot; \\\n  --volume &quot;$demo_dir:/work:rw&quot; \\\n  docker.io/library/busybox:1.37 \\\n  sh -c &#x27;id; cat /work/input.txt; printf &quot;container output\\n&quot; &gt; /work/output.txt&#x27;\n\nstat -c &#x27;%u:%g %a %n&#x27; &quot;$demo_dir/input.txt&quot; &quot;$demo_dir/output.txt&quot;</code></pre>\n<p>打印的路径就是演示文件位置，后续清理应按该实际路径确认。预期输出文件归执行 Podman 的宿主 UID/GID，仍以 stat 为准。--network=none 限制运行时容器网络，拉镜像发生在宿主侧，仍可能访问注册表。--rm 删除退出后的容器，不删除这份 bind mount 数据。复现实验应记录镜像摘要。</p>\n<h2 id=\"storage\">存储驱动、镜像和数据卷各有位置</h2>\n<p>容器可写层、镜像层与命名卷不是同一个对象。rootless 默认 graphroot 通常位于 $HOME/.local/share/containers/storage，也可能受 XDG_DATA_HOME 和 storage.conf 改写；runroot 放运行时状态。不要直接拿 rootful 的 /var/lib/containers/storage/volumes 猜普通用户的数据位置。</p>\n<pre><code>podman info --format &#x27;{{.Store.GraphDriverName}}&#x27;\npodman info --format &#x27;{{.Store.GraphOptions}}&#x27;\npodman info --format &#x27;{{.Store.GraphRoot}}&#x27;\npodman info --format &#x27;{{.Store.RunRoot}}&#x27;\npodman system df -v\n# 只查询已有卷；使用实际卷名\npodman volume inspect demo-data --format &#x27;{{.Mountpoint}}&#x27;</code></pre>\n<p>overlay 是存储驱动名；fuse-overlayfs 可作为 overlay 的 mount_program。看到 graphDriverName=overlay 不能单独断言使用原生 OverlayFS。还要看 graphOptions、storage.conf、内核与底层文件系统。NFS 等不理解用户命名空间的文件系统不适合作 rootless graphroot，网络 home 可搭配本地存储目录。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a><a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-volume-inspect.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[8]</a></p>\n<p>命名卷由 Podman 管理，适合应用持久数据；首次使用可能有属主初始化和镜像内容复制。检查卷的 NeedsChown、NeedsCopyUp 和 Mountpoint，比直接修改存储目录更可靠。删除容器不等于删除命名卷，prune 也不是无条件安全的整理动作；确认使用关系与备份后再决定数据清理范围。</p>\n<h2 id=\"network\">端口发布与 rootless 网络分开判断</h2>\n<p>低端口是否可由普通用户绑定，取决于系统的 net.ipv4.ip_unprivileged_port_start 等配置，不是所有系统都固定禁止 1024 以下端口。演示服务直接使用高端口，并明确绑定 loopback：</p>\n<pre><code># 加入实际服务的 podman run 参数\n--publish 127.0.0.1:8080:8080</code></pre>\n<p>应用需要在容器内监听 8080。8080 左侧属于宿主，右侧属于容器；省略宿主 IP 通常意味着绑定所有接口，不能把“浏览器从 localhost 访问”当成服务只对本机开放的证据。<a class=\"ref\" href=\"https://docs.podman.io/en/stable/markdown/podman-run.1.html\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p>\n<p>Podman 5.0 把 standalone rootless 默认网络改为 pasta；6.0 更移除了 slirp4netns 与 CNI 支持。6.1.3 的网络后端为 Netavark，pasta 负责相应 rootless 网络路径。rootless 自定义 bridge 的端口转发默认仍是 rootlessport，pasta/pesto 转发是另一个实验选项。网络后端、用户态联网和端口转发是三层信息，旧教程里的 slirp4netns 修复参数不能照搬到 6.x。<a class=\"ref\" href=\"https://github.com/podman-container-tools/podman/releases/tag/v6.0.0\" target=\"_blank\" rel=\"noopener noreferrer\">[7]</a></p>\n<h2 id=\"diagnose\">权限错误按证据逐层收窄</h2>\n<p>排查顺序可以固定为：确认运行用户与版本；确认容器应用 UID；读取映射；检查宿主目标目录；再判断 SELinux、ACL 和文件系统。对一个 Permission denied，先验证它具体发生在镜像解包、容器启动，还是应用写文件。</p>\n<pre><code># 宿主：仅看目标目录与文件属性\nstat -c &#x27;%u:%g %a %n&#x27; /path/to/demo-data\nnamei -l /path/to/demo-data\n# 若系统提供这些工具，进一步看 ACL 与 SELinux\ngetfacl /path/to/demo-data\nls -Zd /path/to/demo-data</code></pre>\n<p>目录本身可写，父目录也仍需可遍历权限；访问依赖 supplementary group 时，还要核对运行时是否保留相应组。rootless 降低宿主管理员权限风险，但应用仍能破坏已授权给它的个人数据。把敏感目录排除在挂载之外、给输入只读挂载、把可写数据缩到专用目录，才让这个边界在实际使用中有意义。</p>",
+  "refs": [
+    [
+      "Podman rootless 与存储说明",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "podman unshare 与 UID 映射",
+      "https://docs.podman.io/en/stable/markdown/podman-unshare.1.html"
+    ],
+    [
+      "Podman 6.1.3 用户命名空间选项源码",
+      "https://github.com/podman-container-tools/podman/blob/v6.1.3/docs/source/markdown/options/userns.container.md"
+    ],
+    [
+      "podman run：挂载、用户与发布端口",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "podman info 的当前环境字段",
+      "https://docs.podman.io/en/stable/markdown/podman-info.1.html"
+    ],
+    [
+      "podman top 的宿主用户字段",
+      "https://docs.podman.io/en/stable/markdown/podman-top.1.html"
+    ],
+    [
+      "Podman 6.0.0 网络变更",
+      "https://github.com/podman-container-tools/podman/releases/tag/v6.0.0"
+    ],
+    [
+      "podman volume inspect",
+      "https://docs.podman.io/en/stable/markdown/podman-volume-inspect.1.html"
+    ]
+  ],
+  "related_work": [],
+  "tags": [
+    "podman",
+    "containers",
+    "linux",
+    "permissions"
+  ],
+  "number": "011",
+  "date": "2026-10-08",
+  "category_id": "containers"
+}

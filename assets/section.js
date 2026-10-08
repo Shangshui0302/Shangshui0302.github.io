@@ -40,18 +40,43 @@
     });
   }, {passive:true});
 
-  const topic = document.querySelector('#topic');
-  const noteRows = [...document.querySelectorAll('#writing-list .writing-row')];
   const count = document.querySelector('.count');
-  topic?.addEventListener('change', () => {
-    let visible = 0;
-    noteRows.forEach(row => {
-      row.hidden = topic.value !== 'all' && row.dataset.category !== topic.value;
-      if (!row.hidden) visible++;
-    });
-    if (count) count.textContent = `${visible} 篇文章`;
-    document.querySelector('#writing-empty').hidden = visible > 0;
-  });
+  const articleCategory = document.querySelector('#article-category');
+  const articleTag = document.querySelector('#article-tag');
+  const articleTopic = document.querySelector('#article-topic');
+  const noteRows = [...document.querySelectorAll('#writing-list .writing-row')];
+  if (articleCategory && articleTag && articleTopic) {
+    const fields = [['category', articleCategory], ['tag', articleTag], ['topic', articleTopic]];
+    const restore = () => {
+      const params = new URLSearchParams(location.search);
+      fields.forEach(([key, select]) => {
+        const value = params.get(key) || 'all';
+        select.value = [...select.options].some(option => option.value === value) ? value : 'all';
+      });
+    };
+    const filter = (updateUrl = true) => {
+      let visible = 0;
+      noteRows.forEach(row => {
+        row.hidden = (articleCategory.value !== 'all' && row.dataset.category !== articleCategory.value)
+          || (articleTag.value !== 'all' && !row.dataset.tags.split(' ').includes(articleTag.value))
+          || (articleTopic.value !== 'all' && !row.dataset.topics.split(' ').includes(articleTopic.value));
+        if (!row.hidden) visible++;
+      });
+      document.querySelector('#writing-count').textContent = `${visible} / ${noteRows.length} 篇文章`;
+      document.querySelector('#writing-empty').hidden = visible > 0;
+      if (updateUrl) {
+        const next = new URL(location.href);
+        fields.forEach(([key,select]) => select.value === 'all' ? next.searchParams.delete(key) : next.searchParams.set(key,select.value));
+        if (next.href !== location.href) history.pushState(null,'',next);
+      }
+    };
+    const reset = () => { fields.forEach(([,select]) => select.value = 'all'); filter(); articleCategory.focus(); };
+    fields.forEach(([,select]) => select.addEventListener('change', () => filter()));
+    document.querySelector('#reset-writing').addEventListener('click',reset);
+    document.querySelector('#empty-reset-writing').addEventListener('click',reset);
+    addEventListener('popstate', () => { restore(); filter(false); });
+    restore(); filter(false);
+  }
 
   const form = document.querySelector('#search');
   const input = document.querySelector('#search-input');
@@ -60,7 +85,7 @@
   if (form && input && kind) {
     const params = new URLSearchParams(location.search);
     input.value = params.get('q') || '';
-    if (['all','work','writing'].includes(params.get('kind'))) kind.value = params.get('kind');
+    if (['all','work','writing','topics'].includes(params.get('kind'))) kind.value = params.get('kind');
     const filter = () => {
       const terms = input.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
       let visible = 0;

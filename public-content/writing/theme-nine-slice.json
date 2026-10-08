@@ -77,5 +77,11 @@
   "kind": "技术笔记整理",
   "related_work": [
     "mellow-matugen"
+  ],
+  "category_id": "linux-desktop",
+  "tags": [
+    "fcitx5",
+    "matugen",
+    "nixos"
   ]
 }

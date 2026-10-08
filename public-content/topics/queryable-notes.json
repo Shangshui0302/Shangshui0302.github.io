@@ -1,0 +1,14 @@
+{
+  "slug": "queryable-notes",
+  "title": "让笔记可查询",
+  "deck": "Obsidian Dataview：从字段约定，到围绕需求组织查询。",
+  "description": "笔记保留正文，字段提供稳定的筛选入口。这个专题把 DQL 基础与仪表板实践连起来，讨论结果形态、任务层级、分组与统计边界。",
+  "reading_guide": [
+    "从字段和类型开始：区分页面与任务，再理解来源、筛选和排序。",
+    "把查询用于具体问题：项目、近期修改、待办、分组统计与数据检查。"
+  ],
+  "articles": [
+    "dataview-data-model",
+    "dataview-query-workflows"
+  ]
+}

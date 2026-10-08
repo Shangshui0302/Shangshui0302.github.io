@@ -67,5 +67,11 @@
   ],
   "date": "2026-10-08",
   "kind": "技术笔记整理",
-  "related_work": []
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "distrobox",
+    "containers",
+    "terminal"
+  ]
 }

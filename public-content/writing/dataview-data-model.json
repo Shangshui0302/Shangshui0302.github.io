@@ -1,0 +1,76 @@
+{
+  "slug": "dataview-data-model",
+  "title": "先把字段写清，再让笔记可查询。",
+  "deck": "从 YAML 与行内字段开始，分清页面、任务和四种输出，再走完来源、条件、排序与表达式。",
+  "category": "KNOWLEDGE / DATAVIEW",
+  "kind": "技术笔记整理",
+  "sections": [
+    [
+      "index",
+      "先分清正文、字段与查询"
+    ],
+    [
+      "fields",
+      "同一份记录，先有稳定的字段"
+    ],
+    [
+      "implicit",
+      "不用手写，也已经存在的 file 字段"
+    ],
+    [
+      "outputs",
+      "四种输出，查询的单位也不同"
+    ],
+    [
+      "sources",
+      "FROM 的组合，先判断交集还是并集"
+    ],
+    [
+      "pipeline",
+      "筛选、排序、截取，按问题排顺序"
+    ],
+    [
+      "expressions",
+      "函数改善显示，不能替代数据约定"
+    ]
+  ],
+  "body": "<p class=\"article-lead\">从 YAML 与行内字段开始，分清页面、任务和四种输出，再走完来源、条件、排序与表达式。</p><h2 id=\"index\">先分清正文、字段与查询</h2><p>写在笔记里的内容，并不会自动变成可以筛选的字段。Dataview 会索引文件信息、列表和任务，也能读取显式标注的属性；普通正文仍主要由阅读和全文搜索来理解。要找“还在进行、优先级较高的项目”，就应该先把状态和优先级写成结构化数据。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/annotation/add-metadata/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p><p>DQL 是 Dataview Query Language。它通过 LIST、TABLE、TASK、CALENDAR 指定结果形式，再用来源、条件和排序组织结果。下面使用虚构的 Studio 笔记库：项目放在 Studio/Projects，阅读记录放在 Studio/Library。示例用于解释语法，没有在某个真实知识库中运行。阅读这些查询之前，需要 Obsidian 中已启用 Dataview；网站只展示代码，不会执行查询。</p><h2 id=\"fields\">同一份记录，先有稳定的字段</h2><p>下面是假想项目 Studio/Projects/Atlas.md 的开头。YAML frontmatter 必须位于文件顶部，使用单冒号定义字段。status 是文本，priority 是数字，archived 是布尔值，topics 是列表；due 使用 ISO 日期。不要把数字写成“高”再按数值比较，也不要在同一个字段中混用日期与“下周”这样的描述。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/annotation/types-of-metadata/\" target=\"_blank\" rel=\"noopener noreferrer\">[7]</a></p><pre><code>---\ntype: project\nstatus: active\npriority: 3\narchived: false\ndue: 2030-05-12\ntopics:\n  - search\n  - interface\ntags:\n  - demo/project\n---\n# Atlas\n\nreviewed:: 2030-05-02\n\n这轮原型的 [confidence:: 4]，还需要补一组边界条件。\n\n- [ ] 检查空结果页面 [due:: 2030-05-10]</code></pre><p>正文中的行内字段使用双冒号；独立一行可以写 reviewed:: 值，嵌入句子或任务时用方括号。frontmatter 描述整篇页面，任务上的 [due:: ...] 描述这一条任务。两者可以并用，但不宜随手把同一个业务事实写在多个位置，再期待插件替你判断哪个更新。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/annotation/add-metadata/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a></p><p>示例统一使用小写英文字段名，是为了让复制、检索和维护更稳定。Dataview 支持中文字段；带空格的字段还有规范化名称或 row 访问方式。显示给读者的中文列名可以在查询中使用 AS 定义，不必让数据键名承担排版。</p><h2 id=\"implicit\">不用手写，也已经存在的 file 字段</h2><div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"字段与查询说明\"><table><thead><tr><th scope=\"col\">字段</th><th scope=\"col\">它回答什么</th></tr></thead><tbody><tr><td><code>file.name / file.link</code></td><td>文件叫什么，以及如何回到原笔记</td></tr><tr><td><code>file.folder</code></td><td>笔记所在的库内目录</td></tr><tr><td><code>file.ctime / file.mtime</code></td><td>文件的创建、最后修改时间，包含时刻</td></tr><tr><td><code>file.cday / file.mday</code></td><td>对应时间的日期部分</td></tr><tr><td><code>file.tags / file.etags</code></td><td>展开父级后的标签，以及仅显式写出的标签</td></tr><tr><td><code>file.tasks</code></td><td>页面里索引到的任务列表</td></tr></tbody></table></div><p>这些隐式字段集中在 file 对象中，不要求先在 YAML 写一遍。若一篇笔记使用 #demo/project，file.tags 会包含父级 #demo 和完整标签；file.etags 保留显式标签。做标签统计前要决定自己统计哪一种，否则上一级分类也会进入结果。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/annotation/metadata-pages/\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a></p><p>修改时间适合回答“最近动过哪些文件”，不能直接表示“最近学会哪些知识”。格式化、同步或属性调整也可能改变文件时间。业务上的阅读完成日期、复核日期，最好使用 date_finished、reviewed 这样的显式字段，而不是从文件时间猜。</p><h2 id=\"outputs\">四种输出，查询的单位也不同</h2><p>LIST、TABLE 和 CALENDAR 以页面为单位；TASK 以任务为单位。把同一份数据换一个标题，并不等于查询层级已经改变。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/queries/query-types/\" target=\"_blank\" rel=\"noopener noreferrer\">[3]</a></p><pre><code>```dataview\nLIST status\nFROM &quot;Studio/Projects&quot;\n```</code></pre><p>LIST 默认显示页面链接，status 是跟在链接后的一个附加值。它适合清单；要同时比较多个属性，就用 TABLE。TABLE 默认已有标识列，下面只需写状态和优先级。AS 修改显示名，不会重命名源笔记里的字段。</p><pre><code>```dataview\nTABLE status AS &quot;状态&quot;, priority AS &quot;优先级&quot;\nFROM &quot;Studio/Projects&quot;\n```</code></pre><p>如果想自己控制第一列，可以写 TABLE WITHOUT ID file.link AS \"项目\", status AS \"状态\"。这里显式加回链接，否则读者只看到属性值，难以回到记录。</p><pre><code>```dataview\nTASK\nFROM &quot;Studio/Projects&quot;\nWHERE !completed AND due = date(today)\n```</code></pre><p>这条 TASK 查询列出未完成且今天到期的任务；前提是任务有可识别的 due 日期。没有到期日的待办不会因为“未完成”就自动出现在今天列表里。</p><pre><code>```dataview\nCALENDAR due\nFROM &quot;Studio/Projects&quot;\nWHERE due != null\n```</code></pre><p>CALENDAR 把页面按某个日期放入日历，不是在此处画任务甘特图。日期缺失的页面无法定位；如果需要看任务到期情况，应先确认任务层级和页面层级，不能把两种 due 混作一列。</p><h2 id=\"sources\">FROM 的组合，先判断交集还是并集</h2><p>FROM 限定初始范围。目录来源使用相对于笔记库根部的完整路径，包含子目录；加双引号且不要留末尾斜线。标签来源使用 #，链接来源可以利用页面之间的关系。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/reference/sources/\" target=\"_blank\" rel=\"noopener noreferrer\">[4]</a></p><div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"字段与查询说明\"><table><thead><tr><th scope=\"col\">来源写法</th><th scope=\"col\">含义</th></tr></thead><tbody><tr><td><code>FROM \"Studio/Projects\"</code></td><td>这个目录及其子目录中的页面</td></tr><tr><td><code>FROM #demo/project</code></td><td>使用该标签及其子标签的页面</td></tr><tr><td><code>FROM [[Atlas]]</code></td><td>链接到 Atlas 的页面</td></tr><tr><td><code>FROM outgoing([[Atlas]])</code></td><td>Atlas 链接出去的页面</td></tr></tbody></table></div><pre><code>```dataview\nLIST\nFROM &quot;Studio/Projects&quot; AND #demo/project\nWHERE archived = false\n```</code></pre><p>AND 要同时满足两边，是交集；OR 满足任一边，是并集。上一例要求“在项目目录里，并且带项目标签”。如果改成 OR，目录外带该标签的页面也会进来。排除可以写 #demo/project AND !#demo/retired；组合较多时，使用括号写清范围，例如 (\"Studio/Projects\" OR \"Studio/Library\") AND !#demo/retired。</p><p>来源语法与普通字段表达式各有位置。FROM #demo/project 是选标签来源；WHERE status = \"active\" 是筛记录字段。不要把后者塞进 FROM，也不要把标签来源的 # 语法照搬成文本字段值。</p><h2 id=\"pipeline\">筛选、排序、截取，按问题排顺序</h2><pre><code>```dataview\nTABLE status AS &quot;状态&quot;, priority AS &quot;优先级&quot;, due AS &quot;到期日&quot;\nFROM &quot;Studio/Projects&quot;\nWHERE status = &quot;active&quot; AND priority &gt;= 2\nSORT priority DESC, due ASC\nLIMIT 5\n```</code></pre><p>先找 active 且优先级至少为 2 的项目，再按优先级降序；同优先级按到期日升序，最后取五条。DESC 表示从大到小，ASC 表示从小到大。若到期日是必要依据，应再加入 due != null，把未填日期的项目另列检查。</p><p>数据命令按书写顺序处理。把 LIMIT 放在 SORT 前，会先截出一部分再排序，不能保证得到整个候选集里最高的五条。这和把 WHERE 放在分组前后会处理不同的数据形状一样，顺序本身属于查询的含义。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/queries/data-commands/\" target=\"_blank\" rel=\"noopener noreferrer\">[5]</a></p><p>布尔判断也要区分“明确为假”和“没有值”。WHERE archived = false 要求值为 false；WHERE !archived 还可能把缺失值纳入。字段完整度未知时，先用 TABLE 展示原值，再选判断方式，比直接把所有空值看成“未归档”更容易发现数据问题。</p><h2 id=\"expressions\">函数改善显示，不能替代数据约定</h2><pre><code>```dataview\nTABLE default(status, &quot;待补状态&quot;) AS &quot;状态&quot;,\n      choice(priority &gt;= 3, &quot;优先处理&quot;, &quot;正常排队&quot;) AS &quot;提示&quot;,\n      join(topics, &quot;, &quot;) AS &quot;主题&quot;\nFROM &quot;Studio/Projects&quot;\n```</code></pre><p>default 在值为 null 时给显示用的后备值；choice 根据条件选择两个结果；join 把列表连接成文本。它们适合让表格更易读，但不会把“待补状态”写回 YAML，也不会替你确认这个项目实际是什么状态。<a class=\"ref\" href=\"https://blacksmithgu.github.io/obsidian-dataview/reference/functions/\" target=\"_blank\" rel=\"noopener noreferrer\">[6]</a></p><p>字符串处理还有 lower、upper、startswith；contains 对不同类型有不同含义，列表可用来判断成员，文本可用来查包含的片段。像 topics 这样的列表，应保持各笔记写法一致，不要一篇写 YAML 列表、另一篇写整段逗号分隔文本。数学表达式也需要数值输入，例如预算折扣可以写 price * 0.9，不能先把 price 存成“约一百元”再期待同样计算。</p><p>查询为空时，按最小步骤检查：先只保留 LIST 与 FROM，确认来源；再临时用 TABLE 展示 status、priority、due；最后逐条加回 WHERE、SORT、LIMIT。页面没有进来源、字段没有索引、类型不一致和条件太严格，都会显示为“没有结果”，它们需要不同的修正。</p>",
+  "refs": [
+    [
+      "Dataview：添加元数据",
+      "https://blacksmithgu.github.io/obsidian-dataview/annotation/add-metadata/"
+    ],
+    [
+      "Dataview：页面隐式字段",
+      "https://blacksmithgu.github.io/obsidian-dataview/annotation/metadata-pages/"
+    ],
+    [
+      "Dataview：四种查询类型",
+      "https://blacksmithgu.github.io/obsidian-dataview/queries/query-types/"
+    ],
+    [
+      "Dataview：查询来源",
+      "https://blacksmithgu.github.io/obsidian-dataview/reference/sources/"
+    ],
+    [
+      "Dataview：数据命令与顺序",
+      "https://blacksmithgu.github.io/obsidian-dataview/queries/data-commands/"
+    ],
+    [
+      "Dataview：函数参考",
+      "https://blacksmithgu.github.io/obsidian-dataview/reference/functions/"
+    ],
+    [
+      "Dataview：字段类型",
+      "https://blacksmithgu.github.io/obsidian-dataview/annotation/types-of-metadata/"
+    ]
+  ],
+  "related_work": [],
+  "tags": [
+    "obsidian",
+    "dataview"
+  ],
+  "number": "007",
+  "date": "2026-10-08",
+  "category_id": "knowledge"
+}

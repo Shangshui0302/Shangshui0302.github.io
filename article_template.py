@@ -4,7 +4,7 @@ from math import ceil
 import re
 
 
-def render_article(post, posts, related_work):
+def render_article(post, posts, related_work, taxonomy_html='', topic_links='', continuation=''):
     body = post['body']
     if re.search(r'<script|\son\w+\s*=', body, re.I):
         raise ValueError('Executable content is not allowed')
@@ -17,13 +17,13 @@ def render_article(post, posts, related_work):
     body = re.sub(r'<pre><code>([\s\S]*?)</code></pre>',
                   lambda m: f'<div class="code-wrap"><span class="code-label" aria-hidden="true">EXCERPT</span><button class="copy-code" type="button" aria-label="复制代码">复制代码</button><pre tabindex="0"><code>{m[1]}</code></pre></div>', body)
     refs = ''.join(f'<li><a href="{esc(ref, quote=True)}" target="_blank" rel="noopener noreferrer">{esc(label)} ↗</a></li>' for label, ref in post['refs'])
-    body += f'<section class="references" id="references"><h2>参考与延伸</h2><ol>{refs}</ol><p>根据技术笔记重新整理，示例使用通用名称。</p></section>' + related_work(post)
+    body += f'<section class="references" id="references"><h2>参考与延伸</h2><ol>{refs}</ol><p>根据技术笔记重新整理，示例使用通用名称。</p></section>' + continuation + related_work(post)
     next_post = posts[(posts.index(post) + 1) % len(posts)]
     return f'''<div class="reading-progress" role="progressbar" aria-label="文章阅读进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
     <header class="article-heading" id="article-start">
       <div class="article-masthead"><a class="back-link" href="/writing/">← 文章目录</a><span>OFFSET / FIELD NOTES</span><span>NO. {post['number']}</span></div>
       <div class="article-cover-copy"><div class="article-meta"><span>{esc(post['category'])}</span><span>技术笔记整理</span></div>
-      <h1>{esc(post['title'])}</h1><p class="deck">{esc(post['deck'])}</p></div>
+      <h1>{esc(post['title'])}</h1><p class="deck">{esc(post['deck'])}</p>{taxonomy_html}{topic_links}</div>
       <div class="article-folio" aria-hidden="true"><span>{post['number']}</span><i></i><b>READ / THINK / REBUILD</b></div>
       <div class="article-cover-footer"><time datetime="{post['date']}">整理于 {post['date'].replace('-', '.')}</time><span>约 {minutes} 分钟阅读</span><a href="#{post['sections'][0][0]}">开始阅读 <span aria-hidden="true">↓</span></a></div>
     </header>
