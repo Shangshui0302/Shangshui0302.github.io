@@ -1,0 +1,48 @@
+{
+  "slug": "nix-ecosystem-overlays",
+  "number": "083",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Overlays、override 与 overrideAttrs",
+  "deck": "在现有包定义上调整参数、添加补丁，并让系统实际消费 overlay。",
+  "sections": [
+    [
+      "section-01",
+      "️ 什么是 Overlays？"
+    ],
+    [
+      "section-03",
+      "️ 常见的 Overlays 场景"
+    ],
+    [
+      "section-07",
+      "在 Flake 中集成 Overlays"
+    ],
+    [
+      "section-08",
+      "为什么要这样做？"
+    ],
+    [
+      "section-09",
+      "总结"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">️ 什么是 Overlays？</h2>\n<p>Overlays 是 Nixpkgs 的一个核心机制。你可以把它想象成在官方的 <code>pkgs</code> 上覆盖一层你自己的定义。</p>\n<h3 id=\"section-02\">1. 基础语法</h3>\n<pre><code>self: super: {\n  # 把 hello 包换成我的版本\n  hello = super.hello.override {\n    # 修改参数\n  };\n}</code></pre>\n<h2 id=\"section-03\">️ 常见的 Overlays 场景</h2>\n<h3 id=\"section-04\">1. 修改编译选项 (Override)</h3>\n<p>有些包在编译时默认关闭了某些功能。</p>\n<pre><code>(self: super: {\n  mpv = super.mpv.override {\n    scripts = [ self.mpvScripts.mpris ];\n  };\n})</code></pre>\n<h3 id=\"section-05\">2. 打补丁 (overrideAttrs)</h3>\n<p>如果你手里有一个 <code>.patch</code> 文件：</p>\n<pre><code>(self: super: {\n  sl = super.sl.overrideAttrs (oldAttrs: {\n    patches = (oldAttrs.patches or []) ++ [ ./my-patch.patch ];\n  });\n})</code></pre>\n<h3 id=\"section-06\">3. 添加新包</h3>\n<p>你可以把自己的包定义在 Overlay 里，然后像 <code>pkgs.my-app</code> 这样引用它。</p>\n<h2 id=\"section-07\">在 Flake 中集成 Overlays</h2>\n<p>在 <code>outputs</code> 部分定义你的 Overlays。</p>\n<pre><code>{\n  inputs.nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-unstable&quot;;\n  outputs = { self, nixpkgs, ... }: {\n    overlays.default = final: prev: {\n      sl = prev.sl.overrideAttrs (old: {\n        patches = (old.patches or []) ++ [ ./my-patch.patch ];\n      });\n    };\n    nixosConfigurations.workstation = nixpkgs.lib.nixosSystem {\n      system = &quot;x86_64-linux&quot;;\n      modules = [\n        ./configuration.nix\n        { nixpkgs.overlays = [ self.overlays.default ]; }\n      ];\n    };\n  };\n}</code></pre>\n<h2 id=\"section-08\">为什么要这样做？</h2>\n<p>作为 Arch 用户，你可能习惯了去 AUR 找 PKGBUILD。在 NixOS，Overlays 就是你的“全能补丁”。你不需要重新打包，只需在现有包的基础上微调即可。</p>\n<h2 id=\"section-09\">总结</h2>\n<ul>\n<li><strong><code>override</code></strong>：修改包函数的参数（通常是 <code>callPackage</code> 调用的函数参数）。</li>\n<li><strong><code>overrideAttrs</code></strong>：修改传给 <code>mkDerivation</code> 的 derivation 属性（比如 <code>patches</code>、<code>postInstall</code>），再产生新的 derivation。</li>\n</ul>\n<h3 id=\"section-10\">final / prev 与实际构建</h3>\n<p><code>self: super:</code> 是旧的变量命名习惯；更直观的是 <code>final: prev:</code>，分别表示叠加后的最终包集合与上一层包集合。导入 overlay 后仍需让消费者真正使用这个包集合；原始示例只定义局部 <code>pkgs</code>，没有接入 <code>nixosSystem</code>，这里已改成模块里的 <code>nixpkgs.overlays</code>。补丁修改要实际构建受影响的软件包，求值通过不代表 patch 可以应用。包函数的参数与版本由锁定 Nixpkgs 决定。</p>\n",
+  "refs": [
+    [
+      "Nixpkgs Overlays",
+      "https://nixos.org/manual/nixpkgs/stable/#chap-overlays"
+    ],
+    [
+      "Nixpkgs Overrides",
+      "https://nixos.org/manual/nixpkgs/stable/#chap-overrides"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

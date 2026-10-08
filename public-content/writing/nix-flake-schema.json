@@ -1,0 +1,52 @@
+{
+  "slug": "nix-flake-schema",
+  "number": "025",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Flake 结构：inputs 与 outputs",
+  "deck": "理解 Flake 输入、输出以及 self 和参数捕获的层级。",
+  "sections": [
+    [
+      "section-01",
+      "Flake 的基本结构"
+    ],
+    [
+      "section-02",
+      "1. Inputs (输入)"
+    ],
+    [
+      "section-03",
+      "2. Outputs (输出)"
+    ],
+    [
+      "section-04",
+      "这里的 self 和 @inputs 是什么？"
+    ],
+    [
+      "section-05",
+      "实战技巧：看懂 outputs 的层级"
+    ]
+  ],
+  "body": "<hr>\n<h2 id=\"section-01\">Flake 的基本结构</h2>\n<p>一个典型的 <code>flake.nix</code> 是属性集，其中 <code>outputs</code> 是接收输入并返回输出属性集的函数。</p>\n<pre><code>{\n  description = &quot;我的 NixOS 配置&quot;;\n\n  inputs = {\n    # 这里定义依赖\n    nixpkgs.url = &quot;github:nixos/nixpkgs/nixos-unstable&quot;;\n    home-manager.url = &quot;github:nix-community/home-manager&quot;;\n  };\n\n  outputs = { self, nixpkgs, ... }@inputs: {\n    # 这里定义产出（系统配置、软件包、Shell 环境等）\n    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {\n      system = &quot;x86_64-linux&quot;;\n      modules = [ ./configuration.nix ];\n    };\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-02\">1. Inputs (输入)</h2>\n<p><code>inputs</code> 是你要引用的外部资源。</p>\n<ul>\n<li><p><strong>nixpkgs</strong>：整个软件仓库。</p>\n</li>\n<li><p><strong>home-manager</strong>：用户层配置工具。</p>\n</li>\n<li><p><strong>flake-utils</strong>：一个常用的辅助库。</p>\n</li>\n<li><p><strong><code>follows</code> 关键字</strong>：非常重要！它让指定的子输入跟随顶层 nixpkgs，减少依赖图中的重复 nixpkgs 来源；仍可能存在多个包版本，且共享输入不保证所有外部项目兼容。</p>\n<pre><code>home-manager.inputs.nixpkgs.follows = &quot;nixpkgs&quot;;</code></pre>\n</li>\n</ul>\n<hr>\n<h2 id=\"section-03\">2. Outputs (输出)</h2>\n<p><code>outputs</code> 是你这个 Flake 制造出来的东西.</p>\n<ul>\n<li><strong><code>nixosConfigurations</code></strong>：供 <code>nixos-rebuild</code> 使用，核心是你的系统。</li>\n<li><strong><code>homeConfigurations</code></strong>：供 <code>home-manager</code> 使用。</li>\n<li><strong><code>devShells</code></strong>：供 <code>nix develop</code> 使用的开发环境。</li>\n<li><strong><code>packages</code></strong>：你自己打包的软件。</li>\n</ul>\n<hr>\n<h2 id=\"section-04\">这里的 self 和 @inputs 是什么？</h2>\n<ul>\n<li><strong><code>self</code></strong>：代表当前的 Flake 自身。你可以通过它引用自己定义的子文件。</li>\n<li><strong><code>@inputs</code></strong>：语法糖，表示把所有的输入参数一起捕获。</li>\n</ul>\n<hr>\n<h2 id=\"section-05\">实战技巧：看懂 outputs 的层级</h2>\n<p>如果你运行 <code>nix flake show</code>，你会看到树状的输出。在代码里，这些层级必须严丝合缝地对上，<code>nixos-rebuild</code> 才能找到你的配置。</p>\n",
+  "refs": [
+    [
+      "Nix Flake 手册",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake"
+    ],
+    [
+      "Nix flake update",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-update"
+    ],
+    [
+      "Nix flake check",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-check"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nix-flakes"
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "slug": "arch-security-hardening",
+  "number": "059",
+  "category": "LINUX / SYSTEMS",
+  "title": "LUKS2、Secure Boot 与 TPM2 加固",
+  "deck": "把磁盘加密、引导验证与运行期访问控制组合起来，并为每层保留恢复入口。",
+  "sections": [
+    [
+      "section-01",
+      "固件与物理安全"
+    ],
+    [
+      "section-02",
+      "LUKS2 与 TPM 解锁"
+    ],
+    [
+      "section-05",
+      "Secure Boot 密钥管理"
+    ],
+    [
+      "section-07",
+      "运行期加固"
+    ],
+    [
+      "section-10",
+      "应用沙盒"
+    ],
+    [
+      "section-11",
+      "信任链关系"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">固件与物理安全</h2>\n<p>TPM、固件密码和 Secure Boot 可以形成启动防护的一部分，但要结合设备威胁模型和恢复需求：</p>\n<ul>\n<li>确认 TPM 2.0 已启用，固件和用户空间能正常访问。</li>\n<li>固件管理员密码可限制设置修改，但不能阻止所有拆机或硬件攻击。</li>\n<li>按需求限制外部介质引导，同时保存能临时恢复设置的方法；不能把禁用 USB 引导当作绝对要求。</li>\n</ul>\n<h2 id=\"section-02\">LUKS2 与 TPM 解锁</h2>\n<p>LUKS2 是磁盘加密元数据格式，Argon2id 是口令派生函数，二者不是同一种“加密算法”。实际默认值以 <code>cryptsetup</code> 版本、构建配置和已有卷为准。</p>\n<h3 id=\"section-03\">Initramfs 钩子</h3>\n<p>采用 systemd-based initramfs 与 systemd-cryptenroll 时，使用 <code>systemd</code>、<code>sd-encrypt</code> 方案，例如：</p>\n<pre><code>HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)</code></pre>\n<p>按实际存储堆栈补充所需钩子，并重新生成镜像。传统 <code>encrypt</code> 方案并非对所有用途都过时，只是不直接提供本文的 systemd TPM 解锁流程。</p>\n<h3 id=\"section-04\">TPM 注册示例</h3>\n<p>在已建立 LUKS2 卷、已备份卷头且保留可用恢复口令的前提下：</p>\n<pre><code>sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/EXAMPLE_LUKS_PARTITION</code></pre>\n<p>PCR 0 与固件代码测量有关，PCR 7 与 Secure Boot 状态及信任证书有关。固定测量值可能在正常固件/密钥更新后变化，必须测试恢复流程。它们不直接验证全部内核内容；UKI 可结合 PCR 11 的签名策略。无人值守解锁也有冷启动、硬件总线和运行期攻击风险，可按需求增加 TPM PIN。</p>\n<h2 id=\"section-05\">Secure Boot 密钥管理</h2>\n<h3 id=\"section-06\">部署流程</h3>\n<p>先确认固件可进入 Setup Mode，备份密钥及 Windows/其他系统恢复资料，再选择信任范围。</p>\n<pre><code>sudo sbctl create-keys\nsudo sbctl enroll-keys -m\nsudo sbctl sign -s /efi/EFI/Linux/arch-linux.efi\nsudo sbctl sign -s /efi/EFI/systemd/systemd-bootx64.efi\nsudo sbctl verify</code></pre>\n<p>这里假设 ESP 挂载在 <code>/efi</code>，文件路径已核对。<code>-m</code> 加入微软证书以改善兼容性，同时扩大信任范围。实际启动还可能使用 <code>EFI/BOOT/BOOTX64.EFI</code>，应检查所有启动路径。保存签名路径后，验证每次内核及引导器更新都有相应 hook 完成重签。</p>\n<h2 id=\"section-07\">运行期加固</h2>\n<h3 id=\"section-08\">内核参数</h3>\n<p>在生成 UKI 的实际命令行输入（例如 <code>/etc/kernel/cmdline</code>）中按需要加入：</p>\n<pre><code>slab_nomerge init_on_alloc=1 init_on_free=1 vsyscall=none</code></pre>\n<p>它们分别限制部分 slab 合并、清零内存、禁用旧 vsyscall 入口，会产生性能或旧软件兼容性取舍。原笔记中的 <code>/etc/cmdline.d/security.conf</code> 不是所有 UKI 工具都会读取的通用路径。</p>\n<h3 id=\"section-09\">AppArmor</h3>\n<pre><code>sudo pacman -S apparmor\nsudo systemctl enable --now apparmor.service</code></pre>\n<p>还需确认 AppArmor 在当前 LSM 列表中启用，例如检查：</p>\n<pre><code>cat /sys/kernel/security/lsm\nsudo aa-status</code></pre>\n<p>若需要设置 <code>lsm=</code>，保留当前所需模块和正确顺序，再重建 UKI/引导配置并验证。服务启动不等于所有应用已受限；需要加载并维护对应 profile。额外的 <code>apparmor.d</code> 规则集合应审核来源、当前打包方式和与应用版本的兼容性，不能把未核对包名直接混入官方仓库安装命令。</p>\n<h2 id=\"section-10\">应用沙盒</h2>\n<p>Flatpak 使用 Bubblewrap 等机制隔离应用，实际强度取决于应用权限。检查文件系统、设备、会话总线等授权范围。Firejail 是另一种传统应用隔离方案，也需要适配 profile 和使用场景。沙盒不能替代更新、可信来源和最小权限。</p>\n<h2 id=\"section-11\">信任链关系</h2>\n<pre><code>graph TD\n    A[固件设置与 TPM] --&gt; B[Secure Boot 信任证书]\n    B --&gt; C[签名 UKI]\n    C --&gt; D[TPM 测量与解锁策略]\n    D --&gt; E[LUKS2 解锁或恢复口令]\n    E --&gt; F[运行期访问控制与沙盒]</code></pre>\n",
+  "refs": [
+    [
+      "ArchWiki：Trusted Platform Module",
+      "https://wiki.archlinux.org/title/Trusted_Platform_Module"
+    ],
+    [
+      "ArchWiki：Unified Extensible Firmware Interface/Secure Boot",
+      "https://wiki.archlinux.org/title/Unified_Extensible_Firmware_Interface/Secure_Boot"
+    ],
+    [
+      "ArchWiki：Dm-crypt",
+      "https://wiki.archlinux.org/title/Dm-crypt"
+    ],
+    [
+      "ArchWiki：AppArmor",
+      "https://wiki.archlinux.org/title/AppArmor"
+    ],
+    [
+      "ArchWiki：Security",
+      "https://wiki.archlinux.org/title/Security"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "security"
+  ]
+}

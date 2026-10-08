@@ -1,5 +1,5 @@
 """One searchable index for every public content type."""
-from html import escape as esc
+from html import escape as esc, unescape
 from .components import url
 import re
 
@@ -9,9 +9,10 @@ def render_search(works, posts, topics, taxonomy):
         for item in items:
             title=item['title'];summary=item.get('summary',item.get('deck',''))
             searchable=' '.join(str(item.get(k,'')) for k in ['title','summary','deck','description','category','tech','problem','structure','tradeoff','result','body'])
-            searchable=re.sub('<[^>]+>',' ',searchable)
+            searchable=unescape(re.sub('<[^>]+>',' ',searchable))
             if kind == 'writing':
                 searchable += ' ' + taxonomy['categories'][item['category_id']]['label'] + ' ' + ' '.join(taxonomy['tags'][tag] for tag in item['tags'])
+            searchable = re.sub(r'\s+', ' ', searchable).strip()
             category_label = taxonomy['categories'][item['category_id']]['label'] if kind == 'writing' else item.get('category','专题 / '+str(len(item.get('articles',[])))+' 篇')
             kind_label = {"work":"作品", "writing":"文章", "topics":"专题"}[kind]
             results.append(f'<a class="result-row" href="{url('writing/topics' if kind == 'topics' else kind,item)}" data-kind="{kind}" data-search="{esc(searchable,quote=True)}"><span class="kind">{kind_label}</span><div><h2>{esc(title)}</h2><p>{esc(summary)}</p></div><span class="mono">{esc(category_label)}</span></a>')

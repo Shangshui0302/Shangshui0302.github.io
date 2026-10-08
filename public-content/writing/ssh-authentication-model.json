@@ -1,0 +1,68 @@
+{
+  "slug": "ssh-authentication-model",
+  "number": "045",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "SSH 认证体系：目录、密钥与 TOFU",
+  "deck": "区分用户身份、服务器身份及首次信任的边界。",
+  "sections": [
+    [
+      "section-01",
+      "目录：SSH 是两套独立系统"
+    ],
+    [
+      "section-02",
+      "四类认证材料各管一块"
+    ],
+    [
+      "section-03",
+      "双向认证：为什么需要 host key"
+    ],
+    [
+      "section-04",
+      "TOFU 模型的本质与局限"
+    ],
+    [
+      "section-05",
+      "首次信任怎么补强：带外验证"
+    ],
+    [
+      "section-06",
+      "GitHub 的 git 入口与账户识别"
+    ],
+    [
+      "section-07",
+      "通用目录示例"
+    ],
+    [
+      "section-08",
+      "关键洞察"
+    ],
+    [
+      "section-09",
+      "相关"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">目录：SSH 是两套独立系统</h2>\n<p>OpenSSH 同时扮演客户端（<code>ssh</code>）和服务器（<code>sshd</code>），<strong>同一套软件中的不同程序读取各自配置</strong>：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">方向</th>\n<th scope=\"col\">程序</th>\n<th scope=\"col\">目录</th>\n<th scope=\"col\">归属</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>出站</strong>（你连别人）</td>\n<td><code>ssh</code> 客户端</td>\n<td><code>~/.ssh/</code> + <code>/etc/ssh/ssh_config</code></td>\n<td>你（用户级）</td>\n</tr>\n<tr>\n<td><strong>入站</strong>（别人连你）</td>\n<td><code>sshd</code> 服务器</td>\n<td><code>/etc/ssh/</code> + 每用户 <code>authorized_keys</code></td>\n<td>系统 + 用户</td>\n</tr>\n</tbody></table></div>\n<pre><code>SSH 出站（你是客户端）：\n  你 ──ssh──▶ GitHub\n    ~/.ssh/          ← 你的通行证、偏好、信任名单\n\nSSH 入站（你是服务器）：\n  Windows ──ssh──▶ 你\n    /etc/ssh/        ← 服务器运行配置 + 系统户口本\n    ~/.ssh/authorized_keys  ← 你放行的客人名单</code></pre>\n<h2 id=\"section-02\">四类认证材料各管一块</h2>\n<p>在常见的公钥认证连接中，可以区分四类材料；<code>authorized_keys</code> 与 <code>known_hosts</code> 是列表文件，并非各自一把密钥：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">Key</th>\n<th scope=\"col\">位置</th>\n<th scope=\"col\">回答的问题</th>\n<th scope=\"col\">谁验证谁</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>id_ed25519</strong>（你的私钥）</td>\n<td><code>~/.ssh/</code></td>\n<td>你是谁</td>\n<td>对端验证你</td>\n</tr>\n<tr>\n<td><strong>authorized_keys</strong>（别人的公钥）</td>\n<td><code>~/.ssh/</code></td>\n<td>谁被授权进来</td>\n<td>你验证对端</td>\n</tr>\n<tr>\n<td><strong>host key</strong>（系统私钥 + .pub）</td>\n<td><code>/etc/ssh/</code></td>\n<td>我是哪台机器</td>\n<td>对端验证你</td>\n</tr>\n<tr>\n<td><strong>known_hosts</strong>（对端主机公钥或 CA 等信任记录）</td>\n<td><code>~/.ssh/</code></td>\n<td>我信任哪些服务器</td>\n<td>你验证对端</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p>authorized_keys 的例外归属\n<code>authorized_keys</code> 在 <code>~/.ssh/</code> 里，但它是<strong>入站</strong>用的——它是「服务器允许谁进来」的名单，按用户存放。本质是 sshd 读的配置，只是放在各用户家目录方便自管。</p>\n</blockquote>\n<blockquote>\n<p>公钥不会自动登记\n客户端验证服务端 host key；使用公钥认证时，服务端验证用户私钥的签名。管理员需预先把用户公钥加入目标账户的 <code>authorized_keys</code>（或使用证书/其他授权机制）；连接不会自动把来访用户公钥加入授权名单。客户端接受或预置信任后才记录服务器公钥。用户也可通过密码等方式认证，不是每种连接都使用用户公钥。</p>\n</blockquote>\n<h2 id=\"section-03\">双向认证：为什么需要 host key</h2>\n<p>SSH 连接<strong>不只是验证「你是谁」</strong>，而是双向验证：</p>\n<pre><code>desktop ──────SSH 连接──────▶ 你的机器\n\n方向1（验证对端身份）：\n  对端出示自己的私钥签名\n  你的机器用 ~/.ssh/authorized_keys 里的公钥验证\n\n方向2（验证你的机器 = host key 的活）：\n  你的机器出示 host key 私钥签名\n  对端用 known_hosts 中已信任的主机公钥验证</code></pre>\n<p><strong>host key 干的是方向 2——它是你的机器反向证明「我是我」的身份证。</strong> 这也是上面那个 A/B 机器例子说的「双方互相确认对方身份」。</p>\n<p><strong>为什么需要反向验证（防中间人）</strong>：</p>\n<pre><code>desktop ──▶ [攻击者假装是你] ──▶ 真的你\n                ↑\n            desktop 以为连的是你，其实连的是骗子</code></pre>\n<p>攻击者先连到你，再伪装成你接受 desktop 的连接。desktop 输入的凭据交给了攻击者。<strong>host key 防的就是这个</strong>：desktop 第一次连接时记下你的指纹，之后每次校验「指纹还对不对」。</p>\n<h2 id=\"section-04\">TOFU 模型的本质与局限</h2>\n<p>TOFU（Trust On First Use，首次使用即信任）：</p>\n<ul>\n<li><strong>第一次连接</strong>：核对并接受对端 host key，把主机公钥记录到 known_hosts</li>\n<li><strong>之后每次</strong>：校验「还是不是那个指纹」</li>\n</ul>\n<p><strong>它解决什么</strong>（连续性）：</p>\n<pre><code>场景A（TOFU 能防）：你在 A 网吧连真 GitHub，记下真指纹；\n  之后在 B 网吧，攻击者冒充 GitHub → 指纹对不上 → 警觉 ✓</code></pre>\n<p><strong>它解决不了什么</strong>（首次真实性）：</p>\n<pre><code>场景B（TOFU 防不了）：你第一次就连上假 GitHub → 记下假指纹 → 永远被骗 ✗</code></pre>\n<blockquote>\n<p>TOFU 的盲区\nTOFU 只能保证「之后连的还是不是第一次连的那个」，<strong>不能保证「第一次连的那个是不是真的」</strong>。如果第一次就连上骗子，指纹验证等于摆设。</p>\n</blockquote>\n<h2 id=\"section-05\">首次信任怎么补强：带外验证</h2>\n<ul>\n<li><strong>查官方公布的指纹</strong>：GitHub、云厂商官网公开自己的 host key 指纹，连接后 <code>ssh-keygen -lf</code> 对比</li>\n<li><strong>SSH 证书（SSH CA）</strong>：大公司给每台服务器签发证书，客户端预置 CA 公钥，首次连接也可验证</li>\n<li><strong>私有网络/直连</strong>：可减少暴露面，但同一局域网也不能单独证明身份；最好仍从服务器控制台或可信渠道取得指纹核对</li>\n</ul>\n<p>TOFU 适合能够接受首次信任风险的场景；公开指纹、可信控制台或预置信任材料可加强首次验证。不要为消除提示全局关闭 host key 校验。</p>\n<h2 id=\"section-06\">GitHub 的 git 入口与账户识别</h2>\n<p>连 GitHub 时 <code>User git</code> 是<strong>统一入口名</strong>，不代表你的 GitHub 账户名。GitHub 靠<strong>公钥识别账号</strong>，不看用户名。多账号靠「同一个 git + 不同 IdentityFile」区分：</p>\n<pre><code>Host github-work\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/id_work    # 工作账号的 key</code></pre>\n<h2 id=\"section-07\">通用目录示例</h2>\n<pre><code>~/.ssh/\n  ├── id_ed25519          # 用户私钥，应设置 passphrase\n  ├── id_ed25519.pub      # 用户公钥，注释可写 user@workstation\n  ├── authorized_keys    # 允许登录此账户的用户公钥\n  ├── known_hosts        # 已信任的服务器主机公钥\n  └── config             # 用户客户端配置\n\n/etc/ssh/\n  ├── ssh_config         # 系统级客户端配置\n  ├── sshd_config        # 服务器配置\n  └── ssh_host_ed25519_key # 服务器主机私钥</code></pre>\n<h2 id=\"section-08\">关键洞察</h2>\n<p><strong>目录归属的本质是「谁拥有这份配置」</strong>——<code>/etc/ssh/</code> 是系统所有（机器身份，root 管），<code>~/.ssh/</code> 是用户所有（你的身份，你管）。<code>authorized_keys</code> 卡在中间：既是服务器的授权逻辑，又按用户的客人名单分，所以它在 <code>~/.ssh/</code> 但归入站用。</p>\n<h2 id=\"section-09\">相关</h2>\n<ul>\n<li>agent 与密钥保护 → <a href=\"/writing/ssh-agent-keyring/\">ssh-agent、passphrase 与 keyring</a></li>\n<li>命令行操作 → <a href=\"/writing/ssh-usage-guide/\">SSH 使用指南</a></li>\n</ul>\n<hr>\n",
+  "refs": [
+    [
+      "OpenSSH ssh 手册",
+      "https://man.openbsd.org/ssh"
+    ],
+    [
+      "OpenSSH ssh_config 手册",
+      "https://man.openbsd.org/ssh_config"
+    ],
+    [
+      "OpenSSH ssh-keygen 手册",
+      "https://man.openbsd.org/ssh-keygen"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "ssh"
+  ]
+}

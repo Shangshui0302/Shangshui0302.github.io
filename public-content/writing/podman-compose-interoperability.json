@@ -1,0 +1,68 @@
+{
+  "slug": "podman-compose-interoperability",
+  "number": "124",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Compose provider 与 Docker 工具互操作",
+  "deck": "分开 Compose 实现、Podman wrapper 和兼容 API socket 的职责。",
+  "sections": [
+    [
+      "section-01",
+      "podman-compose 是什么？"
+    ],
+    [
+      "section-05",
+      "Docker Socket 兼容：让 Docker 工具用 Podman"
+    ],
+    [
+      "section-08",
+      "VS Code Dev Containers 对接"
+    ],
+    [
+      "section-10",
+      "podman-compose 的兼容陷阱"
+    ],
+    [
+      "section-14",
+      "什么时候用 Quadlet，什么时候用 podman-compose？"
+    ],
+    [
+      "section-15",
+      "快捷别名设置"
+    ],
+    [
+      "section-16",
+      "podman compose wrapper 与 provider 选择"
+    ]
+  ],
+  "body": "<blockquote>\n<p>用 Docker Compose 的语法，走 Podman 的引擎。还有 VS Code Dev Container 等工具的兼容方式。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">podman-compose 是什么？</h2>\n<p><strong>podman-compose</strong> 是一个 Python 脚本，让 Podman 也能读懂 <code>docker-compose.yml</code> 文件。它是单独维护的 Compose 实现；应按其版本检查 Compose 功能，而不是将它与 <code>podman compose</code> wrapper 混为一谈。</p>\n<h3 id=\"section-02\">安装</h3>\n<pre><code># 可变发行版可在隔离 Python 工具环境安装；不是所有系统通用\npipx install podman-compose\n# 需 Python/pipx；NixOS 用 Nix 声明包，避免绕过配置安装\n\n# Fedora\nsudo dnf install podman-compose\n\n# Arch：先确认当前官方仓库包\nsudo pacman -Syu podman-compose</code></pre>\n<h3 id=\"section-03\">基本使用</h3>\n<pre><code># 和 docker-compose 命令几乎一样，把 docker 换成 podman\npodman-compose up -d         # 启动所有服务（后台）\npodman-compose ps             # 查看服务状态\npodman-compose logs -f        # 跟踪日志\npodman-compose stop           # 停止所有服务\npodman-compose down           # 停止并删除容器、网络\npodman-compose down -v        # 同时删除卷（数据丢失！）\npodman-compose restart web    # 重启指定服务</code></pre>\n<h3 id=\"section-04\">示例 docker-compose.yml</h3>\n<pre><code>services:\n  db:\n    image: docker.io/library/postgres:16-alpine\n    environment:\n      POSTGRES_PASSWORD: &quot;${POSTGRES_PASSWORD:?provide a non-public password}&quot;\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n    restart: always\n\n  web:\n    image: docker.io/library/nginx:alpine\n    ports:\n      - &quot;127.0.0.1:8080:80&quot;\n    depends_on:\n      - db\n\nvolumes:\n  pgdata:</code></pre>\n<pre><code>podman-compose up -d\n# 效果和 docker-compose up -d 几乎一样</code></pre>\n<hr>\n<h2 id=\"section-05\">Docker Socket 兼容：让 Docker 工具用 Podman</h2>\n<p>很多工具（VS Code Dev Containers、Testcontainers、某些 CI）假设 Docker 的 socket 存在。Podman 可以模拟这个 socket。</p>\n<h3 id=\"section-06\">启用 Podman Socket</h3>\n<pre><code># 启动用户级 Docker 兼容 socket\nsystemctl --user enable --now podman.socket\n\n# 设置环境变量，让 Docker 客户端连接到 Podman 的 socket\nexport DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock\n\n# 把这个写入 shell 配置文件以便永久生效\n# Bash 中可将上述 export 按配置管理方式保存；NixOS/Home Manager 写 Nix 源配置</code></pre>\n<h3 id=\"section-07\">验证兼容性</h3>\n<pre><code># 装了 DOCKER_HOST 后\ndocker ps        # 实际调用的是 Podman\ndocker compose up # 也能用\n\n# 如果系统还装了 docker CLI（没有 dockerd）\n# docker 命令会使用 DOCKER_HOST 指向 Podman socket</code></pre>\n<hr>\n<h2 id=\"section-08\">VS Code Dev Containers 对接</h2>\n<p>VS Code Dev Containers 可尝试 Podman CLI 或 Docker-compatible API；具体配置、挂载与 feature 支持需按扩展版本验证：</p>\n<pre><code># 1. 启用 podman socket\nsystemctl --user enable --now podman.socket\n\n# 2. 设置环境变量\nexport DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock\n\n# 3. 在 VS Code 设置中\n# &quot;dev.containers.dockerPath&quot;: &quot;podman&quot;\n# 或者直接用 Docker 路径，通过 DOCKER_HOST 转发</code></pre>\n<h3 id=\"section-09\">已知问题</h3>\n<ul>\n<li>Dev Containers 的 <code>remoteUser</code> 字段在 rootless 模式下行为不同：容器内 root 不等于宿主机 root</li>\n<li>某些 <code>devcontainer.json</code> 的 <code>mounts</code> 语法可能需要调整路径权限</li>\n<li><code>containerUser</code> 与 <code>remoteUser</code> 应按镜像用户和 UID 映射配置；不应把设为 root 作为所有挂载错误的修复，也不能仅凭 rootless 声称无需评估风险</li>\n</ul>\n<hr>\n<h2 id=\"section-10\">podman-compose 的兼容陷阱</h2>\n<h3 id=\"section-11\">不支持的特性</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">Docker Compose 特性</th>\n<th scope=\"col\">podman-compose 支持？</th>\n<th scope=\"col\">替代方案</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>depends_on</code> + <code>condition: service_healthy</code></td>\n<td>当前实现含该条件支持，依版本/用例验证</td>\n<td>检查健康命令与实际等待行为；Quadlet需就绪通知设计</td>\n</tr>\n<tr>\n<td><code>deploy.resources.limits</code></td>\n<td>部分</td>\n<td>手动 <code>--memory</code> <code>--cpus</code> 参数</td>\n</tr>\n<tr>\n<td><code>secrets:</code></td>\n<td>当前源码支持，来源/属性仍需核对</td>\n<td>检查 file/environment/external 语义与权限</td>\n</tr>\n<tr>\n<td><code>profiles:</code></td>\n<td>当前实现支持</td>\n<td>检查 --profile、COMPOSE_PROFILES 与目标服务展开</td>\n</tr>\n<tr>\n<td><code>network_mode: host</code></td>\n<td>是（rootless 下有限制）</td>\n<td>—</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-12\">端口映射的差异</h3>\n<pre><code># Docker 中：容器可直接暴露 80 端口\n# Podman rootless：是否可绑低端口取决于系统政策，示例优先高端口\nports:\n  - &quot;127.0.0.1:8080:80&quot;   # 正确\n  # - &quot;80:80&quot;   # 可能受系统非特权端口边界限制</code></pre>\n<h3 id=\"section-13\">卷权限问题</h3>\n<pre><code>volumes:\n  - ./data:/var/lib/mysql\n  # podman rootless 下，容器内进程 UID 映射为宿主机普通用户\n  # 如果数据目录属于 root，容器内可能无法写入\n  # 核对应用UID映射与目录权限；当前用户拥有目录也不保证映射后的应用用户能写</code></pre>\n<hr>\n<h2 id=\"section-14\">什么时候用 Quadlet，什么时候用 podman-compose？</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">场景</th>\n<th scope=\"col\">推荐工具</th>\n<th scope=\"col\">理由</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>开发环境（本地调试）</td>\n<td><strong>podman-compose</strong></td>\n<td>和团队共享 <code>docker-compose.yml</code>，快速启停</td>\n</tr>\n<tr>\n<td>生产服务器</td>\n<td><strong>Quadlet</strong></td>\n<td>systemd 原生管理、开机自启、统一日志、自动更新</td>\n</tr>\n<tr>\n<td>单容器服务</td>\n<td><strong>Quadlet</strong></td>\n<td>一条 <code>.container</code> 文件足够</td>\n</tr>\n<tr>\n<td>临时测试/CI</td>\n<td><strong>podman run</strong> / <strong>podman-compose</strong></td>\n<td>一次性任务不需要持久化配置</td>\n</tr>\n<tr>\n<td>需要 K8s 迁移</td>\n<td><strong>Pod + generate kube</strong></td>\n<td>把 Pod 导出为 K8s YAML 上线</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-15\">快捷别名设置</h2>\n<p>以下为 Bash 示例，按配置管理方式保存；Fish 环境变量语法不同：</p>\n<pre><code># 让 docker 命令实际运行 podman\nalias docker=podman\nalias docker-compose=podman-compose\n\n# 需要 DOCKER_HOST 时\nexport DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock</code></pre>\n<hr>\n<hr>\n<h2 id=\"section-16\">podman compose wrapper 与 provider 选择</h2>\n<p><code>podman compose</code> 本身不解释 Compose 规范，而是调用外部 provider 并准备连接 Podman socket 的环境。默认尝试 docker-compose 和 podman-compose，已安装的 docker-compose 优先；可在 containers.conf 的 <code>[engine] compose_providers</code> 或环境变量 <code>PODMAN_COMPOSE_PROVIDER</code> 指定路径。</p>\n<pre><code># 只检查命令/版本与provider支持参数\npodman compose --help\npodman-compose --version\n# 选择明确安装好的provider；此调用可能启动容器\nPODMAN_COMPOSE_PROVIDER=/path/to/podman-compose podman compose up -d</code></pre>\n<p>Docker CLI 与 Podman alias 是不同方案：真正的 docker CLI 读取 DOCKER_HOST，alias docker=podman 直接调用 Podman。API 兼容不保证所有插件/工具行为相同，socket 权限也代表对应用户的容器管理能力；不要开放未经保护的 TCP API。Compose 示例密码通过受控环境提供，不能把 .env 或 secrets 文件提交仓库。<code>depends_on</code> 短语法不自动等待数据库就绪；两种 provider 的功能和弃用项都要按版本验证。</p>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "Podman Compose provider 机制",
+      "https://docs.podman.io/en/stable/markdown/podman-compose.1.html"
+    ],
+    [
+      "podman-compose 官方项目",
+      "https://github.com/containers/podman-compose"
+    ],
+    [
+      "podman-compose 功能源码",
+      "https://github.com/containers/podman-compose/blob/main/podman_compose.py"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers"
+  ]
+}

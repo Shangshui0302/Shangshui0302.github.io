@@ -1,0 +1,56 @@
+{
+  "slug": "home-manager-shell-programs",
+  "number": "034",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Home Manager 终端环境配置",
+  "deck": "用模块配置 Zsh、Starship 和常用命令行工具。",
+  "sections": [
+    [
+      "section-01",
+      "Zsh 的 Nix 化配置"
+    ],
+    [
+      "section-02",
+      "提示符：Starship"
+    ],
+    [
+      "section-03",
+      "常用命令行工具 (CLI)"
+    ],
+    [
+      "section-04",
+      "为什么这样做？"
+    ],
+    [
+      "section-05",
+      "迁移提示"
+    ],
+    [
+      "section-06",
+      "版本适配与 Shell 边界"
+    ]
+  ],
+  "body": "<hr>\n<h2 id=\"section-01\">Zsh 的 Nix 化配置</h2>\n<p>Home Manager 提供了极其强大的 <code>programs.zsh</code> 选项，让你在 Nix 代码里就能管理所有插件。</p>\n<pre><code>{ pkgs, lib, ... }: {\n  programs.zsh = {\n    enable = true;\n    enableCompletion = true;\n    autosuggestion.enable = true;\n    syntaxHighlighting.enable = true;\n\n    # 别名 (Aliases)\n    shellAliases = {\n      ll = &quot;ls -l&quot;;\n      build-system = &quot;nixos-rebuild build --flake .#my-host&quot;;\n    };\n\n    # 插件 (Plugins)\n    plugins = [\n      {\n        name = &quot;zsh-nix-shell&quot;;\n        file = &quot;nix-shell.plugin.zsh&quot;;\n        src = pkgs.fetchFromGitHub {\n          owner = &quot;chisui&quot;;\n          repo = &quot;zsh-nix-shell&quot;;\n          rev = &quot;v0.8.0&quot;;\n          hash = lib.fakeHash; # 占位；首次构建核验来源后填写实际固定输出 hash\n        };\n      }\n    ];\n\n    # 自定义 .zshrc 内容\n    initExtra = &#39;&#39;\n      export PATH=$HOME/.bin:$PATH\n    &#39;&#39;;\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-02\">提示符：Starship</h2>\n<p>如果你喜欢现代化的终端提示符，配置非常简单：</p>\n<pre><code>{\n  programs.starship = {\n    enable = true;\n    # 这里可以自定义 starship.toml\n    settings = {\n      add_newline = false;\n      character = {\n        success_symbol = &quot;[➜](bold green)&quot;;\n        error_symbol = &quot;[➜](bold red)&quot;;\n      };\n    };\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-03\">常用命令行工具 (CLI)</h2>\n<p>这些工具在 Home Manager 下也有专门的配置项：</p>\n<ul>\n<li><strong><code>programs.git</code></strong>：配置用户名、邮箱和别名。</li>\n<li><strong><code>programs.fzf</code></strong>：自动启用 Zsh 绑定。</li>\n<li><strong><code>programs.direnv</code></strong>：进入目录自动加载开发环境。</li>\n<li><strong><code>programs.bat</code></strong>：带语法高亮的 <code>cat</code>。</li>\n</ul>\n<hr>\n<h2 id=\"section-04\">为什么这样做？</h2>\n<ol>\n<li><strong>开箱即用</strong>：在新机器上克隆配置后，运行一下命令，你所有的 Shell 插件和主题就全自动装好了。</li>\n<li><strong>配置复用</strong>：你可以轻松地把 Zsh 配置做成一个单独的文件，在不同的机器（甚至是在 macOS 上）共享。</li>\n</ol>\n<hr>\n<h2 id=\"section-05\">迁移提示</h2>\n<p>在 <code>configuration.nix</code> 层面只需指定 <code>users.defaultUserShell = pkgs.zsh;</code>，具体的 Shell 细节全部交给 Home Manager 管理。</p>\n<h2 id=\"section-06\">版本适配与 Shell 边界</h2>\n<p>例子保留了历史 Home Manager 的 <code>initExtra</code> 写法；新版本可能采用 <code>initContent</code>。插件版本与 hash 必须按实际锁定来源核验，不能把占位值当作已验证配置。系统层还需启用 <code>programs.zsh.enable</code> 并设置用户登录 Shell；Home Manager 管理用户配置。</p>\n",
+  "refs": [
+    [
+      "Home Manager 手册",
+      "https://nix-community.github.io/home-manager/"
+    ],
+    [
+      "Home Manager 命令源码",
+      "https://github.com/nix-community/home-manager/blob/master/home-manager/home-manager"
+    ],
+    [
+      "Home Manager 文件选项源码",
+      "https://github.com/nix-community/home-manager/blob/master/modules/lib/file-type.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "home-manager"
+  ]
+}

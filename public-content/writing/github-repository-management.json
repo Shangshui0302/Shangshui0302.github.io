@@ -1,0 +1,161 @@
+{
+  "slug": "github-repository-management",
+  "number": "104",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "GitHub 仓库管理",
+  "deck": "把仓库文档、权限、合并规则与版本发布建立为可核验的治理契约。",
+  "sections": [
+    [
+      "section-01",
+      "1. 仓库的两层：代码契约与平台治理"
+    ],
+    [
+      "section-05",
+      "2. 可见性、权限与角色"
+    ],
+    [
+      "section-09",
+      "3. Issues、Labels、Milestones 与 Projects"
+    ],
+    [
+      "section-13",
+      "4. 默认分支、保护规则与 Required Checks"
+    ],
+    [
+      "section-18",
+      "5. Tags、Releases、Archive 与 Transfer"
+    ],
+    [
+      "section-21",
+      "6. 仓库安全基线与维护清单"
+    ],
+    [
+      "section-25",
+      "7. 官方资料与延伸阅读"
+    ]
+  ],
+  "body": "<blockquote>\n<p>仓库管理的目标不是把 Settings 页面全部点一遍，而是让“谁能改、改什么、怎样合并、怎样发布、出了问题找谁”变得可解释、可审计、可恢复。</p>\n</blockquote>\n<blockquote>\n<p>本篇讲 Repository 的文件与元数据、权限、Issue 规划、默认分支、Branch Protection、Rulesets、Required Checks、Release、Archive、Transfer 与安全维护。GitHub Actions 只在“哪些检查必须通过、如何接入规则”这一边界出现，不展开 workflow YAML、Runner、Matrix、Cache 或凭据注入；这些内容留给本专题 04–06。</p>\n</blockquote>\n<h2 id=\"section-01\">1. 仓库的两层：代码契约与平台治理</h2>\n<p>一个 GitHub 仓库同时有两种状态：</p>\n<ol>\n<li><strong>仓库内的契约（repository-as-code）</strong>：README、LICENSE、CHANGELOG、贡献指南、Issue/PR 模板、CODEOWNERS、工作流与配置文件，能随 Git 历史审查、复制和回滚。</li>\n<li><strong>GitHub 平台的治理状态（repository settings）</strong>：可见性、角色、默认分支、分支规则、合并按钮、Issue/Projects 开关、Actions 权限与安全功能，通常在 Settings 或 API 中维护。</li>\n</ol>\n<p>两者要相互印证。README 写“需要 Pull Request”并不等于平台已经禁止直接推送；workflow 文件存在也不等于它的检查已成为 Required Check；<code>LICENSE</code> 文件存在也不等于仓库的 License 元数据已被识别。</p>\n<pre><code>flowchart LR\n    A[仓库文件与 Git 历史] --&gt; B[平台元数据]\n    B --&gt; C[权限与规则]\n    A --&gt; D[Issue / PR / Release]\n    C --&gt; E[Required Checks]\n    D --&gt; E\n    E --&gt; F[可审计的合并与发布]</code></pre>\n<h3 id=\"section-02\">1.1 基础文件的职责</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">文件或设置</th>\n<th scope=\"col\">解决的问题</th>\n<th scope=\"col\">维护要点</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>README.md</code></td>\n<td>项目是什么、如何安装和使用</td>\n<td>给首次访问者一条可运行路径；不要把全部设计史塞进 README</td>\n</tr>\n<tr>\n<td><code>README_EN.md</code> 或其他语言 README</td>\n<td>面向不同读者的入口</td>\n<td>两种语言至少同步安装、兼容性和限制；链接到同一份变更记录</td>\n</tr>\n<tr>\n<td><code>LICENSE</code></td>\n<td>使用、修改、再分发的法律边界</td>\n<td>使用 SPDX 名称；许可证文本要与仓库元数据一致</td>\n</tr>\n<tr>\n<td><code>CHANGELOG.md</code></td>\n<td>人类可读的行为变化</td>\n<td>按版本记录 breaking change、修复、迁移和已知限制</td>\n</tr>\n<tr>\n<td><code>CONTRIBUTING.md</code></td>\n<td>外部贡献者怎样开始</td>\n<td>写清本地检查、分支、PR、Review 和行为规范</td>\n</tr>\n<tr>\n<td><code>SECURITY.md</code></td>\n<td>私下报告漏洞的路径</td>\n<td>写明支持版本、报告渠道和不要公开披露的内容</td>\n</tr>\n<tr>\n<td><code>CODEOWNERS</code></td>\n<td>哪些路径需要谁 Review</td>\n<td>规则应覆盖关键代码、工作流和安全配置；路径变更要随代码审查</td>\n</tr>\n<tr>\n<td><code>.github/ISSUE_TEMPLATE/</code></td>\n<td>让 Issue 带有可行动的信息</td>\n<td>Bug、Feature、Security 等类型分别要求复现、目标和影响</td>\n</tr>\n<tr>\n<td><code>.github/PULL_REQUEST_TEMPLATE.md</code></td>\n<td>让 PR 自带检查清单</td>\n<td>说明变更、测试、风险、文档和关联 Issue</td>\n</tr>\n<tr>\n<td><code>.github/workflows/</code></td>\n<td>把质量检查自动执行</td>\n<td>本篇只关心它提供的检查是否稳定并接入合并规则</td>\n</tr>\n</tbody></table></div>\n<p><code>README</code> 负责“如何使用”，<code>CONTRIBUTING</code> 负责“如何改变”，<code>SECURITY</code> 负责“如何私下报告风险”，<code>CODEOWNERS</code> 负责“谁必须看”。把它们混在一个 README 里，会让普通用户、贡献者和安全报告人都找不到最短路径。</p>\n<h3 id=\"section-03\">1.2 仓库元数据不只是装饰</h3>\n<p>建议至少维护以下元数据：</p>\n<ul>\n<li>一句话 description：说明项目对象，不写成营销口号。</li>\n<li>Topics：使用稳定的技术名、语言名和生态名，帮助检索；不要把每个版本号都做成 Topic。</li>\n<li>License：选择与 <code>LICENSE</code> 内容相符的许可证。</li>\n<li>Default branch：通常是 <code>main</code>，但要与文档、CI 触发条件和发布流程一致。</li>\n</ul>\n<p>只读查看可使用 GitHub CLI：</p>\n<pre><code>gh repo view OWNER/REPO \\\n  --json nameWithOwner,visibility,defaultBranchRef,isArchived,licenseInfo,url</code></pre>\n<p>官方说明：<a href=\"https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories\" target=\"_blank\" rel=\"noopener noreferrer\">About repositories</a>、<a href=\"https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-repository-topics\" target=\"_blank\" rel=\"noopener noreferrer\">About repository topics</a>、<a href=\"https://cli.github.com/manual/gh_repo_view\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub CLI <code>gh repo view</code></a>。</p>\n<h3 id=\"section-04\">1.3 示例：如何记录一个仓库治理快照</h3>\n<p>以下是匿名化的教学情境，不是对某个实际仓库当前状态的核验：假设一个公开主题项目使用 <code>main</code> 作为默认分支，维护中文、英文 README 与 CHANGELOG，采用 BSD 2-Clause 许可证，发布过 <code>v0.1.0</code> 与 <code>v0.2.0</code>，并已有 <code>.github/workflows/nix.yml</code>。这些文件与版本身份需要分别核对，不能根据 README 推断平台设置。</p>\n<p>治理审计应把以下对象记录在同一个核验日期下：</p>\n<ul>\n<li>用 <code>gh repo view OWNER/REPO --json visibility,defaultBranchRef,isArchived,licenseInfo</code> 查看可见性、默认分支、归档状态与许可证元数据。</li>\n<li>检查 LICENSE、两种语言的 README、CHANGELOG 与 Release notes 是否一致。</li>\n<li>用 <code>gh release list --repo OWNER/REPO</code> 查看版本发布记录；“Latest” 只描述查询时的平台标记。</li>\n<li>查找 <code>CONTRIBUTING.md</code>、<code>SECURITY.md</code>、<code>CODEOWNERS</code> 和 Issue/PR 模板，明确已存在和待补充的契约。</li>\n<li>用 <code>gh ruleset list --repo OWNER/REPO</code> 和保护 API 核对合并规则。保护 API 的 404 可能受配置、权限或目标路径影响，应结合其他证据解释。</li>\n</ul>\n<p>一个“有 CI、缺贡献文档、未查到保护规则”的示例只能说明治理需要补齐；不能把它当成未来状态承诺，也不能由此判断是否有贡献者活动。</p>\n<h2 id=\"section-05\">2. 可见性、权限与角色</h2>\n<h3 id=\"section-06\">2.1 先选边界，再授予权限</h3>\n<p>仓库的可见性回答“谁能看见”，角色回答“看见以后能做什么”：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">概念</th>\n<th scope=\"col\">稳定语义</th>\n<th scope=\"col\">常见误区</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Public</td>\n<td>任何人可以访问公开内容；写入仍需要权限</td>\n<td>公开不等于任何人都能 push</td>\n</tr>\n<tr>\n<td>Private</td>\n<td>只有明确获授权的用户、团队或组织成员可访问</td>\n<td>private fork、Actions 日志和依赖能力可能受平台规则影响</td>\n</tr>\n<tr>\n<td>Internal</td>\n<td>适用于组织/企业内部可见的场景</td>\n<td>个人仓库未必提供此语义，不能当作 Public 与 Private 的通用中间态</td>\n</tr>\n<tr>\n<td>Fork</td>\n<td>共享上游关系的派生仓库</td>\n<td>改可见性或转移仓库可能影响 fork network 和权限</td>\n</tr>\n</tbody></table></div>\n<p>GitHub 的套餐、仓库所有者类型和组织策略会影响某项能力是否可用。不要把某个 Settings 页面当前显示的按钮、数量或免费额度写成永久规则；遇到差异时以当前 <a href=\"https://github.com/pricing\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub plans</a> 和 <a href=\"https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility\" target=\"_blank\" rel=\"noopener noreferrer\">repository visibility 文档</a> 为准。</p>\n<h3 id=\"section-07\">2.2 角色的最小权限原则</h3>\n<p>不同仓库类型的 UI 名称可能略有差异，但治理上可以按以下层级思考：</p>\n<ul>\n<li><strong>Read</strong>：查看代码、Issue、PR 和公开元数据；适合观察者和只读集成。</li>\n<li><strong>Triage</strong>：处理 Issue、PR 分类、标签和项目队列，不直接改变代码。</li>\n<li><strong>Write</strong>：推送允许的分支、创建 PR、运行常规协作流程。</li>\n<li><strong>Maintain</strong>：维护仓库配置和日常管理，但通常不应承担全部敏感或破坏性管理权。</li>\n<li><strong>Admin</strong>：修改仓库治理、安全与权限，并执行高影响操作；只给真正的仓库管理员。</li>\n</ul>\n<p>组织仓库优先授予团队而不是逐个用户；关键路径使用 CODEOWNERS 明确 Review 责任；临时协作者设置到期复核。不要为了让某人“能关 Issue”就直接给 Write，更不要用 Admin 解决一个局部权限问题。参考 <a href=\"https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-repository-roles\" target=\"_blank\" rel=\"noopener noreferrer\">Repository roles for an organization</a>。</p>\n<h3 id=\"section-08\">2.3 修改可见性前的检查</h3>\n<p>修改 Public/Private 不是普通的标签切换，应先检查：</p>\n<ol>\n<li>是否包含历史中的凭据、个人信息、内部链接或不应公开的构建日志。</li>\n<li>公开 fork、clone、缓存和 Release 是否会改变暴露面。</li>\n<li>依赖的 Actions、Packages、Pages、Webhook 和部署环境是否接受新的可见性。</li>\n<li>是否已告知协作者，并安排可逆的观察窗口。</li>\n<li>是否需要先迁移秘密、重写历史或轮换已暴露凭据。</li>\n</ol>\n<p>CLI 可以表达意图，但不会替代风险评估：</p>\n<pre><code>gh repo edit OWNER/REPO \\\n  --visibility private \\\n  --accept-visibility-change-consequences</code></pre>\n<p>只有确认后果并拥有足够权限时才执行。官方 CLI 说明：<a href=\"https://cli.github.com/manual/gh_repo_edit\" target=\"_blank\" rel=\"noopener noreferrer\">gh repo edit</a>。</p>\n<h2 id=\"section-09\">3. Issues、Labels、Milestones 与 Projects</h2>\n<h3 id=\"section-10\">3.1 Issue 是可追踪的决策对象</h3>\n<p>一个好 Issue 至少有：问题或目标、影响范围、复现/验收条件、相关版本、当前阻塞因素。讨论可以很开放，但最终要沉淀为可关闭、可引用和可复盘的记录。</p>\n<p>建议把标签分成少量稳定维度：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">维度</th>\n<th scope=\"col\">示例</th>\n<th scope=\"col\">作用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>类型</td>\n<td><code>bug</code>、<code>enhancement</code>、<code>documentation</code>、<code>security</code></td>\n<td>说明问题是什么</td>\n</tr>\n<tr>\n<td>状态</td>\n<td><code>triage</code>、<code>blocked</code>、<code>needs-info</code></td>\n<td>说明现在卡在哪里</td>\n</tr>\n<tr>\n<td>范围</td>\n<td><code>nix</code>、<code>theme</code>、<code>ci</code>、<code>docs</code></td>\n<td>说明由谁或哪部分处理</td>\n</tr>\n<tr>\n<td>贡献门槛</td>\n<td><code>good first issue</code>、<code>help wanted</code></td>\n<td>帮助新贡献者筛选任务</td>\n</tr>\n</tbody></table></div>\n<p>标签名应可组合，但不要为每个组合创建新标签；“类型 + 范围 + 状态”通常已经足够。Security Issue 不应把敏感细节写进公共 Issue，应转到 <code>SECURITY.md</code> 指定的私下渠道。</p>\n<p>Issue 模板应要求信息，而不是增加表单负担：Bug 模板收集环境、复现步骤、预期/实际结果和日志脱敏；Feature 模板收集动机、替代方案和验收条件；问题报告模板不应要求用户粘贴凭据。模板的官方入口是 <a href=\"https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates\" target=\"_blank\" rel=\"noopener noreferrer\">About issue and pull request templates</a>。</p>\n<p>常用 CLI 查询与创建：</p>\n<pre><code>gh issue list --repo OWNER/REPO --state open --label bug\ngh issue view 123 --repo OWNER/REPO\ngh issue create --repo OWNER/REPO --title &quot;简短标题&quot; --body-file issue.md</code></pre>\n<h3 id=\"section-11\">3.2 Milestone 连接 Issue 与版本目标</h3>\n<p>Milestone 适合表达一个有边界的交付目标，例如 <code>v0.3.0</code>、<code>Nix CI hardening</code> 或 <code>Documentation refresh</code>：</p>\n<ul>\n<li>给出目标、截止日期或发布窗口，但把日期视为计划，不是假定的承诺。</li>\n<li>把必须完成的 Issue 和 PR 关联进去。</li>\n<li>用完成比例发现范围膨胀，而不是用它代替详细项目计划。</li>\n<li>发布完成后关闭或归档对应目标，保留未完成项的去向。</li>\n</ul>\n<p>GitHub 会在 Milestone 页面汇总开放/关闭的 Issue、PR 和完成比例；具体上限和 UI 可能变化，参见 <a href=\"https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/about-milestones\" target=\"_blank\" rel=\"noopener noreferrer\">About milestones</a>。</p>\n<h3 id=\"section-12\">3.3 Projects 是跨 Issue/PR 的视图层</h3>\n<p>Projects 适合做队列、看板、表格或路线图：</p>\n<ul>\n<li>Issue/PR 是工作的事实记录，Project 是整理和查看它们的视图。</li>\n<li>用自定义字段表达优先级、状态、负责人、目标版本等；字段要少而稳定。</li>\n<li>一个工作项可以出现在多个视图，不要复制出多个彼此冲突的 Issue。</li>\n<li>定期关闭失效项，避免看板变成“所有想法的墓地”。</li>\n</ul>\n<p>个人仓库、组织仓库与套餐可能提供不同 Projects 能力；以 <a href=\"https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects\" target=\"_blank\" rel=\"noopener noreferrer\">About Projects</a> 和当前界面为准。</p>\n<h2 id=\"section-13\">4. 默认分支、保护规则与 Required Checks</h2>\n<h3 id=\"section-14\">4.1 默认分支是协作入口</h3>\n<p>默认分支决定新 PR 的默认目标、仓库首页展示内容、部分 Actions 触发语义和 Release 的默认基线。更换它之前应：</p>\n<ol>\n<li>确认目标分支已经包含要展示的代码和文档。</li>\n<li>检查 README、贡献指南、工作流、脚本和外部链接中的旧分支名。</li>\n<li>通知协作者更新本地 upstream 与 PR 目标。</li>\n<li>迁移保护规则、Rulesets、CODEOWNERS 相关路径和发布自动化。</li>\n<li>观察旧分支是否仍有开放 PR，再决定是否删除。</li>\n</ol>\n<pre><code>gh repo view OWNER/REPO --json defaultBranchRef\ngh repo edit OWNER/REPO --default-branch main</code></pre>\n<p><code>gh repo edit</code> 的写操作应在审查后执行；若只是检查，优先使用第一条只读命令。参考 <a href=\"https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/changing-the-default-branch\" target=\"_blank\" rel=\"noopener noreferrer\">Changing the default branch</a>。</p>\n<h3 id=\"section-15\">4.2 Branch Protection 与 Rulesets 的选择</h3>\n<p>两者都在保护分支或标签，但管理模型不同：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">机制</th>\n<th scope=\"col\">适用理解</th>\n<th scope=\"col\">需要注意</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Branch protection rule</td>\n<td>对匹配分支设置一组常见保护项</td>\n<td>规则直观，适合简单仓库；匹配与叠加行为要按当前文档确认</td>\n</tr>\n<tr>\n<td>Ruleset</td>\n<td>命名、可查看、可设置 enforcement 状态的一组规则</td>\n<td>可以针对分支或标签，多个 Rulesets 可同时生效，适合逐步推广与审计</td>\n</tr>\n</tbody></table></div>\n<p>两者不是“打开一个就完全替代另一个”。适用规则会共同影响合并和推送；管理员应避免重复、互相矛盾的规则。Ruleset 可以先以 Evaluate 等非强制状态观察命中结果，再切到 Active；具体可用状态和规则随产品演进，参见 <a href=\"https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets\" target=\"_blank\" rel=\"noopener noreferrer\">About rulesets</a> 与 <a href=\"https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets\" target=\"_blank\" rel=\"noopener noreferrer\">Available rules for rulesets</a>。</p>\n<h3 id=\"section-16\">4.3 一套可解释的 main 基线</h3>\n<p>对拥有持续维护的仓库，通常从以下保护项中按风险选择：</p>\n<ul>\n<li>要求通过 Pull Request，禁止未经审查的直接合并。</li>\n<li>要求至少一名合适的 Review；关键路径由 CODEOWNERS 指定审查者。</li>\n<li>新提交后使过时批准失效，避免“审查的是旧代码”。</li>\n<li>要求对话解决，确保 Review 中的阻塞意见有结论。</li>\n<li>要求 Required Checks 成功、跳过或中立后才允许合并；检查名称要稳定。</li>\n<li>需要分支与 base 更新后再合并时启用 strict checks；低频仓库可评估额外构建成本。</li>\n<li>视项目需要要求线性历史、签名提交、成功部署、禁止 force push 与删除。</li>\n<li>设定清晰的 bypass 角色，并把绕过规则的使用纳入审计。</li>\n</ul>\n<p>规则不是越多越安全。每一项都应回答“要阻止的风险是什么、谁可以例外、失败后如何恢复”。</p>\n<h3 id=\"section-17\">4.4 Required Checks 的真正边界</h3>\n<p>Required Check 是合并门槛，不是 CI 设计本身。配置前先确认：</p>\n<ol>\n<li>该检查在目标 PR 类型上一定会运行，不能因为路径过滤、权限或事件差异而无故缺失。</li>\n<li>检查名稳定且能唯一对应预期的工作；矩阵检查尤其要避免名字碰撞。</li>\n<li>检查来源可信，必要时限制到预期的 GitHub App 或服务。</li>\n<li><code>skipped</code>、<code>neutral</code>、失败与取消的语义符合项目风险；不要把“没有运行”误当“已经测试”。</li>\n<li>strict 与 loose 的选择符合仓库规模：strict 更接近合并时的最新 base，代价是可能重复构建。</li>\n<li>分支规则只要求已有且稳定的检查；先观察一段时间，再把它设为 Required。</li>\n</ol>\n<p>本篇不展开 Actions workflow 语法。只需要把 Actions 视为产生 Check 的执行方，后续在 04–06 中学习如何设计、配置和保护它。官方语义见 <a href=\"https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches\" target=\"_blank\" rel=\"noopener noreferrer\">About protected branches</a>，其中包含 Required Status Checks 的 strict/loose 取舍。</p>\n<p>若示例项目的 <code>.github/workflows/nix.yml</code> 与 CHANGELOG 表明已经有 Nix CI，但“有工作流”与“<code>main</code> 受 Required Checks 保护”是两件事。接入规则前应在真实 PR 中确认检查名称、触发条件和失败恢复路径。</p>\n<p>只读审计可以使用：</p>\n<pre><code>gh ruleset list --repo OWNER/REPO\ngh ruleset check main --repo OWNER/REPO\ngh api repos/OWNER/REPO/branches/main/protection</code></pre>\n<p>末条在未配置保护时可能返回 404；应结合仓库设置、Rulesets 列表和权限上下文解释，不能单独把网络错误当成配置结论。参考 <a href=\"https://cli.github.com/manual/gh_ruleset\" target=\"_blank\" rel=\"noopener noreferrer\">gh ruleset</a> 与 <a href=\"https://cli.github.com/manual/gh_api\" target=\"_blank\" rel=\"noopener noreferrer\">gh api</a>。</p>\n<h2 id=\"section-18\">5. Tags、Releases、Archive 与 Transfer</h2>\n<h3 id=\"section-19\">5.1 Tag 与 Release 是两个层次</h3>\n<ul>\n<li><strong>Git tag</strong> 指向某个提交，是版本身份的一部分；发布前应确认它指向可复现、已审查的提交。</li>\n<li><strong>GitHub Release</strong> 是围绕 tag 的分发页面，可附带变更说明、资产、安装提示和预发布/草稿状态。</li>\n<li><strong>CHANGELOG</strong> 是仓库内的长期历史；Release notes 是面向该版本用户的交付说明。两者可以互相链接，但不应只存在一份。</li>\n</ul>\n<p>推荐的发布顺序：</p>\n<ol>\n<li>先合并代码、文档和 <code>CHANGELOG</code>，明确兼容性、迁移与已知限制。</li>\n<li>创建并审查版本 tag，检查 tag 对应的 commit 和源码归档。</li>\n<li>创建 Release，写清用户能感知的变化、验证方法和不支持范围。</li>\n<li>如果有构建资产，记录来源、校验方式和平台差异；不要把未验证的构建产物标成稳定版。</li>\n<li>发布后验证安装/升级路径，并把问题回链到 Issue 或下一个 Milestone。</li>\n</ol>\n<p>CLI 查询示例：</p>\n<pre><code>gh release list --repo OWNER/REPO\ngh release view v0.2.0 --repo OWNER/REPO</code></pre>\n<p>参考 <a href=\"https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases\" target=\"_blank\" rel=\"noopener noreferrer\">About releases</a>、<a href=\"https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository\" target=\"_blank\" rel=\"noopener noreferrer\">Managing releases</a> 与 <a href=\"https://cli.github.com/manual/gh_release\" target=\"_blank\" rel=\"noopener noreferrer\">gh release</a>。</p>\n<p>示例版本规划可以让 v0.1.0 提供初始主题与安装路径，让 v0.2.0 增加 compositor 原生模糊变体、Home Manager 模块、输出契约检查与 Nix CI。这里的版本安排仅用于说明发布记录的分工。Release 页面与仓库内 <code>CHANGELOG.md</code> 的版本号应保持可互相验证。</p>\n<h3 id=\"section-20\">5.2 Archive 与 Transfer 是高影响操作</h3>\n<p><strong>Archive</strong> 表示项目不再积极维护：内容通常保留为只读参考，Issue/PR 与部分协作入口会受到限制。归档前应发布维护状态、替代项目和安全报告路径；归档不等于删除，也不能替代备份。</p>\n<p><strong>Transfer</strong> 会改变所有者或仓库命名空间，可能影响：</p>\n<ul>\n<li>clone URL、远程配置和外部链接；</li>\n<li>issue、PR、项目、Actions、Secrets、Webhooks、Packages 与部署；</li>\n<li>fork network、团队权限和 CODEOWNERS；</li>\n<li>许可证、品牌、维护责任与安全报告渠道。</li>\n</ul>\n<p>转移前先列出依赖方、通知协作者、确认目标命名空间和管理员，转移后再验证 redirect、默认分支、规则、Release 与 CI。参考 <a href=\"https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository\" target=\"_blank\" rel=\"noopener noreferrer\">Transferring a repository</a> 与 <a href=\"https://docs.github.com/en/repositories/archiving-a-github-repository/archiving-repositories\" target=\"_blank\" rel=\"noopener noreferrer\">Archiving a GitHub repository</a>。</p>\n<h2 id=\"section-21\">6. 仓库安全基线与维护清单</h2>\n<h3 id=\"section-22\">6.1 最小安全基线</h3>\n<p>对公开仓库，最小基线应包含：</p>\n<ul>\n<li>不提交 token、密码、私钥、<code>.env</code> 或含凭据的构建日志；发现泄露时先撤销/轮换，再处理历史。</li>\n<li>用 <code>SECURITY.md</code> 指定私下报告渠道、支持版本和响应边界；公共 Issue 不承载漏洞细节。</li>\n<li>对关键路径使用 CODEOWNERS；工作流、发布配置和依赖更新不应无人 Review。</li>\n<li>启用可用的 secret scanning 与 push protection，并理解其覆盖范围、误报和绕过流程。</li>\n<li>评估 Dependabot alerts、Dependabot security updates、dependency review 与 code scanning；能力取决于仓库类型、组织策略和套餐。</li>\n<li>Actions 只授予所需权限；第三方 Action 固定到经过审查的版本或提交，并定期更新。</li>\n<li>用 Branch Protection/Rulesets 把关键检查、Review 和禁止破坏性推送落实为平台规则。</li>\n</ul>\n<p>GitHub 的安全功能会持续变化，不要把某一套餐的按钮当成所有仓库都拥有的能力。官方入口：<a href=\"https://docs.github.com/en/code-security/getting-started/quickstart-for-securing-your-repository\" target=\"_blank\" rel=\"noopener noreferrer\">Quickstart for securing your repository</a>、<a href=\"https://docs.github.com/en/code-security/concepts/secret-security/secret-scanning\" target=\"_blank\" rel=\"noopener noreferrer\">Secret scanning</a>、<a href=\"https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository\" target=\"_blank\" rel=\"noopener noreferrer\">Adding a security policy</a> 与 <a href=\"https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners\" target=\"_blank\" rel=\"noopener noreferrer\">About code owners</a>。</p>\n<h3 id=\"section-23\">6.2 可执行的维护清单</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">时机</th>\n<th scope=\"col\">检查</th>\n<th scope=\"col\">证据</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>每次变更</td>\n<td>PR 描述、关联 Issue、Required Checks、Review 责任</td>\n<td>PR、Check run、Review 记录</td>\n</tr>\n<tr>\n<td>每周或每次集中维护</td>\n<td>清理无效 Issue，补充标签，更新 Milestone/Project 状态</td>\n<td>Issue 历史和项目视图</td>\n</tr>\n<tr>\n<td>每次发布</td>\n<td>版本号、CHANGELOG、tag、Release notes、安装验证</td>\n<td>tag、Release、验证命令/日志</td>\n</tr>\n<tr>\n<td>依赖更新</td>\n<td>依赖告警、变更范围、兼容性与回滚方案</td>\n<td>Dependabot/PR/Release 记录</td>\n</tr>\n<tr>\n<td>每月或每季度</td>\n<td>权限、团队成员、bypass、Secrets、Webhook 和规则</td>\n<td>Settings 审计、组织日志、规则快照</td>\n</tr>\n<tr>\n<td>发生安全事件后</td>\n<td>撤销凭据、判断历史暴露、通知受影响者、复盘防护缺口</td>\n<td>私下报告记录和修复 PR</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-24\">6.3 示例项目的治理优先级</h3>\n<p>对上述教学情境，可以从治理角度排序：</p>\n<ol>\n<li>添加 <code>CONTRIBUTING.md</code>，写明本地 Nix 检查、PR 证据、文档同步和兼容性声明。</li>\n<li>添加 <code>SECURITY.md</code>，定义安全报告渠道，并提醒不要在公共 Issue 粘贴凭据或漏洞细节。</li>\n<li>添加最小 Bug/Feature/PR 模板，让 Issue 和贡献请求可复现、可验收。</li>\n<li>若维护者希望关键路径强制 Review，再添加 CODEOWNERS，并检查文件路径与权限。</li>\n<li>观察 <code>.github/workflows/nix.yml</code> 产生的实际 check 名称与失败率，再为 <code>main</code> 设计 Ruleset/Branch Protection 与 Required Checks。</li>\n<li>规则稳定后，把规则、发布流程和安全检查写进文档，形成“仓库文件 + 平台设置 + 验证命令”的闭环。</li>\n</ol>\n<p>这份排序避免先设置一个没人理解的 Required Check，也避免把社区文件当成装饰性模板；每一项都应服务于真实贡献和发布流程。</p>\n<h2 id=\"section-25\">7. 官方资料与延伸阅读</h2>\n<ul>\n<li><a href=\"https://docs.github.com/\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Docs</a></li>\n<li><a href=\"https://cli.github.com/manual/\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub CLI Manual</a></li>\n<li><a href=\"https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories\" target=\"_blank\" rel=\"noopener noreferrer\">About repositories</a></li>\n<li><a href=\"https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-repository-roles\" target=\"_blank\" rel=\"noopener noreferrer\">Repository roles</a></li>\n<li><a href=\"https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues\" target=\"_blank\" rel=\"noopener noreferrer\">About issues</a></li>\n<li><a href=\"https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches\" target=\"_blank\" rel=\"noopener noreferrer\">About protected branches</a></li>\n<li><a href=\"https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets\" target=\"_blank\" rel=\"noopener noreferrer\">About rulesets</a></li>\n<li><a href=\"https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases\" target=\"_blank\" rel=\"noopener noreferrer\">About releases</a></li>\n<li><a href=\"https://docs.github.com/en/code-security/getting-started/quickstart-for-securing-your-repository\" target=\"_blank\" rel=\"noopener noreferrer\">Quickstart for securing a repository</a></li>\n<li><a href=\"https://cli.github.com/manual/gh_repo_edit\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub CLI <code>gh repo edit</code></a></li>\n<li><a href=\"https://cli.github.com/manual/gh_ruleset\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub CLI <code>gh ruleset</code></a></li>\n<li><a href=\"https://cli.github.com/manual/gh_release\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub CLI <code>gh release</code></a></li>\n</ul>\n<p>GitHub 的 UI、套餐、权限和产品限制会变化；遇到文档与当前界面不一致时，以当前官方文档和仓库 Settings 的实际结果为准，并在项目维护记录中更新核验日期。</p>\n",
+  "refs": [
+    [
+      "About repositories",
+      "https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories"
+    ],
+    [
+      "About repository topics",
+      "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-repository-topics"
+    ],
+    [
+      "GitHub CLI `gh repo view",
+      "https://cli.github.com/manual/gh_repo_view"
+    ],
+    [
+      "GitHub plans",
+      "https://github.com/pricing"
+    ],
+    [
+      "repository visibility 文档",
+      "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility"
+    ],
+    [
+      "Repository roles for an organization",
+      "https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-repository-roles"
+    ],
+    [
+      "gh repo edit",
+      "https://cli.github.com/manual/gh_repo_edit"
+    ],
+    [
+      "About issue and pull request templates",
+      "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates"
+    ],
+    [
+      "About milestones",
+      "https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/about-milestones"
+    ],
+    [
+      "About Projects",
+      "https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects"
+    ],
+    [
+      "Changing the default branch",
+      "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/changing-the-default-branch"
+    ],
+    [
+      "About rulesets",
+      "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets"
+    ],
+    [
+      "Available rules for rulesets",
+      "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets"
+    ],
+    [
+      "About protected branches",
+      "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches"
+    ],
+    [
+      "gh ruleset",
+      "https://cli.github.com/manual/gh_ruleset"
+    ],
+    [
+      "gh api",
+      "https://cli.github.com/manual/gh_api"
+    ],
+    [
+      "About releases",
+      "https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases"
+    ],
+    [
+      "Managing releases",
+      "https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository"
+    ],
+    [
+      "gh release",
+      "https://cli.github.com/manual/gh_release"
+    ],
+    [
+      "Transferring a repository",
+      "https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository"
+    ],
+    [
+      "Archiving a GitHub repository",
+      "https://docs.github.com/en/repositories/archiving-a-github-repository/archiving-repositories"
+    ],
+    [
+      "Quickstart for securing your repository",
+      "https://docs.github.com/en/code-security/getting-started/quickstart-for-securing-your-repository"
+    ],
+    [
+      "Secret scanning",
+      "https://docs.github.com/en/code-security/concepts/secret-security/secret-scanning"
+    ],
+    [
+      "Adding a security policy",
+      "https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository"
+    ],
+    [
+      "About code owners",
+      "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners"
+    ],
+    [
+      "GitHub Docs",
+      "https://docs.github.com/"
+    ],
+    [
+      "GitHub CLI Manual",
+      "https://cli.github.com/manual/"
+    ],
+    [
+      "About issues",
+      "https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "github",
+    "governance",
+    "security"
+  ]
+}

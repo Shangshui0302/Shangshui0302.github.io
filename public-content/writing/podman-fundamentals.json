@@ -1,0 +1,56 @@
+{
+  "slug": "podman-fundamentals",
+  "number": "119",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Podman 基础原理",
+  "deck": "从容器、镜像和 OCI 运行时理解 Podman 的架构与权限模型。",
+  "sections": [
+    [
+      "section-01",
+      "前置：什么是容器？（零基础版）"
+    ],
+    [
+      "section-05",
+      "Podman 是什么？"
+    ],
+    [
+      "section-08",
+      "Rootless：不需要 root 就能跑容器"
+    ],
+    [
+      "section-11",
+      "版本变化：不要把所有新特性归入 5.0"
+    ],
+    [
+      "section-12",
+      "什么时候用 Podman，什么时候用 Docker？"
+    ]
+  ],
+  "body": "<blockquote>\n<p>从容器与镜像开始，区分 Podman 的本地管理模式、rootless 权限和可选 API 服务。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">前置：什么是容器？（零基础版）</h2>\n<h3 id=\"section-02\">一个比喻</h3>\n<p>想象你给朋友寄一台组装好的电脑。有两个方案：</p>\n<ul>\n<li><strong>虚拟机</strong>：把整台电脑（含机箱、电源、主板）装箱寄走 → 笨重，每台电脑都自带完整操作系统</li>\n<li><strong>容器</strong>：把 CPU + 内存 + 硬盘拆下来，装进统一规格的泡沫箱寄走 → 轻量，只包含应用程序和它的直接依赖</li>\n</ul>\n<p>容器的核心思想：<strong>把应用程序和它需要的所有依赖打成一个标准包，在支持相应 CPU 架构、内核能力和运行时条件的 Linux 环境中提供一致的用户态依赖。</strong></p>\n<h3 id=\"section-03\">容器 vs 虚拟机</h3>\n<pre><code>虚拟机：\n┌─────────────────────────────┐\n│ App A    │ App B            │  ← 每个 App 带自己的 OS\n├──────────┼──────────────────┤\n│ Guest OS │ Guest OS         │  ← 完整操作系统（几 GB）\n├──────────┴──────────────────┤\n│ Hypervisor (KVM/VirtualBox) │\n├─────────────────────────────┤\n│ Host OS (Linux)             │\n└─────────────────────────────┘\n\n容器：\n┌────────────┬────────────┐\n│ App A      │ App B      │  ← 各自独立的依赖\n├────────────┴────────────┤\n│ Container Runtime       │  ← 轻量运行时\n├─────────────────────────┤\n│ Host OS (Linux)         │  ← 只有一个操作系统\n└─────────────────────────┘</code></pre>\n<p>关键区别：容器<strong>共享</strong>宿主机的 Linux 内核，不需要每个容器里装一个完整操作系统。所以：</p>\n<ul>\n<li>容器通常省去独立 guest kernel 的启动成本，轻量任务常启动较快。</li>\n<li>实际时间受镜像拉取、应用初始化、挂载和网络影响。</li>\n<li>可运行数量取决于工作负载、内存和资源限制，不能用固定内存容量推出实例数。</li>\n</ul>\n<h3 id=\"section-04\">容器的两个核心原料</h3>\n<ol>\n<li><strong>镜像 (Image)</strong>：一个只读的模板，包含运行程序所需的一切——代码、库、配置文件。比如 <code>docker.io/library/nginx:alpine</code> 镜像里包含了 Nginx Web 服务器和它需要的所有文件。</li>\n<li><strong>容器 (Container)</strong>：镜像的&quot;运行实例&quot;。镜像像程序安装包，容器像正在运行的程序本身。</li>\n</ol>\n<pre><code># 镜像 → 容器 的关系\npodman pull docker.io/library/nginx:alpine     # 下载镜像（安装包）\npodman run docker.io/library/nginx:alpine      # 从镜像启动容器（运行程序）</code></pre>\n<hr>\n<h2 id=\"section-05\">Podman 是什么？</h2>\n<p><strong>Podman（Pod Manager）</strong> 是 Red Hat 开源的容器管理工具。它的命令行接口和 Docker <strong>几乎完全相同</strong>——大多数情况下你只需要把 <code>docker</code> 换成 <code>podman</code>。</p>\n<p>但这只是表面。Podman 和 Docker 的底层架构完全不同。</p>\n<h3 id=\"section-06\">核心差异：Daemonless 架构</h3>\n<pre><code>graph TD\n    subgraph &quot;Docker 架构&quot;\n        DC[&quot;docker CLI&quot;] --&gt;|REST API| DD[&quot;dockerd&lt;br/&gt;守护进程&lt;br/&gt;(通常常驻，可 rootful/rootless)&quot;]\n        DD --&gt;|gRPC| CR[&quot;containerd&quot;]\n        CR --&gt; RUNC[&quot;runc&quot;]\n    end\n    subgraph &quot;Podman 架构&quot;\n        PC[&quot;podman CLI&quot;] --&gt;|直接 fork/exec| PM[&quot;conmon&lt;br/&gt;容器监控进程&quot;]\n        PM --&gt; CRUN[&quot;crun / runc&quot;]\n    end</code></pre>\n<p><strong>Docker 的问题</strong>：</p>\n<ul>\n<li>本地 Docker CLI 通常通过 <code>dockerd</code> 的 API 管理资源；daemon 有管理状态与资源成本。</li>\n<li>常见 rootful Docker daemon 具有宿主管理员能力；Docker 也提供 rootless 模式。</li>\n<li>daemon 不可用会影响管理操作；已运行容器是否持续运行受 live-restore 与运行时设计影响，不能概括为全停。</li>\n<li><code>dockerd</code> 的 API socket 是著名的<strong>安全攻击面</strong></li>\n</ul>\n<p><strong>Podman 的做法</strong>：</p>\n<ul>\n<li>本地 CLI 管理不要求常驻中心 daemon，但运行容器仍有 conmon/OCI runtime 等进程。</li>\n<li>普通用户可以运行 rootless Podman；具体容器 UID 还取决于 userns 映射及镜像应用用户。</li>\n<li>一个容器挂掉不影响其他容器</li>\n<li>API socket 和远程工作流可按需启用 Podman 服务，不等于完全没有后台进程。</li>\n</ul>\n<h3 id=\"section-07\">一句话总结</h3>\n<blockquote>\n<p>Docker 是&quot;客户端-服务器&quot;模式（你告诉管家去干活），Podman 是&quot;直接执行&quot;模式（你自己干活）。这是管理入口的差别，安全性仍需按 rootful/rootless、socket 权限和运行配置判断。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-08\">Rootless：不需要 root 就能跑容器</h2>\n<p>这是 Podman 在安全方面的最大卖点。</p>\n<h3 id=\"section-09\">什么是 Rootless？</h3>\n<p>未启用用户命名空间映射的 rootful 配置中，容器 UID 0 对应宿主 UID 0，但仍受 namespace、capabilities、seccomp 和 SELinux 等限制。危险尤其来自过宽的宿主挂载和额外权限：</p>\n<ul>\n<li>删除容器自己的 <code>/</code> 通常影响其文件系统视图；若可写挂载宿主目录，则可能破坏该目录数据。</li>\n<li>可写宿主挂载结合高权限可能暴露宿主文件，必须限制授权范围。</li>\n</ul>\n<p>Podman 的 Rootless 模式下，容器内的 root 被映射为宿主机上一个<strong>普通用户</strong>。容器进程&quot;以为&quot;自己是 root，实际上在宿主机只是普通用户权限。</p>\n<pre><code>默认 rootful 无 userns 映射：容器 UID 0 通常对应宿主 UID 0\n默认 rootless 映射：容器 UID 0 通常对应调用者普通 UID</code></pre>\n<p><strong>实际效果</strong>：rootless 降低宿主管理员权限暴露，但共享内核、可访问 socket 和用户数据仍是风险；不能视为容器被攻破后的绝对隔离保证。</p>\n<h3 id=\"section-10\">用户映射的关键前提</h3>\n<p><code>/etc/subuid</code> 和 <code>/etc/subgid</code> 文件为每个用户分配了一段&quot;虚拟 UID 范围&quot;：</p>\n<pre><code># /etc/subuid\nuser:100000:65536\n# 含义：user 可以&quot;扮演&quot;100000 到 165535 这 65536 个 UID\n# subordinate 区间不意味着 UID 0 自动映射到 100000；默认通常把调用者映射为容器 root</code></pre>\n<p>创建 rootless 容器时，Podman 自动使用 <code>newuidmap/newgidmap</code> 设置用户命名空间隔离。</p>\n<hr>\n<h2 id=\"section-11\">版本变化：不要把所有新特性归入 5.0</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">变化</th>\n<th scope=\"col\">影响</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>SQLite 数据库</strong></td>\n<td>5.0 完成新的容器状态数据库迁移方向；不是直接把镜像层存储称为 SQLite</td>\n</tr>\n<tr>\n<td><strong>Podman Machine</strong></td>\n<td>VM provider、平台支持和启动表现依具体版本与平台</td>\n</tr>\n<tr>\n<td><strong>native <code>podman quadlet</code> 命令</strong></td>\n<td>较新版本提供管理 Quadlet 文件的命令；install、生成与启动仍需分别核对</td>\n</tr>\n<tr>\n<td><strong>Quadlet 生产推荐</strong></td>\n<td><code>podman generate systemd</code> 已弃用，Quadlet 是官方推荐方式</td>\n</tr>\n<tr>\n<td><strong>Podman AI Lab</strong></td>\n<td>Podman Desktop 生态的独立扩展，不等于 5.0 核心引擎能力</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-12\">什么时候用 Podman，什么时候用 Docker？</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">场景</th>\n<th scope=\"col\">推荐</th>\n<th scope=\"col\">理由</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>学习容器</td>\n<td>Podman</td>\n<td>OCI 工具链与常用 CLI 接近，适合已有 Linux 环境</td>\n</tr>\n<tr>\n<td>个人开发环境</td>\n<td>Podman</td>\n<td>可 rootless 本地使用，不要求常驻中心 daemon</td>\n</tr>\n<tr>\n<td>公司必须用 Docker</td>\n<td>Docker</td>\n<td>团队统一工具链</td>\n</tr>\n<tr>\n<td>需要 Docker Swarm</td>\n<td>Docker</td>\n<td>Podman 不支持 Swarm</td>\n</tr>\n<tr>\n<td>CI/CD 流水线</td>\n<td>Podman</td>\n<td>本地构建可不依赖 daemon socket，仍须限制构建与凭据权限</td>\n</tr>\n<tr>\n<td>生产服务器部署</td>\n<td>Podman + Quadlet</td>\n<td>适合 Linux/systemd 的声明资源管理，需验证应用需求</td>\n</tr>\n<tr>\n<td>用 VS Code Dev Containers</td>\n<td>都可以</td>\n<td>需按工具与版本验证 CLI/API 兼容性</td>\n</tr>\n</tbody></table></div>\n<hr>\n<hr>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "Podman 5.0 官方发布",
+      "https://github.com/podman-container-tools/podman/releases/tag/v5.0.0"
+    ],
+    [
+      "Quadlet 管理命令",
+      "https://docs.podman.io/en/stable/markdown/podman-quadlet.1.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers"
+  ]
+}

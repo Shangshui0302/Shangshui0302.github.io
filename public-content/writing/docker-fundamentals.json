@@ -1,0 +1,64 @@
+{
+  "slug": "docker-fundamentals",
+  "number": "110",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Docker 基础：镜像、容器与守护进程",
+  "deck": "沿客户端、API、containerd 与 OCI 运行时理解容器启动。",
+  "sections": [
+    [
+      "section-01",
+      "容器是什么？（零基础版）"
+    ],
+    [
+      "section-03",
+      "Client-Server 架构：Docker 的核心模型"
+    ],
+    [
+      "section-04",
+      "三个关键组件"
+    ],
+    [
+      "section-08",
+      "Docker 的运行流程"
+    ],
+    [
+      "section-10",
+      "Docker 的优势和劣势"
+    ],
+    [
+      "section-13",
+      "Docker 和 OCI 标准"
+    ]
+  ],
+  "body": "<blockquote>\n<p>Docker 推动了容器镜像分发与开发工作流的普及，并推动 OCI 标准建立。理解 Client-Server 架构，是理解 Docker 一切操作的前提。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">容器是什么？（零基础版）</h2>\n<blockquote>\n<p>如果你已经读过 Podman 系列的容器入门\n容器的基础概念在 <a href=\"/writing/podman-fundamentals/\">Podman 01 篇</a> 有详细解释。Docker 和 Podman 共用同一套容器标准（OCI），概念基础概念相通，具体引擎功能仍有差异。</p>\n</blockquote>\n<h3 id=\"section-02\">镜像和容器</h3>\n<ul>\n<li><strong>镜像 (Image)</strong>：一个只读模板，包含运行程序所需的一切——代码、库、配置文件。它是&quot;安装包&quot;。</li>\n<li><strong>容器 (Container)</strong>：镜像的运行实例。它是&quot;正在运行的程序&quot;。</li>\n</ul>\n<pre><code>docker pull nginx:alpine      # 下载镜像（安装包）\ndocker run nginx:alpine       # 从镜像启动容器（运行程序）</code></pre>\n<hr>\n<h2 id=\"section-03\">Client-Server 架构：Docker 的核心模型</h2>\n<pre><code>graph TD\n    subgraph &quot;你的终端&quot;\n        CLI[&quot;docker CLI / $ docker run ...&quot;]\n    end\n    subgraph &quot;Docker 守护进程&quot;\n        SOCK[&quot;/var/run/docker.sock / Unix Socket&quot;]\n        DOCKERD[&quot;dockerd / 以 root 运行 / 常驻后台&quot;]\n        CONTAINERD[&quot;containerd / 容器生命周期管理&quot;]\n    end\n    subgraph &quot;容器运行时&quot;\n        RUNC[&quot;runc / OCI 标准运行时&quot;]\n    end\n    subgraph &quot;你的容器&quot;\n        C[&quot;nginx 容器 / 独立进程&quot;]\n    end\n\n    CLI --&gt;|&quot;REST API over Unix Socket&quot;| SOCK\n    SOCK --&gt; DOCKERD\n    DOCKERD --&gt; CONTAINERD\n    CONTAINERD --&gt; RUNC\n    RUNC --&gt; C</code></pre>\n<p><strong>每一步发生了什么</strong>：</p>\n<ol>\n<li>你敲 <code>docker run nginx:alpine</code></li>\n<li><code>docker</code> CLI 把请求发到 <code>/var/run/docker.sock</code></li>\n<li><code>dockerd</code>（守护进程）收到请求，检查本地有没有 <code>nginx:alpine</code> 镜像，没有就从 Docker Hub 拉</li>\n<li><code>dockerd</code> 调用 <code>containerd</code> 创建容器</li>\n<li><code>containerd</code> 调用 <code>runc</code> 启动容器进程</li>\n<li>你的 nginx 容器开始运行；具体进程父关系涉及 containerd shim 和运行时，不能简单称为 dockerd 的直接子进程</li>\n</ol>\n<hr>\n<h2 id=\"section-04\">三个关键组件</h2>\n<h3 id=\"section-05\">dockerd（守护进程）</h3>\n<ul>\n<li><strong>常驻后台</strong>：系统启动时自动运行，一直占用内存</li>\n<li><strong>rootful 或 rootless</strong>：传统系统 daemon 以 root 运行，也可配置 rootless；控制 rootful socket 的权限应视为高权限</li>\n<li><strong>单点控制</strong>：本篇描述传统 daemon 管理路径；构建与不同 context 可能涉及额外工具和服务</li>\n<li><strong>管理不可用，现有容器行为取决于 live-restore 等配置</strong>：daemon 不可用会影响管理操作；live-restore 可使独立容器在部分 daemon 停止/升级场景继续运行，并有版本和日志缓冲限制</li>\n</ul>\n<h3 id=\"section-06\">docker.sock（通信桥梁）</h3>\n<p><code>/var/run/docker.sock</code> 是 dockerd 的 Unix Socket 文件：</p>\n<pre><code># docker CLI 通过这个 Socket 和 dockerd 通信\nls -l /var/run/docker.sock\n# srw-rw---- 1 root docker ... /var/run/docker.sock\n#              └ root       └ 属于 docker 组的用户可读写\n\n# 能读写这个 Socket 的人 = 能操控 Docker\n# 操控 Docker = 能以 root 身份做任何事\n# 这就是为什么 docker 组 ≈ root 权限</code></pre>\n<h3 id=\"section-07\">Docker Hub（镜像仓库）</h3>\n<p>Docker Hub（<code>docker.io</code>）是 Docker 的公共镜像仓库，类似 GitHub 但对于镜像：</p>\n<ul>\n<li><code>docker pull nginx:alpine</code> 默认从 Docker Hub 拉</li>\n<li>也可以推自己的镜像上去：<code>docker push exampleuser/myimage:latest</code></li>\n<li>国内可能需要镜像加速（配置 <code>registry-mirrors</code>）</li>\n</ul>\n<hr>\n<h2 id=\"section-08\">Docker 的运行流程</h2>\n<pre><code># 典型的一次操作\ndocker run -d --name web -p 8080:80 -v /data:/usr/share/nginx/html nginx:alpine\n\n# 命令拆解：\n# docker     — 调用 Docker CLI\n# run        — 创建并启动一个新容器\n# -d         — 在后台运行（不占用当前终端）\n# --name web — 给容器起名 web（不指定则随机生成）\n# -p 8080:80 — 把宿主机的 8080 端口，转发到容器的 80 端口\n# -v /data:/usr/share/nginx/html — 把宿主机的 /data 目录，挂载到容器的指定路径\n# nginx:alpine — 用哪个镜像</code></pre>\n<h3 id=\"section-09\">容器生命周期</h3>\n<pre><code>pull（拉取镜像）\n  │\n  ▼\ncreate（创建容器，分配文件系统和网络）\n  │\n  ▼\nstart（启动容器进程）\n  │\n  ▼\nrunning（运行中）\n  │\n  ├── stop（发送配置的停止信号，等待超时后强杀；默认通常为 SIGTERM）\n  │     │\n  │     └── 容器进程退出\n  │\n  ├── kill（发送 SIGKILL，立即强杀）\n  │     │\n  │     └── 容器进程立即终止\n  │\n  ├── pause（冻结容器进程（并非关闭全部外部 I/O），不释放内存）\n  │     │\n  │     └── unpause（恢复运行）\n  │\n  └── rm（删除容器及其可写层，不自动删除命名卷或镜像）</code></pre>\n<hr>\n<h2 id=\"section-10\">Docker 的优势和劣势</h2>\n<h3 id=\"section-11\">为什么 Docker 最流行</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">优势</th>\n<th scope=\"col\">说明</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>生态最成熟</strong></td>\n<td>最多的镜像、教程、文档、Stack Overflow 问答</td>\n</tr>\n<tr>\n<td><strong>团队协作</strong></td>\n<td>工具和配置可形成团队共同工作流，实际标准按团队选择</td>\n</tr>\n<tr>\n<td><strong>Docker Compose 原生</strong></td>\n<td>第一方工具，提供 profiles/watch/secrets 等功能</td>\n</tr>\n<tr>\n<td><strong>CI/CD 集成</strong></td>\n<td>常见 CI 提供容器任务或 Docker 集成，权限与 runner 条件各异</td>\n</tr>\n<tr>\n<td><strong>Docker Desktop</strong></td>\n<td>GUI 管理、集成 K8s、开发体验好（但有收费）</td>\n</tr>\n<tr>\n<td><strong>Docker Swarm</strong></td>\n<td>轻量集群编排，使用 legacy Compose v3 格式子集，需检查迁移兼容性</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-12\">劣势</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">劣势</th>\n<th scope=\"col\">说明</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>dockerd 是单点故障</strong></td>\n<td>挂着影响所有容器</td>\n</tr>\n<tr>\n<td><strong>root 安全风险</strong></td>\n<td>dockerd 以 root 运行，socket 泄露 = 系统沦陷</td>\n</tr>\n<tr>\n<td><strong>内存占用</strong></td>\n<td>资源占用依配置与负载测量</td>\n</tr>\n<tr>\n<td><strong>Docker Desktop 收费</strong></td>\n<td>较大企业商业使用需订阅；当前文档以超过 250 名员工或超过 1000 万美元年营收描述，按许可条款核对</td>\n</tr>\n<tr>\n<td><strong>限制拉取速率</strong></td>\n<td>配额依匿名/认证与订阅方案变化，按官方 Hub usage 页面核对</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-13\">Docker 和 OCI 标准</h2>\n<p>Docker 在 2015 年把容器运行时 <code>runc</code> 捐献给 OCI（Open Container Initiative），OCI 定义镜像、运行时及分发等规范；这里关注其中两类：</p>\n<ol>\n<li><strong>OCI Image Spec</strong> — 镜像格式标准（Docker 支持 OCI 与相关镜像格式，具体 manifest/media type 应检查）</li>\n<li><strong>OCI Runtime Spec</strong> — 容器运行时标准（runc 是参考实现）</li>\n</ol>\n<p><strong>这意味着</strong>：常用兼容镜像可被 Podman 或 Kubernetes 所用的容器引擎消费，仍须匹配平台架构、运行时要求及配置；containerd 本身也需对应工具和配置。镜像格式不是 Docker 专有的。</p>\n<hr>\n<hr>\n",
+  "refs": [
+    [
+      "Docker Engine 安全",
+      "https://docs.docker.com/engine/security/"
+    ],
+    [
+      "Docker rootless",
+      "https://docs.docker.com/engine/security/rootless/"
+    ],
+    [
+      "Live restore",
+      "https://docs.docker.com/engine/daemon/live-restore/"
+    ],
+    [
+      "Docker Desktop 条款",
+      "https://docs.docker.com/desktop/setup/install/linux/"
+    ],
+    [
+      "Docker Hub 配额",
+      "https://docs.docker.com/docker-hub/usage/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "containers",
+    "docker"
+  ]
+}

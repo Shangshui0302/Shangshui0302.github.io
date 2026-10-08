@@ -1,0 +1,93 @@
+{
+  "slug": "waydroid-practical-tips",
+  "number": "149",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Waydroid 使用技巧：窗口、转译和共享目录",
+  "deck": "保留 Ivon 的使用技巧与操作细节，并注明历史版本和兼容性边界。",
+  "sections": [
+    [
+      "section-01",
+      "适用范围与操作前提"
+    ],
+    [
+      "section-02",
+      "窗口与桌面集成"
+    ],
+    [
+      "section-03",
+      "2. Waydroid 的操作指令"
+    ],
+    [
+      "section-04",
+      "3. 將 Waydroid 語言改成中文"
+    ],
+    [
+      "section-05",
+      "4. 解決 Waydroid 沒有網路"
+    ],
+    [
+      "section-06",
+      "5. Google Play 商店裝置註冊"
+    ],
+    [
+      "section-07",
+      "6. 安裝 ARM 轉譯器解決 APP 閃退問題"
+    ],
+    [
+      "section-08",
+      "8. 多開 APP，同時執行多個 APP"
+    ],
+    [
+      "section-09",
+      "9. Linux 與 Waydroid 共享目錄"
+    ],
+    [
+      "section-10",
+      "13. 調整 APP 音量"
+    ],
+    [
+      "section-11",
+      "15. 防止 APP 偵測到 Root 或模擬器導致閃退"
+    ],
+    [
+      "section-12",
+      "補齊剪藏中的操作入口"
+    ],
+    [
+      "section-13",
+      "核对依据"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">适用范围与操作前提</h2>\n<p>命令和输出使用通用示例。内核、镜像、包与服务版本会影响具体行为，阅读时应结合所用版本的文档核对。</p>\n<p>修改容器、镜像、挂载和防火墙前先备份 Android 数据并停止相关会话；带删除或强制停止的示例可能丢失数据。NixOS 的系统与用户环境配置应通过 Nix 管理，通用 Linux 的 apt/pacman、直接写 /etc 和 pip 安装段落不用于 NixOS 宿主。重建的 build、test、switch 与启动后的功能验证是不同阶段。</p>\n<p>本文整理自 <a href=\"https://ivonblog.com/posts/waydroid-tips/\" target=\"_blank\" rel=\"noopener noreferrer\">Ivon Huang 的原文</a>，保留繁体中文内容。原剪藏有部分命令缺失，下方以官方接口补齐必要示例；历史现象不保证适用于当前版本。</p>\n<h2 id=\"section-02\">窗口与桌面集成</h2>\n<p>若是點選其他 APP 圖示（從 Linux 桌面的圖示啟動，而不是點 Android 桌面的圖示），則 APP 會以獨立視窗啟動，分別顯示在 Linux 桌面的工作列，視窗大小固定。依然一次只能執行一個 APP，無法同時執行。切換 APP 視窗，則另外一個 APP 會暫停，例如遊戲 APP 的畫面會凍結，Youtube 會停止播放。這些 APP 無法使用通知欄，且點選返回鍵的話，APP 視窗就會自動關閉，但不會完全停止執行。</p>\n<p>如果啟用「多視窗模式」的話（啟動方法見下），則 Linux 桌面的 Waydroid 圖示會消失，然後從 Linux 桌面啟動 APP 就可以調整視窗大小，且能夠同時執行，不會因為切換 APP 而暫停。當你點選打叉或者返回鍵，APP 視窗會關閉，但不會完全停止執行。</p>\n<p>Waydroid 的文字剪貼簿與輸入法整合是不同功能；可在 Android 安裝適合的輸入法，不限定為 Gboard。宿主輸入法的可用性依圖形/輸入整合而異。</p>\n<h2 id=\"section-03\">2. Waydroid 的操作指令</h2>\n<p>Waydroid 執行時的 Android 系統資料放在 <code>~/.local/share/waydroid/data/</code>，系統映像檔位於<code>/var/lib/waydroid</code>，APP 圖示位於<code>~/.local/share/applications/</code>\n啟動 Waydroid 容器服務\n停止 Waydroid 容器服務\n如何更新 Android 系統？用此指令停止容器，並下載最新映像檔：\n用指令開啟 Waydroid 主畫面\n查看系統錯誤訊息\nWaydroid 可以用指令安裝 APK\n用以下指令進入 Android shell，內建 Root 權限，能夠執行 Android Shell 指令。\nWyadroid 啟動後會自動開啟 ADB 偵錯，可以從 Linux 宿主機啟動 ADB 與其配對。IP 位址可以在 Androi 系統設定 → 關於手機找到。\n如何開啟開發人員選項？開啟 Android 系統設定 → 關於手機 → 版本號碼，點五下。之後 Android 系統設定 → 系統就會出現開發人員選項（通常按畫面提示點擊版本號 7 次）。</p>\n<h2 id=\"section-04\">3. 將 Waydroid 語言改成中文</h2>\n<p>在 Android 的界面開啟 Settings → System → Languages，加入中文，並將滑桿拉到最上面。</p>\n<p>Android 的時間應該會在調整語言之後，自動依照時區和網路時間同步。</p>\n<h2 id=\"section-05\">4. 解決 Waydroid 沒有網路</h2>\n<p>請嘗試開放防火牆通訊埠，依照發行版不同防火牆也不同，可能有 Firewalld、UFW、iptables 等等。\nUbuntu 的 UFW 指令：\nFedora 的 Firewalld 指令：\n再重新啟動 Waydroid：\n如果還是不行，可能是 Waydroid 跟 Docker 網路衝突。我們沒有必要關閉 Docker，只要修改 Waydroid 網路設定檔：\nLXC_USE_NFT 是網路腳本变量，先核對目前套件，不將它追加到 LXC config 當有效選項：\n再重新啟動 Waydroid 應該就可以了。</p>\n<h2 id=\"section-06\">5. Google Play 商店裝置註冊</h2>\n<p>Waydroid 基於 LineageOS 建置，你應該在安裝 Waydroid 的時候就下載了內建 GMS 服務的映像檔。但是第三方 ROM 不向 Google 註冊裝置的話，是無法存取 Google Play 商店的。</p>\n<ol>\n<li>進入 Android 的 shell</li>\n<li>執行以下指令，會迸出一長串代碼，即 GMS 的裝置 ID。如果沒有輸出，請確認 Waydroid 是否有正常連上網路。</li>\n<li>到 <a href=\"https://www.google.com/android/uncertified\" target=\"_blank\" rel=\"noopener noreferrer\">Google裝置註冊</a>，填入該代碼</li>\n<li>等待服務反映註冊狀態後再重啟；自認證不保證所有 Play 商店或完整性檢查問題都會消失。</li>\n</ol>\n<h2 id=\"section-07\">6. 安裝 ARM 轉譯器解決 APP 閃退問題</h2>\n<p>ARM 架構的電腦可以跳過此步驟。\n鑑於大多數電腦都是 x86 架構，而許多手遊只提供 ARM 架構的 APK，因此需要一個將 ARM 指令翻譯成 x86 的指令的軟體。\n如何確認 APP 只有 ARM 架構？預設沒有 ARM 轉譯器的情況下，Google Play 可能不會顯示特定 APP。或者在安裝 APK 後，透過 <a href=\"https://github.com/MuntashirAkon/AppManager\" target=\"_blank\" rel=\"noopener noreferrer\">Package Manager</a>查看這個 APP 是否含有<code>/lib/x86_64</code> 的函式庫，如果只有 ARM，那麼開起來會閃退。需要安裝 ARM 轉譯器。\n目前 ARM 轉譯器有 Intel 研發的「libhoudini」和 Google 研發的「libndk」，都是專有軟體。部分社群建議按 CPU 廠商選擇，但不能視為已證實的性能保證；鏡像版本、指令集與應用更需要實測。可能有的 APP 可以在其中一個運作，另一個卻不行，需要多方測試。請注意不要同時安裝兩個 ARM 轉譯器。要安裝另外一個的時候，你應該執行下述的指令稿，選取 Remove 舊的再安裝新的轉譯器。</p>\n<pre><code>sudo apt install lzip\ncd ~\ngit clone https://github.com/casualsnek/waydroid_script\ncd waydroid_script\npython3 -m venv venv\nvenv/bin/pip install -r requirements.txt\ncd ~/waydroid_script\n</code></pre>\n<ol start=\"5\">\n<li>執行指令稿，用空白鍵選取 <code>libhoudini</code> 或者<code>libndk</code>，然後 Enter 安裝，安裝 ARM 轉譯器。ARM 轉譯器嚴格對應 Android 版本，不可以跨版本混用。</li>\n<li>重啟 Waydroid</li>\n<li>有時候 Google Play 可能還是不會顯示 x86 架構以外的應用程式，為此您需要到 ApkMirror 找 ARM 架構的 APK 來裝，看能否正常開啟。</li>\n<li>如果 ARM 轉譯器執行特定 APP 有問題，嘗試到 <a href=\"https://github.com/waydroid/waydroid/issues\" target=\"_blank\" rel=\"noopener noreferrer\">Waydroid的Github issue</a>回報，看看有沒有社群製作的 patch 能用。例如針對《蔚藍檔案》遊戲，有玩家製作了<a href=\"https://gist.github.com/Tsumuri-u/da187a511833633d68c4afcf2da4ddef\" target=\"_blank\" rel=\"noopener noreferrer\">這個指令稿</a> 修復登入崩潰的問題。</li>\n<li>更新 Waydroid 系統之後可能需要重裝 ARM 轉譯器。</li>\n</ol>\n<p>多視窗模式 (multi window mode) 對需要直向使用的 APP 很有幫助，也能讓多個 APP 同時執行。\n10. 用以下指令設定為 true，讓 Waydroid 開啟多視窗模式，允許在同一個畫面執行多個 APP。\n11. 建議在 Android 開發人員選項開啟「允許自由形式視窗」。\n12. 之後 Linux 應用程式選單的 Waydroid 圖示就會消失（仍可透過 <code>waydroid show-full-ui</code> 指令開啟 Android 主畫面），只剩下 APP 圖示。\n13. APP 開啟後，會變得好像 Linux 的原生應用程式一般，能夠自由調整視窗大小。\n14. 有些 APP 可能依然會以全螢幕啟動，需要按 F11 切換視窗模式，再按一次 F11 進入全螢幕。\n15. 若有 APP 進入全螢幕模式，則其他 APP 會暫停，就無法同時執行二個以上 APP 了，最好維持視窗化。\n16. 因為在多視窗模式下無法使用 Android 的多工界面，所以要完全中止 APP 執行，只能開啟 Android Settings → 應用程式，強制停止 APP。</p>\n<p>原作者記錄 Android 13 的部分視窗管理限制，有些 APP 縮放後會壞掉，或者根本無法縮放。覺得出問題的話就把這功能關掉：\n另外，Android 也有內建「自由形式」視窗功能，從多工畫面啟動，這會讓 APP 只在 Waydroid 的視窗內自由縮放。</p>\n<h2 id=\"section-08\">8. 多開 APP，同時執行多個 APP</h2>\n<p>Waydroid 設計上沒辦法開啟多個實例 (instances) ，所以不能一個 APP 同時登入二個帳號達成多開。但是你可以透過 <a href=\"https://ivonblog.com/posts/android-shelter-app-usage/\" target=\"_blank\" rel=\"noopener noreferrer\">Shelter</a> 的工作設定檔功能，在一個 Android 系統雙開 APP。\n依照 Waydroid 設計，APK 安裝之後會在 Linux 桌面的應用程式列表顯示各個 Android APP 的圖示，點這裡啟動就能夠執行多個 APP。但是得開啟「多視窗模式」，才能「同時」執行二個以上 APP。\n如果多視窗模式下，有 APP 不願意視窗化，堅持全螢幕該怎麼辦？善用桌面環境的虛擬桌面。GNOME、KDE Plasma、Hyprland、COSMIC 都有虛擬桌面 (virtual desktop，或稱 workspace) 的功能，如果 APP 啟動會佔滿目前虛擬桌面的整個畫面，要使用另一個 APP 就是切換到下一個虛擬桌面再啟動。每個工作區就能分別執行各自的 APP。</p>\n<h2 id=\"section-09\">9. Linux 與 Waydroid 共享目錄</h2>\n<p>Waydroid 啟動後的資料位於 <code>~/.local/share/waydroid/data/media/0/</code> 目錄。這裡是 Android 的內部儲存空間，需要 Root 權限才能存取。\n如果使用 KDE Dolphin 檔案管理器 6.0 以上版本進入，可以申請 Root 權限強制讀取 Android 的檔案。\n或者，使用掛載一般權限目錄的方式來存取檔案。為了不影響其他檔案，我建議在兩邊新增一個專門用於共享的資料夾 <code>WaydroidShared</code>。使用 mount 指令，將 Linux 的<code>~/WaydroidShared</code>掛載到 Waydroid 裡面的<code>WaydroidShared</code> 資料夾：\n您也可以用 ADB 指令無線傳輸檔案。Waydroid 的 IP 到 Android 系統設定 → 關於查看。</p>\n<pre><code>adb connect Waydroid的IP:5555\nadb push &quot;本機目錄&quot; &quot;Android的目錄&quot;\n</code></pre>\n<p>部份 APP 會要求開啟 Wifi 才能下載，不然會以為你只有行動數據，那麼就如它所願，開啟 fake wifi。\n使用 <code>waydroid app list</code> 指令，查看 APP 的套件名稱。\n使用以下語法設定：</p>\n<pre><code>waydroid prop set persist.waydroid.fake_wifi &quot;套件名稱&quot;\n</code></pre>\n<p>例如給 Mihon 漫畫閱讀器開啟模擬 Wifi，並在該 APP 設定開啟允許非 Wifi 下載，然後重新啟動容器：\n使用 <code>waydroid app list</code> 指令，用於查看 APP 的套件名稱。\n有些 APP 認不到滑鼠點擊，需要啟用 fake touch：</p>\n<pre><code>waydroid prop set persist.waydroid.fake_touch &quot;套件名稱&quot;\n</code></pre>\n<p>例如給 Fate/Go 遊戲開啟模擬觸控，然後重新啟動容器：\n如果 APP 開啟模擬觸控之後還是無法點選，請考慮使用其他方案，譬如：<a href=\"https://ivonblog.com/posts/waydroid-scrcpy\" target=\"_blank\" rel=\"noopener noreferrer\">搭配Scrcpy操作Waydroid</a>\n安裝 <a href=\"https://ivonblog.com/posts/android-force-rotate-screen-apps/\" target=\"_blank\" rel=\"noopener noreferrer\">Rotation Control</a> 這類 APP，即可強制調整 Waydroid 螢幕方向。\nWaydroid 可能無法調整成直向螢幕解析度，除非你使用可以旋轉螢幕的 Linux 平板。</p>\n<h2 id=\"section-10\">13. 調整 APP 音量</h2>\n<p>開啟 Android 系統設定 → 音訊，調整音量。\n實體鍵無法控制 Android 容器內的音量，所以得另外安裝調整音量的 APP。放在 Android 桌面當作小工具，或者是用 <a href=\"https://github.com/SimonMarquis/Android-SoundQuickSettings\" target=\"_blank\" rel=\"noopener noreferrer\">Sound Quick Settings</a>，新增一個音量調整按鈕到 Android 通知欄。\nLinux 桌面的音量控制面板可以單獨將 Waydroid 的輸出靜音，譬如 <code>pavucontrol</code>。\n另外，Waydroid 可以存取 Linux 的麥克風，Android APP 應該能夠正常錄製音效。麥克風音量同樣能夠從 pavucontrol 控制面板調整。\n若有多個 APP 在執行，要單獨將特定 APP 靜音的話，建議使用 <a href=\"https://github.com/legendsayantan/ShizuTools\" target=\"_blank\" rel=\"noopener noreferrer\">ShizuTools</a> 的 MixedAudio 功能。\nAndroid 的多工畫面有單個 APP 的截圖按紐。\nLinux 端沒有快捷鍵能夠觸發 Android 硬體鍵的截圖，所以就用 Linux 端的截圖軟體吧。\n或者，安裝 <a href=\"https://play.google.com/store/apps/details?id=com.github.cvzi.screenshottile\" target=\"_blank\" rel=\"noopener noreferrer\">Screenshot Tile</a>，Android 的通知欄就會多出一個原生截圖按鈕。</p>\n<h2 id=\"section-11\">15. 防止 APP 偵測到 Root 或模擬器導致閃退</h2>\n<p>有時候 APP 不給安裝或閃退，不是因為 ARM 轉譯的問題，而是 APP 認為你的裝置不安全。\nWaydroid 的 Play Integrity API 等級連最基本的都無法通過，因此部份 APP 會拒絕執行。\n此外需要 DRM 的 APP 也會無法播放。\n這種解法就比較複雜，看是要安裝 Magisk 來隱藏 Root，亦或是偽裝機型。參見：<a href=\"https://ivonblog.com/posts/waydroid-install-magisk-and-lsposed/\" target=\"_blank\" rel=\"noopener noreferrer\">Waydroid躲避Root偵測 ＆ 安裝Magisk與LSPosed</a>\nWaydroid 的 Android APP 圖示位於 <code>~/.local/share/applications/waydroid.*</code>\n寫個指令稿於 Waydroid 關閉後刪除之。\n如果不方便使用 Wayland 工作階段，就用巢狀 Wayland 工作階段解決。\n參見：<a href=\"https://ivonblog.com/posts/run-waydroid-on-x11-desktop\" target=\"_blank\" rel=\"noopener noreferrer\">在Linux X11桌面用Weston啟動Waydroid，不依賴Wayland協定桌面</a>\n原作者在 Nvidia 驅動 575 時記錄：Waydroid 只支援 Intel 與 AMD 的顯示卡，不支援 Nvidia。如果硬要在 Nvidia 顯示卡跑的話就只能改用軟體渲染啟動 Waydroid。此模式下無效能可言，無法玩遊戲。\n註解：有人做了一個 <a href=\"https://github.com/Quackdoc/waydroid-scripts/blob/main/waydroid-choose-gpu.sh\" target=\"_blank\" rel=\"noopener noreferrer\">waydroid-choose-gpu.sh</a> 指令稿能夠選取 Waydroid 使用的 GPU，似乎能解決 Nvidia + Intel 配置的顯示卡問題，在 Nvidia 作為主顯示卡的情況下強制使用 Intel 顯示卡渲染，但因為 Waydroid 需要桌面合成器協助，同一 GPU 可能減少 dma-buf 跨裝置兼容問題，但不是普遍強制要求，因此這個指令稿似乎只在 Intel + AMD 的配置有效。\n17. 初始化 Waydroid\n18. 編輯設定檔\n19. 填入以下內容，啟用 SwiftShader\n20. 套用變更\n21. 重新啟動 Waydroid</p>\n<h2 id=\"section-12\">補齊剪藏中的操作入口</h2>\n<pre><code>sudo systemctl start waydroid-container\nwaydroid session start\nwaydroid show-full-ui\nwaydroid log\nwaydroid app install /path/to/example.apk\nsudo waydroid shell\nwaydroid prop set persist.waydroid.multi_windows true\nwaydroid session stop</code></pre>\n<p>共享專用目錄前建立兩邊目錄，確認權限與資料範圍；不把整個 home 共享到 Android。停止會話、備份，再對專用目錄使用 bind mount，並檢查容器映射是否可見。</p>\n<pre><code>mkdir -p ~/WaydroidShared\n# Android 資料目錄的建立/權限按現場使用者和映像核對\nsudo mount --bind ~/WaydroidShared ~/.local/share/waydroid/data/media/0/WaydroidShared</code></pre>\n<p>SwiftShader 的啟動期配置在 <code>/var/lib/waydroid/waydroid.cfg</code> 的 <code>[properties]</code> 中：</p>\n<pre><code>[properties]\nro.hardware.gralloc=default\nro.hardware.egl=swiftshader</code></pre>\n<p>先停止使用中的會話，再按已安裝版本執行 <code>sudo waydroid upgrade --offline</code> 並重啟容器。此操作可能重建生成屬性，備份自定義設定。</p>\n<h2 id=\"section-13\">核对依据</h2>\n<p><a href=\"https://ivonblog.com/posts/waydroid-tips/\" target=\"_blank\" rel=\"noopener noreferrer\">Ivon Huang 原文</a>。</p>\n<p><a href=\"https://docs.waydro.id/usage/install-on-desktops\" target=\"_blank\" rel=\"noopener noreferrer\">Waydroid 官方安装说明</a>。</p>\n<p><a href=\"https://docs.waydro.id/usage/waydroid-command-line-options\" target=\"_blank\" rel=\"noopener noreferrer\">Waydroid 官方命令说明</a>。</p>\n<p><a href=\"https://github.com/waydroid/waydroid\" target=\"_blank\" rel=\"noopener noreferrer\">Waydroid 上游源码</a>。</p>\n<p><a href=\"https://docs.waydro.id/usage/waydroid-prop-options\" target=\"_blank\" rel=\"noopener noreferrer\">官方屬性文件</a>。</p>\n",
+  "refs": [
+    [
+      "Ivon Huang 原文",
+      "https://ivonblog.com/posts/waydroid-tips/"
+    ],
+    [
+      "Waydroid 官方安装说明",
+      "https://docs.waydro.id/usage/install-on-desktops"
+    ],
+    [
+      "Waydroid 官方命令说明",
+      "https://docs.waydro.id/usage/waydroid-command-line-options"
+    ],
+    [
+      "Waydroid 上游源码",
+      "https://github.com/waydroid/waydroid"
+    ],
+    [
+      "官方屬性文件",
+      "https://docs.waydro.id/usage/waydroid-prop-options"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "linux",
+    "waydroid",
+    "containers"
+  ]
+}

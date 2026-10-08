@@ -1,0 +1,22 @@
+{
+  "slug": "git-engineering-workflow",
+  "title": "Git：从快照到协作与恢复",
+  "deck": "按对象模型、单机操作、分支、远端与恢复建立完整工作流。",
+  "description": "先理解快照、暂存区和引用，再走完单机作业流；通过分支与远端组织协作，最后使用变基、拣选、引用日志和场景手册处理历史与恢复。GitHub 平台知识由单独专题承接。",
+  "articles": [
+    "git-model",
+    "git-snapshots",
+    "git-branching",
+    "git-remotes",
+    "git-advanced-tools",
+    "git-recovery"
+  ],
+  "reading_guide": [
+    "辨认对象不可变与引用可移动，并理解 GC 和备份边界。",
+    "沿工作区、暂存区和 HEAD 阅读每个命令改变哪份内容。",
+    "区分快进与三方合并，先保存现场再切换或解决冲突。",
+    "检查 remote URL 和 refspec，分清 fetch、本地更新与远端推送。",
+    "只改写已协调的历史，先用恢复分支保住 reflog 找到的提交。",
+    "按 status 和数据保存状态选择继续、撤销或恢复，不盲目 hard reset。"
+  ]
+}

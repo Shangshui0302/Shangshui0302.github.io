@@ -1,0 +1,20 @@
+{
+  "slug": "nix-ecosystem-development",
+  "title": "Nix 开发环境与二进制兼容",
+  "deck": "从项目 shell 到语言依赖、ELF 加载器和包覆盖。",
+  "description": "围绕开发环境重现、目录自动加载、语言工具链和库路径组织阅读，保留源 MOC 中开发流程与包修改两条路径。",
+  "articles": [
+    "nix-ecosystem-direnv",
+    "nix-ecosystem-development-environments",
+    "nix-ecosystem-python-qt",
+    "nix-ld-precompiled",
+    "nix-ecosystem-overlays"
+  ],
+  "reading_guide": [
+    "先区分临时 shell、devShell 和 direnv 的自动加载责任。",
+    "按语言查完整配置，再读数据库、容器与 Justfile 组合。",
+    "用 ldd、文件索引和插件路径定位 Python/Qt ABI 混用。",
+    "从 execve 和 ELF interpreter 开始判断是否需要 nix-ld。",
+    "在实际消费者中接入 overlay，再验证受影响包构建。"
+  ]
+}

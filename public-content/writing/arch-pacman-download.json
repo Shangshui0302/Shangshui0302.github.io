@@ -1,0 +1,49 @@
+{
+  "slug": "arch-pacman-download",
+  "number": "062",
+  "category": "LINUX / SYSTEMS",
+  "title": "Pacman 下载慢的诊断与镜像选择",
+  "deck": "从网络、镜像状态和并行下载逐步定位下载瓶颈。",
+  "sections": [
+    [
+      "section-01",
+      "来源与诊断范围"
+    ],
+    [
+      "section-02",
+      "如何使用 Pacman 修复 Arch Linux 中下载速度慢的问题"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">来源与诊断范围</h2>\n<p>本文据 <a href=\"https://cn.linux-terminal.com/?p=7649\" target=\"_blank\" rel=\"noopener noreferrer\">Linux Terminal 的下载慢排障剪藏</a> 整理，保留排障步骤并校正部分升级与缓存说明。公开镜像 URL 为原文示例，使用前检查当前 <a href=\"https://archlinux.org/mirrors/status/\" target=\"_blank\" rel=\"noopener noreferrer\">镜像状态</a>。</p>\n<p><strong>网站搜索</strong>\n<strong>Arch Linux 中的 Pacman 下载速度很慢？按照我们的指南来优化和加速您的包管理器，以获得更流畅的体验。</strong>\n如果您在 Arch Linux 中使用 Pacman 时遇到下载速度慢的情况，那么您并不孤单。有时，通过 pacman 或任何软件包安装进行的系统更新在您的 Arch 系统中会变慢。\n这个问题可能会令人沮丧，尤其是在下载大尺寸包时。</p>\n<p>下载速率下降应先区分本地网络、单个镜像与所有镜像的表现。\n然而，有几种方法可以解决这个问题。让我们来谈谈它。\n但为什么下载速度慢呢？其原因可能有多种。其中一些可能与您的系统配置等有关。</p>\n<ul>\n<li>互联网速度或网络连接问题</li>\n<li>镜像服务器负载或连接问题</li>\n<li>过时的 Arch Linux 镜像</li>\n</ul>\n<h2 id=\"section-02\">如何使用 Pacman 修复 Arch Linux 中下载速度慢的问题</h2>\n<p>现在我们已经讨论了下载速度慢的原因，让我们继续讨论解决方案。以下是一些分步方法，可帮助您使用 Pacman 修复 Arch Linux 中下载速度缓慢的问题：</p>\n<h3 id=\"section-03\">使用不同的 Pacman 服务器</h3>\n<p>解决 Arch Linux 中下载速度慢的最简单方法之一是使用不同的 Pacman 服务器。您可以使用距离您所在国家/地区较近的 Pacman 镜像，或者选择不太繁忙的镜像来提高下载速度。\n服务器名称存在于 pacman 配置文件 <code>/etc/pacman.d/mirrorlist</code> 中。这是它的外观示例。</p>\n<pre><code>## United States\nServer = https://mirrors.kernel.org/archlinux/$repo/os/$arch\n## United States\nServer = https://mirror.lty.me/archlinux/$repo/os/$arch\n## United States\nServer = https://mirror.pit.teraswitch.com/archlinux/$repo/os/$arch\n## United States\nServer = https://mirrors.xtom.com/archlinux/$repo/os/$arch\n## United States\nServer = https://arch.hu.fo/archlinux/$repo/os/$arch\n## United States\nServer = https://dfw.mirror.rackspace.com/archlinux/$repo/os/$arch\n## United States\nServer = https://archmirror1.octyl.net/$repo/os/$arch\n## United States\nServer = https://mirrors.mit.edu/archlinux/$repo/os/$arch\n## United States\nServer = https://mirror.arizona.edu/archlinux/$repo/os/$arch\n## United States\nServer = https://ftp.sudhip.com/archlinux/$repo/os/$arch\n## United States\nServer = https://coresite.mm.fcix.net/archlinux/$repo/os/$arch\n## United States\nServer = https://mirror.sfo12.us.leaseweb.net/archlinux/$repo/os/$arch\n## United States</code></pre>\n<p>现在，如果您知道任何服务器名称，则可以将其添加到此文件中。此外，您还可以在服务器 URL 之前使用 &quot;#&quot; 符号注释掉现有服务器。然后保存并退出文件。更改此文件后，使用以下命令更新数据库。\n您还可以查看 Arch Linux 官方镜像页面来验证服务器状态。</p>\n<pre><code>sudo pacman -Syu</code></pre>\n<p>但要检查和验证离你较近的镜子很麻烦。您可以使用实用程序自动更新镜像列表文件。请参阅下面的提示。</p>\n<h3 id=\"section-04\">使用反射器自动更新镜像列表（推荐）</h3>\n<p><code>reflector</code> 是一个 Python 工具，可以按同步状态、协议和测速结果筛选镜像并更新 <code>/etc/pacman.d/mirrorlist</code>。这非常方便。\n首先，您需要使用以下命令安装 <code>reflector</code>。</p>\n<pre><code>sudo pacman -S reflector</code></pre>\n<p>然后，备份当前的镜像列表。</p>\n<pre><code>sudo cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bkp</code></pre>\n<p>然后运行以下命令。您可以根据需要更改国家/地区名称。</p>\n<pre><code>sudo reflector --country &#39;India&#39; --latest 5 --age 2 --fastest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist</code></pre>\n<p>运行后检查生成列表是否非空、镜像状态是否新鲜，并比较同一网络下的下载表现；原剪藏中的截图不作为这里的实测结果。\n<strong>以下是有关反射器的更多提示：</strong>\n您还可以使用逗号在同一命令中添加两个或多个国家/地区。例如：</p>\n<pre><code>sudo reflector --country &#39;India,France&#39; --latest 5 --age 2 --fastest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist</code></pre>\n<p>不限制国家时，省略 <code>--country</code>；按地区筛选不是必需步骤，距离近也不保证链路最快。</p>\n<pre><code>sudo reflector --latest 5 --age 2 --fastest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist</code></pre>\n<h3 id=\"section-05\">启用并行下载</h3>\n<p>默认情况下，Pacman 按顺序下载包，这会降低下载速度。但是，您可以启用并行下载以同时下载多个包，从而提高下载速度。\n要启用并行下载，请使用 nano 编辑器打开 pacman 配置文件以更改特定开关。使用以下命令：</p>\n<pre><code>sudo nano /etc/pacman.conf</code></pre>\n<p>在 <code>[options]</code> 中设置：</p>\n<pre><code>ParallelDownloads = 5</code></pre>\n<p>取消注释此行并将数字更改为所需的并行下载数。按 Ctrl+X，然后按 Y，最后按 Enter，保存并退出文件。\n这个设置无需强制刷新数据库；下一次下载即会使用它。需要升级时完成全系统更新：</p>\n<pre><code>sudo pacman -Syu</code></pre>\n<h3 id=\"section-06\">定期更新您的系统</h3>\n<p>定期更新有助于保持受支持的版本组合，但不是所有下载慢的问题都由包版本造成。\n要更新系统，请打开终端并运行以下命令：</p>\n<pre><code>sudo pacman -Syu</code></pre>\n<p>此命令会将所有软件包和系统组件更新到最新版本。\n安排能阅读新闻和处理更新后问题的维护窗口，无需把每天更新视为性能要求。</p>\n<h3 id=\"section-07\">清理你的 Pacman 缓存</h3>\n<p>缓存主要影响磁盘空间，不会普遍导致网络下载变慢。磁盘满或 I/O 瓶颈时应检查存储，而非把清缓存作为加速下载的通用办法。保留旧包也便于排障与重新安装。\n要清理 Pacman 缓存，请打开终端并运行以下命令：</p>\n<pre><code>sudo pacman -Sc</code></pre>\n<pre><code># 历史输出中 .part 文件提示 missing package metadata\n# 它表示残缺下载没有完整包元数据，不直接证明网络速度问题</code></pre>\n<p><code>pacman -Sc</code> 会按策略和提示清理缓存及无用仓库数据库。更可控的方案是 <code>paccache -r</code>，默认保留每个包最近三个版本。</p>\n<h3 id=\"section-08\">使用下载管理器</h3>\n<p>下载管理器可以将下载分成几个部分，使其更快、更高效。您可以使用任何命令行下载管理器，例如 <code>wget</code> 或 <code>uget</code>，以获得更快的下载体验。但是，这仅适用于外部下载。显然，它不会影响 pacman 命令。\n要安装下载管理器，请打开终端并运行以下命令：</p>\n<pre><code>sudo pacman -S uget</code></pre>\n<pre><code>sudo pacman -S wget</code></pre>\n<p>这些工具不改变 pacman 的常规下载行为。手动下载的包仍需由 pacman 验证签名和依赖，不应绕过包管理器升级系统。\n最后，最后一个选项是检查并在需要时采用更快的互联网连接。如果您通过 ISP 计划使用低带宽 Wi-Fi 或有线连接，那么您可能需要选择更高带宽的计划。\n下载速度慢可能会令人沮丧，但这是一个可以轻松解决的常见问题。通过使用上述方法，您可以使用 Pacman 显着提高 Arch Linux 中的下载速度。</p>\n",
+  "refs": [
+    [
+      "原剪藏来源：Linux Terminal",
+      "https://cn.linux-terminal.com/?p=7649"
+    ],
+    [
+      "ArchWiki：Reflector",
+      "https://wiki.archlinux.org/title/Reflector"
+    ],
+    [
+      "ArchWiki：Mirrors",
+      "https://wiki.archlinux.org/title/Mirrors"
+    ],
+    [
+      "ArchWiki：Pacman",
+      "https://wiki.archlinux.org/title/Pacman"
+    ],
+    [
+      "Arch 镜像状态",
+      "https://archlinux.org/mirrors/status/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "package-management"
+  ]
+}

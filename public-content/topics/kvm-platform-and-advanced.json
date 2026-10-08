@@ -1,0 +1,16 @@
+{
+  "slug": "kvm-platform-and-advanced",
+  "title": "KVM 高级能力与平台选择",
+  "deck": "将设备、固件、镜像链与管理工具放进可恢复的配置设计。",
+  "description": "以 UEFI/TPM、VFIO、virtiofs 和离线镜像链为进阶基础，接着阅读 NixOS 声明式宿主与桌面/Web/IaC 工具选型；保留外部运行状态和资源所有权边界。",
+  "articles": [
+    "kvm-advanced-features",
+    "kvm-nixos-host",
+    "kvm-frontends"
+  ],
+  "reading_guide": [
+    "先看 UEFI/TPM 与 VFIO 的独立状态，再按需求读 CPU/I/O 调优、virtiofs 和离线镜像链。",
+    "以项目锁定的 nixpkgs 核对选项；关注 QEMU 运行身份、固件迁移、网络激活与恢复 generation。",
+    "先读架构图和资源所有权，再按操作范围比较工具；自动化示例必须核对模板、凭据和 provider 版本。"
+  ]
+}

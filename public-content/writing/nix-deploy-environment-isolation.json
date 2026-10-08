@@ -1,0 +1,65 @@
+{
+  "slug": "nix-deploy-environment-isolation",
+  "number": "074",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "设计分层的桌面与开发环境",
+  "deck": "依据依赖与权限边界选择宿主机、Flatpak、Distrobox、虚拟机和服务器。",
+  "sections": [
+    [
+      "section-01",
+      "分层设计的目标"
+    ],
+    [
+      "section-02",
+      "第一层：宿主机与开发基础"
+    ],
+    [
+      "section-03",
+      "第二层：Flatpak 应用与权限"
+    ],
+    [
+      "section-04",
+      "第三层：Distrobox 兼容环境"
+    ],
+    [
+      "section-05",
+      "第四层：KVM 与专属应用虚拟机"
+    ],
+    [
+      "section-06",
+      "第五层：独立服务器任务"
+    ],
+    [
+      "section-07",
+      "验收与恢复"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">分层设计的目标</h2>\n<p>桌面、系统服务与开发环境由 Nix 定义；需要不同运行时、发行版工具链或专属应用的部分，选择 Flatpak、Distrobox 或虚拟机承担。分层的目标是让依赖、状态、权限和恢复路径清楚，而不是宣称所有层都有绝对隔离。</p>\n<h2 id=\"section-02\">第一层：宿主机与开发基础</h2>\n<p>宿主机保留桌面、终端、网络、输入法、Git 和必要的系统集成。项目编译器、交叉工具链与语言依赖进入项目级 <code>devShell</code>，固定 inputs 和 lock；使用 Python 环境管理器时也应明确其可写目录和锁文件，避免把项目依赖混入系统 profile。</p>\n<p>验证时分别检查系统 closure、项目 shell 内的工具版本与实际编译结果。配置可构建只说明声明有效，不能证明硬件访问和桌面会话正常。</p>\n<h2 id=\"section-03\">第二层：Flatpak 应用与权限</h2>\n<p>需要独立应用运行时的桌面软件可以交给 Flatpak。应用包、remote、覆盖权限和用户数据应由明确的管理层负责。<code>services.flatpak.packages</code> 与 <code>services.flatpak.overrides</code> 常见于第三方 nix-flatpak 模块，不是所有 NixOS 配置自带的原生选项；先导入并锁定该模块再使用。</p>\n<p>针对每个应用只开放必要目录，并分别核对 Wayland/X11、D-Bus、portal、网络和输入法接入。声明权限不代表 100% 安全；应用版本、运行时及 portal 行为也会改变实际权限边界。用以下只读命令核对实际状态：</p>\n<pre><code>flatpak info --show-permissions &lt;APP_ID&gt;\nflatpak override --show &lt;APP_ID&gt;</code></pre>\n<h2 id=\"section-04\">第三层：Distrobox 兼容环境</h2>\n<p>Distrobox 提供可变发行版用户空间，适合已有发行版包、特殊插件或难以直接适配的工具。创建前决定容器镜像、版本、独立 HOME 与共享目录，避免默认把宿主机整个 HOME 暴露给不需要的应用。</p>\n<pre><code># 示例：使用单独 HOME；实际 image 应锁定版本或 digest\ndistrobox create --name compat-dev --image &lt;CONTAINER_IMAGE&gt; --home ~/containers/compat-dev\ndistrobox enter compat-dev\n# 在容器内，按需导出桌面入口\ndistrobox-export --app &lt;APPLICATION&gt;</code></pre>\n<p>Distrobox 为方便使用会集成宿主机目录、显示、音频和设备；它不是针对不可信软件的安全边界。容器内安装软件改变容器状态，不能替代宿主机 Nix 配置。记录容器建立步骤和包状态，并分别测试导出的入口、硬件权限和 GUI 启动。</p>\n<h2 id=\"section-05\">第四层：KVM 与专属应用虚拟机</h2>\n<p>仅能在其他操作系统运行的应用可以放入 KVM/QEMU 虚拟机。按负载分配 vCPU、内存与存储，先验证完整 VM 的启动、许可证、驱动和应用，再考虑共享目录、剪贴板或 RDP 窗口集成。</p>\n<p>WinApps 等 RDP 集成工具可把客体应用窗口呈现到宿主机桌面；兼容性取决于客体系统、RDP 服务、工具版本和 compositor，不应保证任意应用都像原生程序一样工作。共享目录、设备直通与远程显示都会减少原本的隔离范围。</p>\n<h2 id=\"section-06\">第五层：独立服务器任务</h2>\n<p>适合长时间运行的服务可部署到独立服务器，本地保留受控的管理入口。分离配置、运行数据、密钥和备份；云服务故障、网络中断与费用属于新增加的运行约束。将部署 build、test、switch 与运行观测分别记录，不把本地终端能连接当成服务已正确工作。</p>\n<h2 id=\"section-07\">验收与恢复</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">层</th>\n<th scope=\"col\">验收内容</th>\n<th scope=\"col\">恢复依据</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>宿主机与 devShell</td>\n<td>锁定版本、工具路径、实际编译和桌面行为</td>\n<td>NixOS generation、项目 lock 与源码</td>\n</tr>\n<tr>\n<td>Flatpak</td>\n<td>包版本、实际权限、输入法与 portal 行为</td>\n<td>已记录 remote/版本与应用数据备份</td>\n</tr>\n<tr>\n<td>Distrobox</td>\n<td>镜像、独立 HOME、导出入口、设备与共享范围</td>\n<td>容器定义、包状态与数据备份</td>\n</tr>\n<tr>\n<td>虚拟机</td>\n<td>引导、应用、共享和直通边界</td>\n<td>磁盘备份/快照与客体配置</td>\n</tr>\n<tr>\n<td>服务器</td>\n<td>激活 generation、网络与服务运行</td>\n<td>可用旧系统、控制台、数据备份和审阅过的云资源 plan</td>\n</tr>\n</tbody></table></div>\n",
+  "refs": [
+    [
+      "Distrobox 用途与边界",
+      "https://distrobox.it/"
+    ],
+    [
+      "Flatpak sandbox permissions",
+      "https://docs.flatpak.org/en/latest/sandbox-permissions.html"
+    ],
+    [
+      "nix-flatpak 声明式模块",
+      "https://github.com/gmodena/nix-flatpak"
+    ],
+    [
+      "WinApps 官方仓库",
+      "https://github.com/winapps-org/winapps"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "linux",
+    "nixos",
+    "deployment"
+  ]
+}

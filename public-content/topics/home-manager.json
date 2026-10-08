@@ -1,0 +1,22 @@
+{
+  "slug": "home-manager",
+  "title": "Home Manager：用户配置管理",
+  "deck": "把程序、文件和用户服务纳入声明式配置。",
+  "description": "Home Manager 可以独立激活，也可以作为 NixOS 模块集成。专题沿安装模式、程序配置、桌面主题、文件链接、秘密管理和完整教程展开，强调用户配置与可变数据的边界。",
+  "articles": [
+    "home-manager-bootstrap",
+    "home-manager-shell-programs",
+    "home-manager-desktop-themes",
+    "home-manager-files-symlinks",
+    "home-manager-secrets",
+    "home-manager-tutorial"
+  ],
+  "reading_guide": [
+    "比较独立模式和 NixOS 模块模式，再拆分用户配置。",
+    "用模块配置 Zsh、Starship 和常用命令行工具。",
+    "明确系统会话与用户外观的分工，配置 Hyprland、Plasma 和 GTK。",
+    "用 home.file 和 XDG 文件选项管理只读配置及目录链接。",
+    "以加密文件和运行时路径分离公开配置与私密数据。",
+    "完整介绍安装、程序模块、dotfiles、服务和激活流程。"
+  ]
+}

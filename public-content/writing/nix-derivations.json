@@ -1,0 +1,61 @@
+{
+  "slug": "nix-derivations",
+  "number": "024",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Derivation：从表达式到构建产物",
+  "deck": "追踪求值、构建或替代下载以及 store 输出之间的关系。",
+  "sections": [
+    [
+      "section-01",
+      "什么是 Derivation？"
+    ],
+    [
+      "section-02",
+      "构建过程解构"
+    ],
+    [
+      "section-03",
+      "不可变、输入寻址与内容寻址"
+    ],
+    [
+      "section-04",
+      "为什么你的配置也要进 /nix/store？"
+    ],
+    [
+      "section-05",
+      "开发者视角：nix-shell"
+    ],
+    [
+      "section-06",
+      "总结：Nix 三部曲"
+    ]
+  ],
+  "body": "<p>Nix 表达式可以返回任意类型。只有求值到 derivation 及其依赖的构建描述，才进入这里讨论的构建流程。</p>\n<hr>\n<h2 id=\"section-01\">什么是 Derivation？</h2>\n<p>Derivation 是 Nix 的核心原语。它是一个后缀为 <code>.drv</code> 的文本文件，描述了如何构建一个软件包：</p>\n<ol>\n<li><strong>输入</strong>：源码、依赖包、构建脚本。</li>\n<li><strong>构建环境</strong>：构建平台、builder 和环境参数；沙盒隔离受平台及 Nix 设置控制，不能保证所有构建完全隔离。</li>\n<li><strong>输出</strong>：构建产生的二进制文件、库、文档。</li>\n</ol>\n<hr>\n<h2 id=\"section-02\">构建过程解构</h2>\n<ol>\n<li><strong>Evaluation (求值)</strong>：Nix 解释器运行你的 <code>.nix</code> 代码，生成 <code>.drv</code> 文件。</li>\n<li><strong>Realisation（实现产物）</strong>：Nix 检查已有输出，优先使用可信缓存替代下载，否则按 <code>.drv</code> 执行构建；传统 <code>nix-instantiate</code> 对应求值生成构建描述，不等于运行构建。</li>\n<li><strong>Storage (存储)</strong>：构建结果被存入 <code>/nix/store</code>。</li>\n</ol>\n<hr>\n<h2 id=\"section-03\">不可变、输入寻址与内容寻址</h2>\n<ul>\n<li><strong>哈希前缀的由来</strong>：常见 derivation 输出采用输入寻址，由构建描述和依赖等决定路径；不能直接称为产物内容的哈希。固定输出和内容寻址 derivation 有不同路径规则，需区分。</li>\n<li><strong>缓存魔法</strong>：如果你构建的东西哈希已经存在于二进制缓存（如 <code>cache.nixos.org</code>），Nix 就可以通过受信任的 substituter 下载相应输出，避免本地构建。</li>\n</ul>\n<hr>\n<h2 id=\"section-04\">为什么你的配置也要进 /nix/store？</h2>\n<p>当你运行 <code>nixos-rebuild switch</code> 时，模块求值会生成系统闭包的构建描述，输出包括激活脚本、服务定义、生成配置及其依赖；激活再把生成文件接到 <code>/etc</code> 等位置。源配置可能随 Flake 源进入 store，但回滚不等于恢复工作区源文件。</p>\n<ul>\n<li>这就是为什么你可以<strong>回滚系统</strong>：旧的配置文件也在 <code>/nix/store</code> 里，切换回来只是重新改一下软链接的指向。</li>\n</ul>\n<hr>\n<h2 id=\"section-05\">开发者视角：nix-shell</h2>\n<p><code>nix-shell</code> 提供 derivation 的构建依赖与相应环境，通常不执行目标包的最终 builder，但仍可能构建/下载其依赖。<code>nix develop</code> 面向 Flake 开发环境，<code>nix shell</code> 则主要把包提供的程序加入 PATH；三者并不完全等价。</p>\n<hr>\n<h2 id=\"section-06\">总结：Nix 三部曲</h2>\n<ol>\n<li><strong>描述</strong>：在 <code>.nix</code> 里写属性集。</li>\n<li><strong>推导</strong>：生成 <code>.drv</code> 方案。</li>\n<li><strong>产出</strong>：在 <code>/nix/store</code> 生成只读的目录。</li>\n</ol>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ],
+    [
+      "Nix：Derivations",
+      "https://nix.dev/manual/nix/stable/language/derivations.html"
+    ],
+    [
+      "Nix：Store Path",
+      "https://nix.dev/manual/nix/stable/store/store-path.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "nix-language"
+  ]
+}

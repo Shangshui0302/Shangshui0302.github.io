@@ -1,0 +1,53 @@
+{
+  "slug": "nix-deploy-build-iso",
+  "number": "070",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "构建可启动的 NixOS ISO",
+  "deck": "通过安装介质模块定制软件、图形桌面和可启动镜像。",
+  "sections": [
+    [
+      "section-01",
+      "概述"
+    ],
+    [
+      "section-02",
+      "基础配置"
+    ],
+    [
+      "section-03",
+      "构建 ISO"
+    ],
+    [
+      "section-04",
+      "图形化 ISO"
+    ],
+    [
+      "section-05",
+      "使用 Flakes 构建"
+    ],
+    [
+      "section-06",
+      "将 ISO 写入 U 盘"
+    ]
+  ],
+  "body": "<blockquote>\n<p>版本范围：下列示例保留 NixOS 24.05 的教程上下文；该版本已结束维护。实际项目应选择受支持的发行版、锁定 nixpkgs revision，并核对相应选项。<code>system.stateVersion</code> 表示兼容性基线，不应随升级机械改动。本文命令是教学示例，未在目标系统运行验证。</p>\n</blockquote>\n<h2 id=\"section-01\">概述</h2>\n<p>NixOS 可以自定义构建可启动的 ISO 镜像，用于：</p>\n<ul>\n<li>创建定制安装盘</li>\n<li>制作系统维护工具盘</li>\n<li>部署预配置系统</li>\n</ul>\n<h2 id=\"section-02\">基础配置</h2>\n<p>创建一个 <code>iso.nix</code> 文件：</p>\n<pre><code>{ pkgs, modulesPath, ... }:\n\n{\n  imports = [\n    (modulesPath + &quot;/installer/cd-dvd/installation-cd-minimal.nix&quot;)\n  ];\n\n  # ISO 标识\n  isoImage.makeEfiBootable = true;\n  isoImage.makeUsbBootable = true;\n  \n  # 主机名\n  networking.hostName = &quot;nixos-custom&quot;;\n  \n  # 预装软件\n  environment.systemPackages = with pkgs; [\n    vim\n    git\n    htop\n    parted\n    gparted\n  ];\n  \n  # 系统版本\n  system.stateVersion = &quot;24.05&quot;;\n}</code></pre>\n<h2 id=\"section-03\">构建 ISO</h2>\n<pre><code># 构建 ISO\nnix-build &#39;&lt;nixpkgs/nixos&gt;&#39; -A config.system.build.isoImage \\\n  -I nixos-config=./iso.nix \\\n  -I nixpkgs=channel:nixos-24.05</code></pre>\n<p>生成的 ISO 文件位于 <code>./result/iso/</code>；文件名由构建配置决定，用 <code>ls ./result/iso/</code> 确认，不假定固定名称。</p>\n<h2 id=\"section-04\">图形化 ISO</h2>\n<p>使用 GNOME 桌面环境的 ISO：</p>\n<pre><code>{ pkgs, modulesPath, ... }:\n\n{\n  imports = [\n    (modulesPath + &quot;/installer/cd-dvd/installation-cd-graphical-gnome.nix&quot;)\n  ];\n\n  # 添加额外的软件\n  environment.systemPackages = with pkgs; [\n    firefox\n    libreoffice\n  ];\n}</code></pre>\n<h2 id=\"section-05\">使用 Flakes 构建</h2>\n<pre><code># flake.nix\n{\n  inputs.nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-24.05&quot;;\n  \n  outputs = { self, nixpkgs }: {\n    nixosConfigurations.iso = nixpkgs.lib.nixosSystem {\n      system = &quot;x86_64-linux&quot;;\n      modules = [\n        (nixpkgs + &quot;/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix&quot;)\n        ({ pkgs, ... }: {\n          isoImage.makeEfiBootable = true;\n          networking.hostName = &quot;nixos-live&quot;;\n          environment.systemPackages = [ pkgs.vim ];\n        })\n      ];\n    };\n  };\n}</code></pre>\n<p>构建：</p>\n<pre><code>nix build .#nixosConfigurations.iso.config.system.build.isoImage</code></pre>\n<h2 id=\"section-06\">将 ISO 写入 U 盘</h2>\n<p>写入会覆盖整个目标盘。先备份目标 U 盘，确认型号、容量和设备路径，并卸载它的已挂载分区；目标应是整盘而不是某个分区。下面的占位符必须替换，不能直接运行。</p>\n<pre><code># 查看设备身份与挂载状态\nlsblk -o NAME,SIZE,MODEL,TYPE,MOUNTPOINTS\nls ./result/iso/\n\n# 确认目标后，逐个卸载其已挂载的分区\nsudo umount /dev/&lt;USB_PARTITION&gt;\n\n# 写入已经核对过的 ISO 和整盘设备\nsudo dd if=./result/iso/&lt;BUILT_IMAGE&gt;.iso of=/dev/&lt;USB_DISK&gt; bs=4M status=progress conv=fsync\nsync</code></pre>\n<p>ISO 构建成功不等于实机启动成功。可先在 QEMU 中验证启动菜单和需要的软件，再用目标硬件核对 UEFI/BIOS、驱动及网络。</p>\n",
+  "refs": [
+    [
+      "nix.dev ISO 教程",
+      "https://nix.dev/tutorials/nixos/building-bootable-iso-image"
+    ],
+    [
+      "NixOS 安装手册",
+      "https://nixos.org/manual/nixos/stable/#sec-installation"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "deployment"
+  ]
+}

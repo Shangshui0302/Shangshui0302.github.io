@@ -1,0 +1,56 @@
+{
+  "slug": "nix-ecosystem-colmena",
+  "number": "085",
+  "category": "LINUX / SYSTEMS",
+  "title": "Colmena：多节点构建、传输与激活",
+  "deck": "用 hive 组织节点配置，明确本地构建与远程应用的边界。",
+  "sections": [
+    [
+      "section-01",
+      "️ 为什么需要远程部署？"
+    ],
+    [
+      "section-02",
+      "️ 第一阶段：配置 Colmena"
+    ],
+    [
+      "section-03",
+      "第二阶段：部署命令"
+    ],
+    [
+      "section-04",
+      "远程部署的好处"
+    ],
+    [
+      "section-05",
+      "给 Arch 用户的建议"
+    ],
+    [
+      "section-06",
+      "总结"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">️ 为什么需要远程部署？</h2>\n<p>当你有多个 NixOS 节点（比如主力机、服务器、树莓派）时，如果你在每个节点上都跑一遍 <code>nixos-rebuild switch</code>，非常麻烦且容易版本不同步。\n<strong>Colmena</strong> 允许你从主力机统一推送配置到所有节点。</p>\n<h2 id=\"section-02\">️ 第一阶段：配置 Colmena</h2>\n<p>下面是传统 <code>hive.nix</code> 示例，使用本机选定的 Nixpkgs；正式项目应固定 Nixpkgs 修订。使用 Flake 时，应按所用 Colmena 版本导出 <code>colmena</code> / <code>colmenaHive</code>，不要把未绑定的 <code>inputs</code> 直接放进独立文件。</p>\n<pre><code>{\n  meta = {\n    nixpkgs = import &lt;nixpkgs&gt; {\n      system = &quot;x86_64-linux&quot;;\n    };\n  };\n\n  server = { name, nodes, ... }: {\n    deployment.targetHost = &quot;server.example.com&quot;;\n    deployment.targetUser = &quot;root&quot;;\n\n    imports = [ ./hosts/server/configuration.nix ];\n    # 由节点硬件配置决定引导器和磁盘，不套用 /dev/sda\n  };\n}</code></pre>\n<h2 id=\"section-03\">第二阶段：部署命令</h2>\n<ol>\n<li><strong>检查配置</strong>：<code>colmena build</code></li>\n<li><strong>预览差异</strong>：<code>colmena apply dry-activate --on server</code></li>\n<li><strong>正式推送并激活</strong>：<code>colmena apply switch --on server</code>（省略节点筛选可能部署多个节点）</li>\n</ol>\n<h2 id=\"section-04\">远程部署的好处</h2>\n<ol>\n<li><strong>本地构建，远程安装</strong>：构建完成后可以复制系统闭包；x86_64 构建 ARM 系统需要正确的交叉编译、仿真或远程构建器，不能只靠把二进制复制过去。也可使用 <code>deployment.buildOnTarget</code> 在目标节点构建。</li>\n<li><strong>并行部署</strong>：可以同时给 10 台服务器升级，版本完全一致。</li>\n<li><strong>容错性</strong>：NixOS 旧世代提供恢复路径，但 Colmena 不保证自动恢复网络或自动回滚每次失败；部署前准备 SSH 连通性检查、控制台通道与人工恢复步骤。</li>\n</ol>\n<h2 id=\"section-05\">给 Arch 用户的建议</h2>\n<p>如果你之前习惯了用 Ansible 管理多台 Arch 机器，可以把 Colmena 理解为在 NixOS 声明式系统配置之上组织构建、复制与激活的工具；对可变应用状态仍需单独管理。</p>\n<h2 id=\"section-06\">总结</h2>\n<ul>\n<li><strong>Hive</strong>：配置的集合。</li>\n<li><strong>Apply</strong>：部署并激活。</li>\n<li><strong>Build</strong>：只编译不安装。</li>\n</ul>\n<h3 id=\"section-07\">构建、预览和激活的边界</h3>\n<p><code>build</code> 通常仅构建；启用 buildOnTarget 时结果会存在目标机上。<code>dry-activate</code> 可能先构建、传输闭包并运行目标的预览脚本，并非纯本地只读检查。<code>test</code> 即时激活但不设为启动默认，<code>boot</code> 修改启动默认但不即时激活，<code>switch</code> 两者都做。示例主机域名是占位；只有确认目标、授权账户与硬件配置后才执行部署。</p>\n",
+  "refs": [
+    [
+      "Colmena 引言",
+      "https://colmena.cli.rs/unstable/introduction.html"
+    ],
+    [
+      "Colmena 部署选项",
+      "https://colmena.cli.rs/unstable/reference/deployment.html"
+    ],
+    [
+      "Colmena 部署目标源码",
+      "https://github.com/zhaofengli/colmena/blob/main/src/nix/deployment/goal.rs"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

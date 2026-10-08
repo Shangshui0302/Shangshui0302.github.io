@@ -1,0 +1,22 @@
+{
+  "slug": "nix-deploy-virtualization",
+  "title": "NixOS 虚拟化与部署",
+  "deck": "从可丢弃 VM 到镜像、远程节点和云资源，分别管理构建产物与运行状态。",
+  "description": "专题涵盖 QEMU 虚拟机、定制 ISO、dockerTools 容器镜像、SSH 部署、Terraform 云资源和多层环境设计。先在隔离环境理解系统配置，再选择合适的镜像或远端交付路径；每一步分清评估、构建、激活、运行验证和数据恢复。",
+  "articles": [
+    "nix-deploy-virtual-machines",
+    "nix-deploy-build-iso",
+    "nix-deploy-docker-images",
+    "nix-deploy-ssh-deployment",
+    "nix-deploy-terraform",
+    "nix-deploy-environment-isolation"
+  ],
+  "reading_guide": [
+    "先用最小 VM 观察配置与 qcow2 状态如何分别变化，再尝试图形会话。",
+    "学习 ISO 模块与 flake 产物路径，写 U 盘前核对整盘设备与备份。",
+    "理解应用 closure、镜像层、运行实例和数据库卷之间的边界。",
+    "沿 build、test、switch、回滚顺序阅读，核对 SSH 身份与 sudo 权限。",
+    "把云资源 plan/state 与 NixOS generation 分开，重点检查 AMI、路由与两层插值。",
+    "按依赖、权限和恢复需求选择 Flatpak、Distrobox、VM 或服务器，而不是追求绝对隔离。"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "slug": "linux-command-fzf",
+  "number": "043",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "模糊搜索：fzf",
+  "deck": "把文件、进程、分支和历史列表变成可交互选择的输入。",
+  "sections": [
+    [
+      "section-01",
+      "1. 是什么"
+    ],
+    [
+      "section-02",
+      "2. 基本用法"
+    ],
+    [
+      "section-03",
+      "3. 常用组合"
+    ],
+    [
+      "section-04",
+      "4. 快捷键"
+    ],
+    [
+      "section-05",
+      "5. 常用选项"
+    ],
+    [
+      "section-06",
+      "6. 进阶绑定（shell 集成）"
+    ],
+    [
+      "section-07",
+      "日常场景速查"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">1. 是什么</h2>\n<p>fzf（fuzzy finder）是一个通用的命令行模糊搜索工具。工作模型很简单：<strong>从 stdin 读取列表 → 交互式筛选 → 选中结果输出到 stdout</strong>。</p>\n<pre><code>ls | fzf        # 从文件列表中选一个</code></pre>\n<p>和 <code>Ctrl+R</code>（历史搜索）相比，fzf 是通用的：文件列表、进程列表、git branch、任何文本列表都能搜。</p>\n<h2 id=\"section-02\">2. 基本用法</h2>\n<pre><code># 模糊搜文件然后用 vim 打开\nIFS= read -r -d &#39;&#39; selected &lt; &lt;(find . -type f -print0 | fzf --read0 --print0) &amp;&amp; nvim -- &quot;$selected&quot;\n\n# 搜进程并 kill\nps -eo pid=,comm=,args= | fzf | awk &#39;{print $1}&#39; | xargs -r -p kill\n\n# 从命令历史中选一条，先显示核对，再手动执行\nhistory | fzf | awk &#39;{$1=&quot;&quot;; print $0}&#39;</code></pre>\n<h2 id=\"section-03\">3. 常用组合</h2>\n<pre><code># 快速 cd（配合 zoxide）\nselected=$(zoxide query --list | fzf) &amp;&amp; [ -n &quot;$selected&quot; ] &amp;&amp; cd -- &quot;$selected&quot;\n\n# 搜 git branch 并切换\ngit for-each-ref --format=&#39;%(refname:short)&#39; refs/heads | fzf | xargs -r git switch\n\n# 搜 commit 并 cherry-pick\ngit log --oneline | fzf | awk &#39;{print $1}&#39; | xargs -r -p git cherry-pick\n\n# 搜文件内容并打开\nrg -l -0 &quot;&quot; | fzf --read0 --print0 | xargs -0 -r -o nvim --</code></pre>\n<h2 id=\"section-04\">4. 快捷键</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">按键</th>\n<th scope=\"col\">作用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>Ctrl+n</code> / <code>Ctrl+p</code></td>\n<td>上下移动</td>\n</tr>\n<tr>\n<td><code>Ctrl+j</code> / <code>Ctrl+k</code></td>\n<td>上下移动（vi 风格）</td>\n</tr>\n<tr>\n<td><code>Enter</code></td>\n<td>确认选中</td>\n</tr>\n<tr>\n<td><code>Esc</code> / <code>Ctrl+c</code></td>\n<td>取消</td>\n</tr>\n<tr>\n<td><code>Ctrl+a</code> / <code>Ctrl+e</code></td>\n<td>跳到行首 / 行尾</td>\n</tr>\n<tr>\n<td><code>Tab</code></td>\n<td>多选标记</td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-05\">5. 常用选项</h2>\n<pre><code>fzf --multi                     # Tab 多选\nfzf --preview &#39;cat -- {}&#39;          # 右侧预览文件内容\nfzf --preview &#39;bat --color=always -- {}&#39;    # 语法高亮预览\nfzf --preview &#39;ls -la -- {}&#39;       # 预览目录内容\nfzf --height 40%                # 占终端 40% 高度，不占全屏\nfzf --layout=reverse            # 搜索框在顶部</code></pre>\n<h2 id=\"section-06\">6. 进阶绑定（shell 集成）</h2>\n<p>安装 fzf 后，建议启用 shell 集成来替换默认的 <code>Ctrl+R</code> 和 <code>Ctrl+T</code>：</p>\n<pre><code># bash/zsh: 在 .bashrc 或 .zshrc 中添加\neval &quot;$(fzf --bash)&quot;   # 或 --zsh\n\n# fish: fzf 自带 fish 集成，或在 config.fish 中\nfzf --fish | source</code></pre>\n<p>启用后你会获得：</p>\n<ul>\n<li><code>Ctrl+R</code> — 模糊搜索命令历史（替换原生的）</li>\n<li><code>Ctrl+T</code> — 模糊搜索当前目录文件并粘贴路径</li>\n<li><code>Alt+C</code> — 模糊搜索目录并 cd 过去</li>\n</ul>\n<h2 id=\"section-07\">日常场景速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">我想...</th>\n<th scope=\"col\">命令</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>快速打开某个文件</td>\n<td>使用上文的 NUL 分隔与 <code>read</code> 示例</td>\n</tr>\n<tr>\n<td>切到某个 git 分支</td>\n<td><code>git for-each-ref --format=&#39;%(refname:short)&#39; refs/heads | fzf | xargs -r git switch</code></td>\n</tr>\n<tr>\n<td>杀死某个进程</td>\n<td><code>ps -eo pid=,comm=,args= | fzf | awk &#39;{print $1}&#39; | xargs -r -p kill</code></td>\n</tr>\n<tr>\n<td>搜命令历史</td>\n<td><code>Ctrl+R</code>（启用 fzf shell 集成后）</td>\n</tr>\n<tr>\n<td>选文件预览内容</td>\n<td><code>fzf --preview &#39;bat {}&#39;</code></td>\n</tr>\n</tbody></table></div>\n<hr>\n<hr>\n<p>以上赋值、<code>read -d</code> 与进程替换示例使用 Bash。<code>-r</code>、<code>-o</code>、<code>-p</code> 是这里使用的 GNU xargs 选项。终止进程和 cherry-pick 会改变状态，先检查所选 PID 或提交及工作区。fzf 只是选择器，仍需检查上游列表和下游操作；普通换行列表不适合包含换行的文件名。<code>fzf --bash/--zsh/--fish</code> 需要支持该接口的版本，旧版按安装包提供的集成脚本启用。</p>\n",
+  "refs": [
+    [
+      "fzf 官方说明",
+      "https://github.com/junegunn/fzf"
+    ],
+    [
+      "GNU xargs 选项",
+      "https://www.gnu.org/software/findutils/manual/html_node/find_html/xargs-options.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "cli"
+  ]
+}

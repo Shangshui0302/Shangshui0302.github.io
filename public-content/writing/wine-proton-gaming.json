@@ -1,0 +1,77 @@
+{
+  "slug": "wine-proton-gaming",
+  "number": "151",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Proton：游戏运行环境",
+  "deck": "区分 Steam、官方 Proton、GE 与 umu，并按游戏管理运行器和前缀。",
+  "sections": [
+    [
+      "section-01",
+      "Proton 的技术栈：图形转译四件套"
+    ],
+    [
+      "section-06",
+      "Proton 版本体系"
+    ],
+    [
+      "section-10",
+      "启动参数与环境变量"
+    ],
+    [
+      "section-15",
+      "Proton 脱离 Steam 独立使用"
+    ],
+    [
+      "section-18",
+      "前缀管理与配置定制"
+    ],
+    [
+      "section-23",
+      "安装 Proton-GE"
+    ],
+    [
+      "section-24",
+      "兼容性参考"
+    ],
+    [
+      "section-28",
+      "来源与核验边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>Valve 基于 Wine 深度定制的游戏兼容层。本文区分官方 Proton、GE 扩展与游戏平台运行环境；Wayland、HDR、DLL 升级和帧生成均需要版本、驱动及游戏支持。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">Proton 的技术栈：图形转译四件套</h2>\n<p>Proton 在 Wine 基础上<strong>深度集成</strong>了以下核心组件：</p>\n<pre><code>graph TD\n    GAME[&quot;Windows Game&quot;]\n    DXVK[&quot;DXVK — D3D 9/10/11 → Vulkan&quot;]\n    VKD3D[&quot;VKD3D-Proton — D3D 12 → Vulkan&quot;]\n    NVAPI[&quot;DXVK-NVAPI — DLSS / RTX / Reflex&quot;]\n    FAUDIO[&quot;FAudio — XAudio2 音频&quot;]\n    VULKAN[&quot;Vulkan Driver&quot;]\n    GPU[&quot;Linux GPU&quot;]\n\n    GAME --&gt;|D3D9/10/11| DXVK\n    GAME --&gt;|D3D12| VKD3D\n    GAME --&gt;|NVAPI| NVAPI\n    GAME --&gt;|XAudio2| FAUDIO\n    DXVK --&gt; VULKAN\n    VKD3D --&gt; VULKAN\n    NVAPI --&gt; VULKAN\n    VULKAN --&gt; GPU</code></pre>\n<h3 id=\"section-02\">DXVK — D3D 9/10/11 → Vulkan</h3>\n<p>DXVK 是 Proton 处理多种 Direct3D 图形调用的重要组件。相对 WineD3D 的不同实现路径，它在某些游戏上可改善：</p>\n<ul>\n<li>更低的 CPU draw call 开销</li>\n<li>更精确的 GPU 内存管理</li>\n<li>现代 GPU 异步计算能力</li>\n</ul>\n<h3 id=\"section-03\">VKD3D-Proton — D3D 12 → Vulkan</h3>\n<p>Valve + CodeWeavers 共同维护。通过该 Proton 路径运行的 D3D12 游戏（如《赛博朋克 2077》《艾伦·维克 2》）依赖此组件。DXR 支持还取决于 VKD3D-Proton、驱动、GPU 扩展与游戏。</p>\n<h3 id=\"section-04\">DXVK-NVAPI — NVIDIA 专属翻译</h3>\n<p>将 NVIDIA NVAPI 调用翻译为 Linux 对应接口，使 <strong>DLSS、RTX 光追、Reflex 低延迟</strong> 在 Proton 下可用。NVAPI、DLSS、光追与 Reflex 各有不同条件；DXVK-NVAPI 不是让任意 GPU 获得 NVIDIA 专属功能的通用开关。按组件版本的驱动要求和游戏支持核对，不以一个通用驱动下限概括全部能力。</p>\n<h3 id=\"section-05\">FAudio — XAudio2 音频</h3>\n<p>Windows 游戏使用 XAudio2 进行音频处理，FAudio 是其开源重实现。</p>\n<hr>\n<h2 id=\"section-06\">Proton 版本体系</h2>\n<h3 id=\"section-07\">官方 Proton（Steam 内置）</h3>\n<p>下表编号系列是源材料采用的版本举例，不报告最新稳定版；应在 Steam 中记录实际选择的确切版本。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">版本</th>\n<th scope=\"col\">适用场景</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>Proton Experimental</strong></td>\n<td>较快更新的修复渠道，适合针对具体回归测试</td>\n</tr>\n<tr>\n<td><strong>Proton Hotfix</strong></td>\n<td>特定高热度游戏的紧急修复</td>\n</tr>\n<tr>\n<td><strong>Proton 10.x</strong></td>\n<td>固定编号的发行系列，按目标游戏测试</td>\n</tr>\n<tr>\n<td><strong>Proton 9.x</strong></td>\n<td>旧编号版，部分老旧游戏的兼容性更好</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-08\">社区增强版</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">版本</th>\n<th scope=\"col\">特点</th>\n<th scope=\"col\">适用场景</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>Proton-GE</strong> (GloriousEggroll)</td>\n<td>内置 Media Foundation 解码、最新 DXVK/VKD3D、社区补丁</td>\n<td>过场动画黑屏、新游戏、非 Steam 游戏</td>\n</tr>\n<tr>\n<td><strong>Proton-CachyOS</strong></td>\n<td>社区构建，架构等级与补丁取决于具体发行资产</td>\n<td>先核对 CPU 指令要求和该构建的支持条件，不保证更快</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-09\">Proton-GE 核心增强</h3>\n<pre><code>Proton-GE 某些版本提供的扩展（按所选 release 核对）：\n├── 游戏专项媒体/解码兼容修复（不保证所有视频可播放）\n├── FSR 4 自动升级（PROTON_FSR4_UPGRADE=1）\n├── DLSS 自动升级（PROTON_DLSS_UPGRADE=1）\n├── XeSS 2 自动升级（PROTON_XESS_UPGRADE=1）\n├── 帧生成相关组件/修复（需游戏、GPU、驱动支持）\n├── 集成功能可能随版本增删（旧教程变量不等于当前支持）\n└── 游戏专项修复；EAC/BattlEye 仍须游戏方支持与服务策略允许</code></pre>\n<hr>\n<h2 id=\"section-10\">启动参数与环境变量</h2>\n<p>在 Steam 游戏属性的启动选项中设置，格式为 <code>VARIABLE=value %command%</code>。</p>\n<h3 id=\"section-11\">图形与性能</h3>\n<pre><code># 强制使用 WineD3D (OpenGL 回退)\nPROTON_USE_WINED3D=1 %command%\n\n# 禁用 D3D11 / D3D12（排查崩溃）\nPROTON_NO_D3D11=1 %command%\nPROTON_NO_D3D12=1 %command%\n\n# AMD FSR 1.0 超分辨率\nWINE_FULLSCREEN_FSR=1 %command%\n\n# FSR 4 自动升级（Proton-GE，RDNA4 GPU）\nPROTON_FSR4_UPGRADE=1 %command%\n\n# RDNA3 的旧独立开关已在核验时的 GE README 标为无效。\n# 支持的 RDNA3 同样使用 PROTON_FSR4_UPGRADE；仍须兼容 GPU/驱动/游戏。\n\n# DLSS 自动升级到最新版本（Proton-GE）\nPROTON_DLSS_UPGRADE=1 %command%\n\n# XeSS 2 自动升级（Proton-GE，Intel GPU）\nPROTON_XESS_UPGRADE=1 %command%\n\n# GameMode 自动优化\ngamemoderun %command%\n\n# MangoHud 性能叠加层\nmangohud %command%</code></pre>\n<h3 id=\"section-12\">显示与 HDR</h3>\n<pre><code># 原生 Wayland：仅适用于明确支持该变量的 runner 构建\nPROTON_ENABLE_WAYLAND=1 %command%\n\n# HDR：还需 compositor/WSI、驱动、游戏与图形转换组件整条链路支持\nDXVK_HDR=1 ENABLE_HDR_WSI=1 %command%\n\n# FSR 4 指示器（左上角水印，验证 FSR 4 生效）\nPROTON_FSR4_INDICATOR=1 %command%\n\n# DLSS 指示器（左下角水印，验证 DLSS 生效）\nPROTON_DLSS_INDICATOR=1 %command%</code></pre>\n<h3 id=\"section-13\">NVIDIA 专用</h3>\n<pre><code># 隐藏 NVIDIA GPU 身份（部分游戏检测 GPU 后崩溃）\nPROTON_HIDE_NVIDIA_GPU=1 %command%\n\n# 禁用 NVAPI\nPROTON_DISABLE_NVAPI=1 %command%</code></pre>\n<h3 id=\"section-14\">调试</h3>\n<pre><code># 生成详细日志到 ~/steam-&lt;APPID&gt;.log\nPROTON_LOG=1 %command%\n\n# 旧版 Proton：禁用 esync；核验时官方 README 标注在 Proton 11.0 已过时\nPROTON_NO_ESYNC=1 %command%\n\n# 禁用 fsync\nPROTON_NO_FSYNC=1 %command%</code></pre>\n<hr>\n<h2 id=\"section-15\">Proton 脱离 Steam 独立使用</h2>\n<h3 id=\"section-16\">完整工作流：通过 umu 配置非 Steam 游戏</h3>\n<p>GE 官方明确：Steam 外运行非 Steam 游戏只支持通过 <strong>umu</strong> 提供完整 Proton runtime/container 环境。直接调用解压目录中的 <code>proton run</code> 可能缺失运行库与容器环境，不能当作受支持的一般方案。带 umu 集成的管理器也需要确认实际后端，不能仅凭名字判断。</p>\n<p>下面假定 <code>umu-run</code> 已按发行版方式安装，GE-Proton 的固定版本已解压到用户拥有的目录；<code>&lt;version&gt;</code> 是待替换的版本占位符。NixOS 通过项目配置安装工具，不照搬其他发行版的包管理命令。</p>\n<pre><code># 第一步：为游戏准备独立的 Wine Prefix 与固定 Proton 路径。\nprefix_path=&quot;$HOME/Games/MyCustomGame&quot;\nproton_path=&quot;$HOME/.local/share/Steam/compatibilitytools.d/GE-Proton&lt;version&gt;&quot;\nmkdir -p &quot;$prefix_path&quot;\n\n# 第二步：初始化，后续使用同一组 WINEPREFIX/PROTONPATH。\nWINEPREFIX=&quot;$prefix_path&quot; PROTONPATH=&quot;$proton_path&quot; \\\n  GAMEID=umu-default umu-run &quot;&quot;\n\n# 第三步：仅在应用要求和日志指向缺失时安装依赖。\nWINEPREFIX=&quot;$prefix_path&quot; PROTONPATH=&quot;$proton_path&quot; \\\n  GAMEID=umu-default umu-run winetricks vcrun2022\n\n# 第四步：运行已核对来源的安装器。\nWINEPREFIX=&quot;$prefix_path&quot; PROTONPATH=&quot;$proton_path&quot; \\\n  GAMEID=umu-default umu-run &quot;$HOME/Downloads/GameSetup.exe&quot;\n\n# 第五步：运行这个 Wine Prefix 中已安装的程序。\nWINEPREFIX=&quot;$prefix_path&quot; PROTONPATH=&quot;$proton_path&quot; \\\n  GAMEID=umu-default umu-run &quot;$prefix_path/drive_c/Program Files/Game/Game.exe&quot;</code></pre>\n<p><code>GAMEID</code> 可按 umu 数据库为目标游戏选择，以应用对应 protonfixes；<code>umu-default</code> 是不指定专项游戏身份的教学值，不保证得到特定修复。STORE 同样应按来源填写。自动选择 <code>PROTONPATH=GE-Proton</code> 可以下载动态版本，但不能把这种模式记为固定可复现。</p>\n<h3 id=\"section-17\">一键启动脚本</h3>\n<p>脚本复用的是 umu 的运行环境，不从目录名字排序中猜测“最新 Proton”。下列脚本保留独立前缀、固定 runner 与参数转发：</p>\n<pre><code>#!/usr/bin/env bash\n# Usage: umu-game &lt;prefix-path&gt; &lt;proton-path&gt; &lt;exe-path&gt; [args...]\nset -euo pipefail\nif (( $# &lt; 3 )); then\n  printf &#39;%s\\n&#39; &#39;Usage: umu-game &lt;prefix-path&gt; &lt;proton-path&gt; &lt;exe-path&gt; [args...]&#39; &gt;&amp;2\n  exit 2\nfi\nprefix_path=$1\nproton_path=$2\nshift 2\ncommand -v umu-run &gt;/dev/null || {\n  printf &#39;%s\\n&#39; &#39;umu-run is not available; install it through your system configuration.&#39; &gt;&amp;2\n  exit 1\n}\nWINEPREFIX=&quot;$prefix_path&quot; PROTONPATH=&quot;$proton_path&quot; \\\n  GAMEID=&quot;${GAMEID:-umu-default}&quot; exec umu-run &quot;$@&quot;</code></pre>\n<p>保存后按实际路径运行。<code>prefix-path</code> 在 umu 这里是 Wine Prefix 本身；不要把 Steam <code>compatdata</code> 的父目录当作同一种路径。</p>\n<pre><code>umu-game &quot;$HOME/Games/MyGame&quot; \\\n  &quot;$HOME/.local/share/Steam/compatibilitytools.d/GE-Proton&lt;version&gt;&quot; \\\n  &quot;$HOME/Games/MyGame/drive_c/Program Files/Game/Game.exe&quot;</code></pre>\n<p>上述命令与脚本仅为内容示例，本次编辑没有运行它们。</p>\n<h2 id=\"section-18\">前缀管理与配置定制</h2>\n<h3 id=\"section-19\">查看和管理 Steam 游戏的 Prefix</h3>\n<p>Steam 的每个库都有自己的 <code>steamapps/compatdata/&lt;APPID&gt;/</code>；实际 Wine Prefix 通常在其 <code>pfx/</code> 子目录。<code>STEAM_COMPAT_DATA_PATH</code> 指向 Proton 管理的兼容数据父目录，<code>WINEPREFIX</code> 指向 Wine Prefix，两者不能混写。路径还可能因 Flatpak Steam、额外库或非 Steam 快捷方式而不同。</p>\n<pre><code># 这是常见本机布局的示例，不代表全部 Steam 库。\nls &quot;$HOME/.local/share/Steam/steamapps/compatdata/&quot;\nprotontricks -l\nprotontricks &lt;APPID&gt; winecfg\nprotontricks &lt;APPID&gt; vcrun2022\nprotontricks &lt;APPID&gt; regedit</code></pre>\n<p><code>WINETRICKS_RUN_AS_ROOT</code> 若被某版本支持，是绕过以 Linux root 运行时的保护，不是 Windows 管理员模式。不要为了程序权限问题启用它，也不要使用 sudo 启动 Wine/Proton；以普通用户处理正确前缀、文件权限和应用要求。</p>\n<p>如果确需重建，先关闭 Steam/游戏相关进程，确认存档、云同步与第三方授权备份，再把整个兼容数据目录改名保留。以下 <code>&lt;APPID&gt;</code> 与库路径必须先替换确认：</p>\n<pre><code>compat_path=&quot;$HOME/.local/share/Steam/steamapps/compatdata/&lt;APPID&gt;&quot;\nmv -- &quot;$compat_path&quot; &quot;${compat_path}.backup-$(date +%Y%m%d-%H%M%S)&quot;</code></pre>\n<p>再次启动可能重建兼容数据，但未同步存档或应用状态不会凭空恢复。先验证新目录，再决定旧备份保留期限。</p>\n<h3 id=\"section-20\">自定义非 Steam 游戏的 Prefix 配置</h3>\n<p>对 umu 管理的游戏，用同一 runner 的配置工具，例如通过其 winetricks 入口打开 winecfg；不要让宿主另一个 Wine 版本无意更新这个前缀。</p>\n<pre><code>WINEPREFIX=&quot;$HOME/Games/MyGame&quot; \\\n  PROTONPATH=&quot;$HOME/.local/share/Steam/compatibilitytools.d/GE-Proton&lt;version&gt;&quot; \\\n  GAMEID=umu-default umu-run winetricks winecfg</code></pre>\n<p>在 Applications 中设置所需 Windows 版本报告。只改注册表 <code>ProductName</code> 文本不等于切换 Wine 的模拟版本或 API 行为。</p>\n<p>DXVK HUD 可作为运行线索：</p>\n<pre><code>DXVK_HUD=fps,gpuload,version WINEPREFIX=&quot;$HOME/Games/MyGame&quot; \\\n  PROTONPATH=&quot;$HOME/.local/share/Steam/compatibilitytools.d/GE-Proton&lt;version&gt;&quot; \\\n  GAMEID=umu-default umu-run &quot;$HOME/Games/MyGame/drive_c/Game.exe&quot;</code></pre>\n<p>需要配置文件时，用真实 DXVK 版本支持的键，将 <code>DXVK_CONFIG_FILE</code> 指向应用可访问的文件；HUD 出现不证明全部图形特性或整场游戏性能已经通过验证。</p>\n<h3 id=\"section-21\">Steam 游戏的 per-game 配置</h3>\n<p>在游戏属性 → 启动选项中组合多个变量：</p>\n<pre><code># 组合示例：仅在各组件分别验证后使用，不代表自动启用帧生成\nPROTON_ENABLE_WAYLAND=1 DXVK_HDR=1 ENABLE_HDR_WSI=1 \\\nPROTON_DLSS_UPGRADE=1 mangohud gamemoderun %command%\n\n# 调试示例：旧版本同步开关与 WineD3D 回退，不是禁用全部加速；先逐个测试\nPROTON_LOG=1 PROTON_NO_ESYNC=1 PROTON_NO_FSYNC=1 \\\nPROTON_USE_WINED3D=1 %command%</code></pre>\n<h3 id=\"section-22\">将非 Steam 游戏添加到 Steam 库</h3>\n<p>通过 Steam 客户端：库 → 添加游戏 → 添加非 Steam 游戏 → 选择 .exe。然后在属性中：</p>\n<ol>\n<li><strong>兼容性</strong> → 强制使用特定 Proton 版本</li>\n<li><strong>启动选项</strong> → 填入所需的 <code>PROTON_*</code> 变量 + <code>%command%</code></li>\n<li>Steam 会自动为它创建 <code>compatdata/&lt;快捷方式标识&gt;/pfx/（具体标识与布局以实际库为准）</code> 的独立 Prefix</li>\n</ol>\n<hr>\n<h2 id=\"section-23\">安装 Proton-GE</h2>\n<p>Steam 版从 GE 官方 Releases 选择明确版本和对应架构资产，核对其校验值/来源后解压到当前 Steam 安装的 <code>compatibilitytools.d/</code>。路径因本机包、Flatpak Steam 和发行版布局而异，不应盲目复制另一个系统的目录。</p>\n<pre><code># 假定归档已下载并完成校验；&lt;version&gt; 必须替换为选定版本。\nmkdir -p &quot;$HOME/.local/share/Steam/compatibilitytools.d/&quot;\ntar -xf &quot;$HOME/Downloads/GE-Proton&lt;version&gt;.tar.gz&quot; \\\n  -C &quot;$HOME/.local/share/Steam/compatibilitytools.d/&quot;</code></pre>\n<p>重启 Steam 后，在游戏属性的兼容性选择中核对实际 runner。若使用 ProtonUp-Qt，也应确认目标 Steam 安装、下载版本与目录；它是管理工具，不是性能保证。NixOS 可以把 GE 包交给锁定的 nixpkgs 与 Steam 模块，避免与手工目录中同名版本混淆。Steam 外使用遵循前述 umu 支持范围。</p>\n<h2 id=\"section-24\">兼容性参考</h2>\n<h3 id=\"section-25\">ProtonDB 评级</h3>\n<p><a href=\"https://www.protondb.com/\" target=\"_blank\" rel=\"noopener noreferrer\">ProtonDB</a> 是社区驱动的 Proton 兼容性数据库：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">评级</th>\n<th scope=\"col\">含义</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>Platinum</strong></td>\n<td>开箱即用</td>\n</tr>\n<tr>\n<td><strong>Gold</strong></td>\n<td>需微小调整</td>\n</tr>\n<tr>\n<td><strong>Silver</strong></td>\n<td>可运行但有问题</td>\n</tr>\n<tr>\n<td><strong>Bronze</strong></td>\n<td>勉强可玩</td>\n</tr>\n<tr>\n<td><strong>Borked</strong></td>\n<td>完全无法运行</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-26\">Steam Deck 认证</h3>\n<p>Valve 的认证针对 Steam Deck 的硬件、软件与交互条件。它提供参考，但不能保证不同桌面 Linux 的 GPU、驱动、输入、显示和第三方启动器都可用；还应查看具体认证原因与当前游戏版本。</p>\n<h3 id=\"section-27\">系统优化建议</h3>\n<ul>\n<li><strong>内核与同步</strong>：先确认实际 runner 使用什么同步路径。NTSYNC 的设备、权限与构建支持需分别检查，不能只按内核主版本选择。</li>\n<li><strong>驱动</strong>：核对所用 DXVK/VKD3D-Proton 和游戏要求；NVIDIA 专有驱动、AMD/Intel Mesa 的版本与位宽分别确认，不给一套永久适用的最低数字。</li>\n<li><strong>GameMode/MangoHud</strong>：通过发行版或 Nix 配置安装，先验证工具可用，再在游戏启动栏使用 <code>gamemoderun %command%</code> 或 <code>mangohud %command%</code>。</li>\n<li><strong>内存映射</strong>：读取 <code>vm.max_map_count</code> 并结合失败日志确认是否耗尽；不要无条件设置超大值。确有需要时按发行版/游戏的当前证据选择参数，并记录旧值和回滚方式。</li>\n<li><strong>Shader 预缓存</strong>：按 Steam、驱动和游戏现状测试冷/热启动差别；缓存不等于所有运行中着色器编译都消失。</li>\n</ul>\n<p>启动选项中的 <code>%command%</code> 是 Steam 占位符，不是可以直接粘贴到普通终端的 Bash 程序。每次只改一个条件，记录 runner、驱动、场景、帧时间与回退结果。</p>\n<p>版本边界：核验时 GE README 已将 <code>PROTON_FSR4_RDNA3_UPGRADE</code> 标为过时且无效果；适配的 RDNA3 也使用 <code>PROTON_FSR4_UPGRADE</code>。Valve 当前 README 将 <code>PROTON_NO_ESYNC</code> 标为在 Proton 11.0 过时。旧版本教程中的变量仍可用于理解历史行为，但应以所选发行版的 README 为准；媒体、Wayland、HDR、XeSS 与其他扩展不能由一个变量推断已经生效。</p>\n<h2 id=\"section-28\">来源与核验边界</h2>\n<p>以下参考定义相关机制与支持范围。安装、构建、激活、前缀状态与实际应用行为需要按目标环境分别核验；示例命令没有附带任何主机运行成功的结论。</p>\n<ul>\n<li><a href=\"https://github.com/ValveSoftware/Proton\" target=\"_blank\" rel=\"noopener noreferrer\">官方 Proton README</a></li>\n<li><a href=\"https://github.com/GloriousEggroll/proton-ge-custom\" target=\"_blank\" rel=\"noopener noreferrer\">GE-Proton README</a></li>\n<li><a href=\"https://github.com/Open-Wine-Components/umu-launcher\" target=\"_blank\" rel=\"noopener noreferrer\">umu-launcher 与运行方法</a></li>\n<li><a href=\"https://github.com/Open-Wine-Components/umu-launcher/blob/main/docs/umu.1.scd\" target=\"_blank\" rel=\"noopener noreferrer\">umu-run 手册</a></li>\n<li><a href=\"https://github.com/Matoking/protontricks\" target=\"_blank\" rel=\"noopener noreferrer\">Protontricks 上游</a></li>\n<li><a href=\"https://www.protondb.com/\" target=\"_blank\" rel=\"noopener noreferrer\">ProtonDB</a></li>\n</ul>\n",
+  "refs": [
+    [
+      "官方 Proton README",
+      "https://github.com/ValveSoftware/Proton"
+    ],
+    [
+      "GE-Proton README",
+      "https://github.com/GloriousEggroll/proton-ge-custom"
+    ],
+    [
+      "umu-launcher 与运行方法",
+      "https://github.com/Open-Wine-Components/umu-launcher"
+    ],
+    [
+      "umu-run 手册",
+      "https://github.com/Open-Wine-Components/umu-launcher/blob/main/docs/umu.1.scd"
+    ],
+    [
+      "Protontricks 上游",
+      "https://github.com/Matoking/protontricks"
+    ],
+    [
+      "ProtonDB",
+      "https://www.protondb.com/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "proton",
+    "gaming",
+    "wine"
+  ]
+}

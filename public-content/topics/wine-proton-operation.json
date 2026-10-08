@@ -1,0 +1,18 @@
+{
+  "slug": "wine-proton-operation",
+  "title": "Proton 游戏、部署与排错",
+  "deck": "为游戏选择受支持的运行路径，再分层管理配置和验证故障。",
+  "description": "Steam 的兼容数据、umu 的 Wine Prefix、Nix 声明的软件与 Flatpak 的运行时是不同状态层。先完成 Proton 路径与 per-game 配置，再看 NixOS 集成、故障诊断和高级变量。所有性能、HDR、Wayland、帧生成和反作弊判断都需要具体版本、游戏、驱动与实际证据；不由环境变量或内核设备存在推断成功。",
+  "articles": [
+    "wine-proton-gaming",
+    "wine-nixos-management",
+    "wine-proton-troubleshooting",
+    "wine-advanced-configuration"
+  ],
+  "reading_guide": [
+    "区分官方/GE 版本，Steam 外遵循 umu；重点核对 compatdata 父目录与 pfx 的不同含义。",
+    "核对目标 nixpkgs 选项与软件身份，分别记录构建、激活、runner 路径和可变前缀。",
+    "先生成日志与确认实际图形环境，再逐项处理前缀、媒体、反作弊、音频和字体。",
+    "按组件查变量，逐项对照 DLL/注册表、多 GPU 和 HDR 链路，保留回退并测量行为。"
+  ]
+}

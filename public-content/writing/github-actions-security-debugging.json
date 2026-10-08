@@ -1,0 +1,117 @@
+{
+  "slug": "github-actions-security-debugging",
+  "number": "108",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "GitHub Actions 安全与排障",
+  "deck": "沿事件、权限、凭据、Runner 和供应链边界定位 CI 风险与失败。",
+  "sections": [
+    [
+      "section-01",
+      "1. 先画出信任边界"
+    ],
+    [
+      "section-04",
+      "2. GITHUB_TOKEN 与最小权限"
+    ],
+    [
+      "section-08",
+      "3. Secrets、Variables 与 Environments"
+    ],
+    [
+      "section-11",
+      "4. OIDC 与短期云凭据"
+    ],
+    [
+      "section-12",
+      "5. 第三方 Action、Reusable Workflow 与供应链"
+    ],
+    [
+      "section-15",
+      "6. pull_request_target、workflow_run 与不可信代码"
+    ],
+    [
+      "section-19",
+      "7. 失败排查与安全调试"
+    ],
+    [
+      "section-23",
+      "8. 超时、并发与成本"
+    ],
+    [
+      "section-27",
+      "9. 示例：只读主题 CI 的边界"
+    ],
+    [
+      "section-28",
+      "10. 安全与可靠性检查清单"
+    ],
+    [
+      "section-29",
+      "11. 官方资料"
+    ]
+  ],
+  "body": "<blockquote>\n<p>本篇只处理 GitHub Actions CI 的安全边界、失败排查、可靠性和成本控制。Workflow、Event、Job、Runner、Matrix、Cache 等基础执行模型见 <a href=\"/writing/github-actions-fundamentals/\">04：Actions 基础与执行模型</a>；从本地检查设计 push/PR CI、Required Checks 和 Rulesets 见 <a href=\"/writing/github-actions-ci-configuration/\">05：Actions CI 配置方法</a>。</p>\n</blockquote>\n<p>CI 的危险不只来自“是否把密码写进 YAML”。一个 Pull Request 可以改变测试代码、构建脚本、依赖和 workflow；这些内容最终可能在 Runner 上执行。因此要同时审查四条边界：事件信任级别、<code>GITHUB_TOKEN</code> 权限、Secrets/外部凭据、Runner 与缓存的生命周期。</p>\n<h2 id=\"section-01\">1. 先画出信任边界</h2>\n<h3 id=\"section-02\">1.1 事件、代码与权限不是同一件事</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">对象</th>\n<th scope=\"col\">要先问的问题</th>\n<th scope=\"col\">默认安全方向</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>push</code> 到受保护分支</td>\n<td>提交者和分支是否经过仓库规则控制？</td>\n<td>可作为受信任构建或填充缓存的入口，但仍需最小权限</td>\n</tr>\n<tr>\n<td><code>pull_request</code></td>\n<td>PR 是否来自 Fork？工作流会执行哪些贡献者代码？</td>\n<td>把 head、脚本和依赖视为不可信；通常不给 Fork PR Secrets 和写权限</td>\n</tr>\n<tr>\n<td><code>pull_request_target</code></td>\n<td>是否真的需要 base 仓库上下文、Secrets 或写入能力？</td>\n<td>高风险特权事件；不要 checkout 并执行不可信 PR 代码</td>\n</tr>\n<tr>\n<td><code>workflow_run</code></td>\n<td>上一个 Workflow 上传的 artifact、输出和元数据是否可信？</td>\n<td>可作权限隔离边界，但下游必须把上游产物当作不可信输入</td>\n</tr>\n<tr>\n<td><code>workflow_dispatch</code></td>\n<td>谁能手动触发？输入是否会进入 shell 或部署？</td>\n<td>限制触发者和环境，仍然验证输入</td>\n</tr>\n</tbody></table></div>\n<p><code>pull_request</code> 的检查目标是“验证一个不可信变更”，而不是让这个变更取得仓库控制权。不能因为检查需要安装依赖、运行构建脚本，就顺手给它写权限、部署 Secrets 或自托管 Runner。</p>\n<h3 id=\"section-03\">1.2 GitHub-hosted 与 self-hosted Runner</h3>\n<ul>\n<li><strong>GitHub-hosted Runner</strong> 由 GitHub 管理，标准 Job 通常在隔离的临时执行环境中运行；仍应把工作流和依赖当作可能执行任意代码的程序，不要把 Secrets 直接打印、写入 artifact 或缓存。</li>\n<li><strong>Self-hosted Runner</strong> 是自己管理的机器，可能保留工作目录、凭据、网络访问和系统状态；GitHub 不保证每个 Job 都使用一台干净机器。公开仓库的 Fork PR 可能把危险代码送到该机器，因此不应把公开仓库的不可信 PR 直接路由到有内网或生产访问权的 Runner。</li>\n<li>若确实需要 self-hosted，应限制 Runner group 可使用的仓库，隔离网络和权限，优先使用每次 Job 后销毁的 ephemeral Runner，并检查其清理、更新和离线恢复流程。</li>\n</ul>\n<p>Runner 选择是安全设计，不只是性能和价格选择。GitHub-hosted 的分钟费用不能替代隔离；self-hosted 的“免费分钟”也不等于免费或安全。</p>\n<h2 id=\"section-04\">2. GITHUB_TOKEN 与最小权限</h2>\n<h3 id=\"section-05\">2.1 Token 是什么</h3>\n<p>GitHub 在每个 Workflow Job 开始前为该 Job 创建一个短期 <code>GITHUB_TOKEN</code>。它是安装在仓库上的 GitHub App installation token，作用域受限于包含该 Workflow 的仓库，Job 结束或 token 到期后失效。Action 即使没有显式收到 <code>token</code> 输入，也可能通过 <code>github.token</code> 上下文访问它，因此不能只审查 <code>with:</code> 里的参数。</p>\n<p>最小权限的顺序是：先让 Workflow 不需要 Token；需要时在 Workflow 或 Job 层显式列出最小权限；只有某一个 Job 真正需要写入能力时，才在该 Job 放大权限。</p>\n<h3 id=\"section-06\">2.2 permissions 的语义</h3>\n<p>一旦在 Workflow 或 Job 中显式写出 <code>permissions</code>，未列出的权限按 <code>none</code> 处理。不要把“未写出来”理解成“沿用一个安全的默认值”；要根据实际步骤逐项添加。Job 层可以为特定 Job 收紧或授予其所需权限，部署 Job 和普通测试 Job 不应共享一套宽权限。</p>\n<p>只读 Nix 构建通常只需要 <code>contents: read</code>：</p>\n<pre><code>name: CI\n\non:\n  pull_request:\n  push:\n    branches: [main]\n\n# 显式声明：未列出的 GITHUB_TOKEN 权限为 none。\npermissions:\n  contents: read\n\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Check out source\n        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n      - name: Run checks\n        run: ./ci/check.sh</code></pre>\n<p>如果只有发布或部署 Job 需要额外权限，把它写在该 Job，而不是 Workflow 顶层：</p>\n<pre><code>jobs:\n  test:\n    permissions:\n      contents: read\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./ci/test.sh\n\n  publish:\n    permissions:\n      contents: read\n      packages: write\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./ci/publish.sh</code></pre>\n<p><code>packages: write</code> 只是示例，不能据此推断所有发布工具的权限需求。每次增加权限都应写在 PR 描述中，说明哪个步骤需要它、触发事件是否可信、如何撤销。</p>\n<h3 id=\"section-07\">2.3 Fork PR 的默认边界</h3>\n<p>公开仓库的 Fork PR 通常不会收到仓库、组织或环境 Secrets，<code>GITHUB_TOKEN</code> 通常只有只读权限；首次贡献者的 Workflow 还可能需要维护者批准。Dependabot PR 也适用类似的 Fork 限制。私有仓库可以在 Settings 中配置更宽的 Fork 策略，但那是显式的风险决定，不应当当作默认前提。</p>\n<p>所以，遇到 Fork PR 的 <code>403</code>、缺少 Secret 或不能创建检查，不要为了“让 CI 变绿”把 <code>pull_request</code> 改成 <code>pull_request_target</code>，也不要打开发送写 Token/Secrets 的策略。先确认这一步是否本来就不应有写权限。</p>\n<h2 id=\"section-08\">3. Secrets、Variables 与 Environments</h2>\n<h3 id=\"section-09\">3.1 三种配置的边界</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">类型</th>\n<th scope=\"col\">用途</th>\n<th scope=\"col\">可否视为机密</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Repository/Organization Secret</td>\n<td>Token、API key、签名材料等敏感值</td>\n<td>是；按最小范围授予，并定期轮换</td>\n</tr>\n<tr>\n<td>Environment Secret</td>\n<td>某个部署环境专属的敏感值</td>\n<td>是；可用 Required reviewers、分支规则和等待时间保护</td>\n</tr>\n<tr>\n<td>Variable（<code>vars</code>）</td>\n<td>非敏感配置，如区域名、开关、版本标签</td>\n<td>否；日志和工作流代码可见，不要放凭据</td>\n</tr>\n</tbody></table></div>\n<p>Secrets 应通过 <code>${{ secrets.NAME }}</code> 传入需要它的步骤，且只在受信任 Job 中使用：</p>\n<pre><code>jobs:\n  deploy:\n    # production 环境需在仓库 Settings 中配置保护规则和 Secret。\n    environment:\n      name: production\n    permissions:\n      contents: read\n    runs-on: ubuntu-latest\n    steps:\n      - name: Deploy\n        env:\n          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}\n        run: ./ci/deploy.sh</code></pre>\n<p>示例中的 <code>DEPLOY_KEY</code> 只是占位名称，不代表仓库中应存在这个 Secret；不要把真实值替换进文档或提交。不要用 <code>echo</code>、<code>set -x</code>、调试打印、artifact、cache 或临时文件输出 Secret。GitHub 的自动脱敏不是安全边界，因为 Secret 可能被编码、切片、拼接或经过工具转换后不再匹配原值。</p>\n<h3 id=\"section-10\">3.2 Environment 是审批边界，不是沙箱</h3>\n<p>Job 引用 Environment 后，保护规则通过前不会开始执行；Environment Secrets 在 Job 获准并启动后才可访问。可以限制允许部署的分支或标签、要求人工审查、设置等待时间或接入保护规则。</p>\n<p>但 Environment 不会把不可信代码变成可信代码，也不会把 self-hosted Runner 变成隔离容器。若不可信代码最终能在同一 Runner 上执行，仍可能读取环境、工作目录或其他可见资源。将“测试不可信 PR”和“使用生产 Secrets 的部署”拆成不同的 Workflow/Job，并让后者只响应受控事件。</p>\n<h2 id=\"section-11\">4. OIDC 与短期云凭据</h2>\n<p>OpenID Connect（OIDC）允许云提供商根据 GitHub 签发的短期身份令牌换取短期云访问令牌，减少长期云密钥存放在 GitHub Secrets 中的需要。它不是自动授权：云提供商仍必须配置可信主体、Audience、仓库/分支/Environment 等条件，并把云角色本身限制到最小操作。</p>\n<p>请求 OIDC JWT 必须授予 <code>id-token: write</code>。这个名称容易误导：它<strong>只允许 Workflow 向 GitHub OIDC provider 请求身份令牌，不等于获得云资源写权限，也不等于获得 GitHub 仓库写权限</strong>。示例只展示安全的权限和环境边界，不放真实云凭据或可直接运行的提供商 Secret：</p>\n<pre><code>jobs:\n  deploy:\n    environment:\n      name: production\n    permissions:\n      contents: read\n      id-token: write\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n      - name: Exchange OIDC token with the cloud provider\n        # 用提供商的官方 Action，并固定到经过审查的完整 commit SHA。\n        uses: provider/official-login-action@&lt;40-hex-commit-sha&gt;\n        with:\n          audience: example-audience\n      - run: ./ci/deploy.sh</code></pre>\n<p>配置云端信任策略时至少核对：</p>\n<ol>\n<li><code>sub</code>/subject 是否限定到预期仓库、分支或 Environment，而不是接受任意仓库或任意分支。</li>\n<li><code>aud</code>/audience 是否和提供商配置一致，避免把令牌转给另一个用途。</li>\n<li>Fork PR、<code>pull_request_target</code>、<code>workflow_run</code> 是否可能满足该信任条件；不可信事件不应得到生产角色。</li>\n<li>云角色是否只允许必要 API 操作，并有独立的撤销和审计路径。</li>\n</ol>\n<p>本文主题项目教学示例只做 Nix CI，没有云部署需求；不要为了“展示 OIDC”给它增加 <code>id-token: write</code>。</p>\n<h2 id=\"section-12\">5. 第三方 Action、Reusable Workflow 与供应链</h2>\n<h3 id=\"section-13\">5.1 固定不可变 SHA</h3>\n<p>标签（如 <code>@v4</code>）便于升级，但标签可以移动；对需要可审计和可复现的 Workflow，第三方 Action 应固定到完整 40 位 commit SHA，并在注释中保留人类可读版本：</p>\n<pre><code>steps:\n  - name: Check out source\n    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n  - name: Install Nix\n    uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1</code></pre>\n<p>SHA pinning 只能防止标签在未来悄悄指向另一提交，不能证明该提交本身安全。使用前仍要检查仓库所有者、Release/Tag 对应关系、源码、权限和维护状态；对关键 Action 可限制仓库 Settings 中允许的 Actions/Reusable Workflows，配合 Dependabot 或定期人工更新。</p>\n<p>Reusable Workflow 也属于供应链边界：调用方要固定 <code>org/repo/.github/workflows/reuse.yml@&lt;SHA&gt;</code>，审查被调用 Workflow 的权限、继承 Secrets、输入和输出，不要因为它“看起来像本仓库的模板”就默认可信。调用者需要的权限应显式写出，避免把调用方的宽权限无意间传入共享流程。</p>\n<h3 id=\"section-14\">5.2 输入、脚本与命令注入</h3>\n<p>Issue 标题、PR 标题/正文、分支名、提交消息、路径和手动输入都可能由贡献者控制。不要把这些上下文直接插入 <code>run:</code> 字符串：</p>\n<pre><code># 不安全：输入先被插入生成的 shell 脚本。\n# run: echo &quot;${{ github.event.pull_request.title }}&quot;\n\n- name: Print untrusted title safely\n  if: github.event_name == &#39;pull_request&#39;\n  env:\n    PR_TITLE: ${{ github.event.pull_request.title }}\n  run: |\n    printf &#39;%s\\n&#39; &quot;$PR_TITLE&quot;</code></pre>\n<p>把值通过 <code>env</code> 传给脚本，脚本内使用双引号变量展开；需要把路径交给 Git 或其他工具时使用 <code>--</code> 分隔选项与路径，并拒绝不符合预期的格式。更复杂的解析优先使用经过审查的 Action，把上下文作为参数而不是拼接成 shell。</p>\n<h2 id=\"section-15\">6. pull_request_target、workflow_run 与不可信代码</h2>\n<h3 id=\"section-16\">6.1 pull_request 与 pull_request_target</h3>\n<p><code>pull_request</code> 适合运行不可信代码的只读检查，代价是 Fork PR 通常不能使用 Secrets 或写权限。<code>pull_request_target</code> 使用 base 仓库默认分支的上下文运行（按当前官方事件参考），可能获得 base 的 Workflow、Secrets 和更高的 <code>GITHUB_TOKEN</code> 权限；因此它不是“让 Fork CI 正常工作的安全替代写法”。</p>\n<p>高风险模式是：在 <code>pull_request_target</code> 中 checkout Fork 的 head，然后执行其构建脚本、测试或依赖安装。这样不可信代码就在高权限上下文中运行，可能读取凭据或修改仓库。不要将这类构建或依赖安装放在特权事件中；通常将只读测试留在 <code>pull_request</code>，将受控发布拆到合并后的 <code>push</code> 或经过审批的部署 Job。</p>\n<h3 id=\"section-17\">6.2 workflow_run 的权限隔离不是信任传递</h3>\n<p><code>workflow_run</code> 可以让低权限测试 Workflow 完成后，再启动拥有不同权限的后续 Workflow。这有助于隔离“测试”和“发布”，但上游的 artifact、缓存、输出和文件名仍可能由不可信提交影响。下游不应直接 checkout 或执行上游上传的脚本，不应把未验证的输出当作命令、路径或身份条件。</p>\n<p>可采用的边界是：上游只上传明确格式的结果；下游重新验证 artifact 的来源、哈希、结构和允许的文件集合；只有满足受保护分支、审批和检查状态后，才使用 OIDC 或 Environment 凭据。若不需要跨 Workflow 传递数据，最简单的安全方案是不要引入 <code>workflow_run</code>。</p>\n<h3 id=\"section-18\">6.3 Cache poisoning</h3>\n<p>Cache 按分支或标签等范围共享，不按 Workflow/Job 身份独立隔离；可读取某个 Cache 的运行会原样恢复其中内容。不要把 Secret、签名材料、认证目录或依赖于信任边界的可执行文件放进 Cache。恶意或被污染的缓存可能让受信任 Workflow 后续执行攻击者写入的文件。</p>\n<p>Fork PR 和 <code>pull_request_target</code> 受 GitHub 的缓存访问限制，但这不能代替审查：把可执行构建结果从不可信 Cache 恢复到受信任 Job 仍然危险。需要填充缓存时，优先在受信任的 <code>push</code> Workflow 中生成；每次恢复都把内容当作不可信输入，使用锁文件、哈希键和可重建设计。</p>\n<h2 id=\"section-19\">7. 失败排查与安全调试</h2>\n<h3 id=\"section-20\">7.1 先确定失败属于哪一层</h3>\n<p>排查顺序应保持稳定，避免反复盲目重跑：</p>\n<ol>\n<li><strong>触发层</strong>：事件、分支、路径过滤、Workflow 文件是否在预期 ref、Fork 审批是否完成。</li>\n<li><strong>权限层</strong>：Workflow/Job <code>permissions</code>、Fork 只读边界、Environment 审批和 Secret 可见性。</li>\n<li><strong>Runner 层</strong>：Runner 是否排队、离线、磁盘不足、网络/DNS 失败、工具版本变化。</li>\n<li><strong>Action/依赖层</strong>：SHA 是否存在、Action 输入是否改变、上游下载是否失败、缓存是否命中异常。</li>\n<li><strong>项目检查层</strong>：Nix 求值、构建、测试或输出契约本身失败。</li>\n<li><strong>并发/成本层</strong>：是否被 concurrency 取消、超时、预算/分钟/存储限制阻断。</li>\n</ol>\n<p>先看失败 Job 的第一条异常和失败前的上下文，再看完整日志；最后才决定是修复、重跑还是暂时性基础设施问题。重跑不会修复确定性的 YAML、权限、输入或代码错误。</p>\n<h3 id=\"section-21\">7.2 GitHub CLI 的最小排查流</h3>\n<pre><code>gh run list --workflow nix.yml --limit 10\ngh run view RUN_ID\ngh run view RUN_ID --log-failed\ngh run watch RUN_ID\ngh run rerun RUN_ID --failed</code></pre>\n<p>需要更多 Runner/Step 诊断时，可以在一次重跑中使用：</p>\n<pre><code>gh run rerun RUN_ID --failed --debug</code></pre>\n<p>也可以在仓库或组织设置中临时启用 <code>ACTIONS_STEP_DEBUG=true</code>、<code>ACTIONS_RUNNER_DEBUG=true</code>。调试日志可能包含更多路径、命令参数、依赖和环境信息；启用前检查是否有凭据进入命令行，结束后及时删除或关闭调试变量。无论界面还是 <code>gh</code> 输出，都不要把包含 Secret、OIDC token、私有 URL 或内部网络信息的日志复制到公开 Issue。</p>\n<h3 id=\"section-22\">7.3 常见症状与下一步</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">症状</th>\n<th scope=\"col\">优先检查</th>\n<th scope=\"col\">不要先做的事</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Workflow 没有运行</td>\n<td>事件、分支/路径过滤、Workflow 所在 ref、Fork 审批和 Actions Settings</td>\n<td>不要随意放宽触发器到所有分支</td>\n</tr>\n<tr>\n<td><code>403</code> / <code>Resource not accessible by integration</code></td>\n<td>Job 的 <code>permissions</code>、事件类型、Fork 只读边界和目标 API</td>\n<td>不要直接改成全局 <code>write-all</code></td>\n</tr>\n<tr>\n<td>Secret 为空</td>\n<td>Secret 所属层级、Environment 审批、Fork/Dependabot 限制</td>\n<td>不要把 Secret 打印出来确认</td>\n</tr>\n<tr>\n<td>Action 找不到或行为突变</td>\n<td>SHA 是否完整、提交是否存在、Action 输入和 Runner 镜像</td>\n<td>不要只换成漂移的 <code>@main</code></td>\n</tr>\n<tr>\n<td>同样提交偶发失败</td>\n<td>下载服务、Runner 网络、缓存命中和并发取消</td>\n<td>不要无限重跑隐藏确定性错误</td>\n</tr>\n<tr>\n<td>Job 被取消或超时</td>\n<td><code>concurrency</code>、<code>timeout-minutes</code>、队列和成本限制</td>\n<td>不要无限提高 timeout</td>\n</tr>\n<tr>\n<td>self-hosted Runner 离线</td>\n<td>Runner 服务、标签/组、网络和磁盘</td>\n<td>不要把新仓库直接加入共享 Runner</td>\n</tr>\n</tbody></table></div>\n<p>失败的 PR 可以重跑原来的提交与事件；修复 Workflow 后再推一个新的提交，以便区分“配置修复”与“基础设施重试”。</p>\n<h2 id=\"section-23\">8. 超时、并发与成本</h2>\n<h3 id=\"section-24\">8.1 给 Job 设置上限</h3>\n<p>将 <code>timeout-minutes</code> 设为符合真实工作量的上限，避免死循环、失联下载或损坏的构建占用 Runner：</p>\n<pre><code>jobs:\n  check:\n    runs-on: ubuntu-latest\n    timeout-minutes: 20\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n      - run: nix flake check --all-systems --no-build</code></pre>\n<p>超时应当促使我们定位慢步骤，而不是替代缓存、拆分 Job 或修复失控脚本。给部署 Job 设置 timeout 时，还要明确“取消部署”是否会留下半完成状态以及如何回滚。</p>\n<h3 id=\"section-25\">8.2 只取消过时的 CI</h3>\n<p>对同一个 PR 的旧检查可以使用 concurrency 节省分钟：</p>\n<pre><code>concurrency:\n  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}\n  cancel-in-progress: true</code></pre>\n<p>这个策略适合可重复、无外部副作用的 PR CI；不要直接套到发布、迁移或不可逆部署流程。生产部署更适合按 Environment 串行，并将取消策略改成经过审查的排队/互斥规则。</p>\n<h3 id=\"section-26\">8.3 成本控制的优先级</h3>\n<ul>\n<li>先用 <code>branches</code>、<code>paths</code> 和合理事件减少不必要运行，再考虑更复杂的矩阵或缓存。</li>\n<li>给矩阵设置清晰的轴和失败策略；不为每个平台复制一套永远不执行的检查。</li>\n<li>用 timeout 防止异常长 Job；设置 artifact/log 保留期，定期清理不再需要的产物。</li>\n<li>Cache 只缓存可重建的依赖；缓存命中不是正确性的前提，也不是安全边界。为缓存省下的分钟不值得换来污染可信构建的风险。</li>\n<li>GitHub-hosted 主要消耗 Actions 分钟、artifact 和 cache 存储；self-hosted 可能不计相同的托管分钟，但要承担机器、磁盘、网络、维护和安全隔离成本。</li>\n</ul>\n<h2 id=\"section-27\">9. 示例：只读主题 CI 的边界</h2>\n<p>下面描述匿名化主题 CI 的教学配置，没有核验个人项目现状或报告真实运行：</p>\n<ul>\n<li>触发于 <code>push</code> 和 <code>pull_request</code>，没有在 YAML 中限制分支或路径。</li>\n<li>Workflow 顶层已有 <code>permissions: contents: read</code>，未为构建 Job 增加写权限。</li>\n<li><code>actions/checkout</code> 固定到完整 SHA <code>3d3c42e5aac5ba805825da76410c181273ba90b1</code>（注释版本 <code>v7.0.1</code>）。</li>\n<li><code>cachix/install-nix-action</code> 固定到完整 SHA <code>13d8dd58da0234aa297dedd986986ccb8e7f3e24</code>（注释版本 <code>v31.11.1</code>）。</li>\n<li>示例文件没有 Secrets、OIDC、依赖 Cache 或 concurrency；不要把本篇的示例写成“示例已经具备”。</li>\n<li>工作流执行 <code>nix flake check --all-systems --no-build</code>，构建六种主题变体，并构建 <code>checks.x86_64-linux.variants</code> 输出契约。</li>\n</ul>\n<p>因此，该示例 CI 的安全基线是“只读仓库内容、固定已采用的 Action、在 GitHub-hosted <code>ubuntu-latest</code> 上验证 Nix 输出”。它验证 Nix 求值、构建和输出契约，不代表 Fcitx5、Hyprland、niri、KWin 或 GNOME 的运行时行为已经在 CI 中验证；尤其不能把 Nix 构建通过写成 Fcitx5/Hyprland 运行时测试通过。</p>\n<p>对这个只读构建示例，不需要为了安全清单而添加 Secret、OIDC 或 self-hosted Runner。若未来加入 Cache，应只缓存可重建的 Nix/依赖内容，并把从 Fork PR 恢复的内容当作不可信；若未来加入发布或云部署，应拆分 Job、保持测试 Job 的 <code>contents: read</code>，再为受保护 Environment 单独设计 OIDC 信任条件。concurrency 是可选的成本优化，不是示例 Workflow 已有的能力。</p>\n<h2 id=\"section-28\">10. 安全与可靠性检查清单</h2>\n<ul>\n<li><input disabled=\"\" type=\"checkbox\"> 每个 Workflow/Job 都有显式、最小的 <code>permissions</code>；未列权限按 <code>none</code> 检查。</li>\n<li><input disabled=\"\" type=\"checkbox\"> 只在确实需要时使用 <code>GITHUB_TOKEN</code>，没有把 <code>write</code> 放在普通测试 Job。</li>\n<li><input disabled=\"\" type=\"checkbox\"> Fork PR、Dependabot PR 和手动输入都按不可信输入处理。</li>\n<li><input disabled=\"\" type=\"checkbox\"> 没有在 <code>pull_request_target</code> 或 <code>workflow_run</code> 中 checkout 并执行不可信 PR 代码。</li>\n<li><input disabled=\"\" type=\"checkbox\"> PR 标题、正文、分支名、路径和 <code>workflow_dispatch</code> 输入没有直接拼接进 shell。</li>\n<li><input disabled=\"\" type=\"checkbox\"> Secrets 没有进入日志、artifact、cache、提交、临时文件或错误消息；Variables 中没有凭据。</li>\n<li><input disabled=\"\" type=\"checkbox\"> Environment Secrets 有分支限制、Required reviewers 或适合风险的保护规则。</li>\n<li><input disabled=\"\" type=\"checkbox\"> OIDC 的 <code>id-token: write</code> 只放在需要的 Job，云端 subject/audience/角色权限均已限制。</li>\n<li><input disabled=\"\" type=\"checkbox\"> 第三方 Action 和 Reusable Workflow 固定完整 commit SHA，版本注释与提交对应。</li>\n<li><input disabled=\"\" type=\"checkbox\"> Cache 只包含可重建内容，缓存键和恢复路径不会让不可信内容进入受信任执行。</li>\n<li><input disabled=\"\" type=\"checkbox\"> 公开仓库的不可信 PR 不使用有内网/生产访问权的 self-hosted Runner。</li>\n<li><input disabled=\"\" type=\"checkbox\"> 失败排查先区分触发、权限、Runner、Action、项目检查和成本层，再决定是否重跑。</li>\n<li><input disabled=\"\" type=\"checkbox\"> 一次性 debug logging 使用完即关闭，日志发布前已做凭据和内部信息检查。</li>\n<li><input disabled=\"\" type=\"checkbox\"> 长 Job 有合理 timeout；可取消的 PR CI 才使用 <code>cancel-in-progress</code>。</li>\n<li><input disabled=\"\" type=\"checkbox\"> Actions Settings、允许的 Action 范围、artifact/log 保留期和 Runner group 定期复核。</li>\n</ul>\n<h2 id=\"section-29\">11. 官方资料</h2>\n<ul>\n<li><a href=\"https://docs.github.com/en/actions/reference/security/secure-use\" target=\"_blank\" rel=\"noopener noreferrer\">Secure use reference</a>：Workflow、Secrets、第三方 Action、不可信 checkout 和脚本注入的安全实践。</li>\n<li><a href=\"https://docs.github.com/en/actions/concepts/security/github_token\" target=\"_blank\" rel=\"noopener noreferrer\"><code>GITHUB_TOKEN</code></a>：Token 生命周期、作用域和触发行为。</li>\n<li><a href=\"https://docs.github.com/en/actions/reference/security/secrets\" target=\"_blank\" rel=\"noopener noreferrer\">Secrets reference</a>：Secret 的读取、脱敏、层级和限制。</li>\n<li><a href=\"https://docs.github.com/en/actions/reference/security/oidc\" target=\"_blank\" rel=\"noopener noreferrer\">OpenID Connect reference</a>：OIDC claims、subject、audience 和 <code>id-token: write</code>。</li>\n<li><a href=\"https://docs.github.com/en/actions/concepts/workflows-and-actions/deployment-environments\" target=\"_blank\" rel=\"noopener noreferrer\">Deployment environments</a>：Environment、保护规则和环境 Secrets。</li>\n<li><a href=\"https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository\" target=\"_blank\" rel=\"noopener noreferrer\">Managing GitHub Actions settings for a repository</a>：允许的 Actions、Fork 策略、Token 默认权限、Cache 与保留期设置。</li>\n<li><a href=\"https://docs.github.com/en/actions/concepts/workflows-and-actions/dependency-caching\" target=\"_blank\" rel=\"noopener noreferrer\">Dependency caching</a>：缓存范围、缓存安全与 poisoning 风险。</li>\n<li><a href=\"https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows\" target=\"_blank\" rel=\"noopener noreferrer\">Events that trigger workflows</a>：Fork PR、<code>pull_request_target</code> 和事件触发语义。</li>\n<li><a href=\"https://docs.github.com/en/actions/how-tos/troubleshoot-workflows\" target=\"_blank\" rel=\"noopener noreferrer\">Troubleshooting workflows</a> 与 <a href=\"https://docs.github.com/en/actions/how-tos/monitor-workflows/enable-debug-logging\" target=\"_blank\" rel=\"noopener noreferrer\">Enabling debug logging</a>：日志、重跑、Runner/Step 调试和计费排查。</li>\n<li><a href=\"https://docs.github.com/en/actions/concepts/runners/self-hosted-runners\" target=\"_blank\" rel=\"noopener noreferrer\">Self-hosted runners</a>：自托管 Runner 的维护和安全边界。</li>\n</ul>\n<p>完整 SHA 与版本注释于 2026-10-08 通过上游 tag API 对应核对：<code>actions/checkout</code> v7.0.1 与 <code>cachix/install-nix-action</code> v31.11.1。它们是本文示例采用的固定版本，不能据此声称最新或没有漏洞；<code>cachix/install-nix-action</code> 是第三方 Action。固定 SHA 后仍需跟踪上游发布与安全公告。</p>\n",
+  "refs": [
+    [
+      "Secure use reference",
+      "https://docs.github.com/en/actions/reference/security/secure-use"
+    ],
+    [
+      "GITHUB_TOKEN",
+      "https://docs.github.com/en/actions/concepts/security/github_token"
+    ],
+    [
+      "Secrets reference",
+      "https://docs.github.com/en/actions/reference/security/secrets"
+    ],
+    [
+      "OpenID Connect reference",
+      "https://docs.github.com/en/actions/reference/security/oidc"
+    ],
+    [
+      "Deployment environments",
+      "https://docs.github.com/en/actions/concepts/workflows-and-actions/deployment-environments"
+    ],
+    [
+      "Managing GitHub Actions settings for a repository",
+      "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository"
+    ],
+    [
+      "Dependency caching",
+      "https://docs.github.com/en/actions/concepts/workflows-and-actions/dependency-caching"
+    ],
+    [
+      "Events that trigger workflows",
+      "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows"
+    ],
+    [
+      "Troubleshooting workflows",
+      "https://docs.github.com/en/actions/how-tos/troubleshoot-workflows"
+    ],
+    [
+      "Enabling debug logging",
+      "https://docs.github.com/en/actions/how-tos/monitor-workflows/enable-debug-logging"
+    ],
+    [
+      "Self-hosted runners",
+      "https://docs.github.com/en/actions/concepts/runners/self-hosted-runners"
+    ],
+    [
+      "actions/checkout v7.0.1",
+      "https://github.com/actions/checkout/tree/v7.0.1"
+    ],
+    [
+      "cachix/install-nix-action v31.11.1（第三方）",
+      "https://github.com/cachix/install-nix-action/tree/v31.11.1"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "github",
+    "actions",
+    "security"
+  ]
+}

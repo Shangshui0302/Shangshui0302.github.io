@@ -1,0 +1,56 @@
+{
+  "slug": "nixos-introduction",
+  "number": "013",
+  "category": "LINUX / SYSTEMS",
+  "title": "NixOS：声明式系统的基础",
+  "deck": "从配置、构建结果和代际理解 NixOS 的基本工作方式。",
+  "sections": [
+    [
+      "section-01",
+      "什么是 NixOS？"
+    ],
+    [
+      "section-02",
+      "核心特性"
+    ],
+    [
+      "section-07",
+      "NixOS 适用场景"
+    ],
+    [
+      "section-08",
+      "NixOS 的架构"
+    ],
+    [
+      "section-09",
+      "学习建议"
+    ],
+    [
+      "section-10",
+      "与其他 Linux 发行版的对比"
+    ],
+    [
+      "section-11",
+      "参考资源"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">什么是 NixOS？</h2>\n<p>NixOS 是一个基于 Nix 包管理器的 Linux 发行版，由 NixOS 基金会开发和维护。它采用了独特的<strong>声明式配置</strong>方式，让整个系统都可以通过配置文件来定义和管理。</p>\n<h2 id=\"section-02\">核心特性</h2>\n<h3 id=\"section-03\">1. 声明式配置 (Declarative Configuration)</h3>\n<p>传统的 Linux 发行版通常需要手动安装软件包、修改配置文件、启用服务等操作。而在 NixOS 中，所有这些操作都通过统一的 <code>configuration.nix</code> 文件来定义：</p>\n<pre><code>{ config, pkgs, ... }:\n\n{\n  # 启用 OpenSSH 服务\n  services.openssh.enable = true;\n  \n  # 安装软件包\n  environment.systemPackages = with pkgs; [\n    vim\n    git\n    htop\n  ];\n  \n  # 配置用户\n  users.users.alice = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; ];\n  };\n}</code></pre>\n<h3 id=\"section-04\">2. 可复现性 (Reproducibility)</h3>\n<p>固定配置、依赖 revision 和构建输入，可以重复构建声明描述的系统环境；可写数据、硬件差异和非确定性构建仍需单独处理。这意味着：</p>\n<ul>\n<li>你可以在不同的机器上部署相同的声明式环境</li>\n<li>团队开发环境可以保持一致</li>\n<li>生产环境和开发环境可以共享相同的依赖与配置定义</li>\n</ul>\n<h3 id=\"section-05\">3. 原子升级与回滚 (Atomic Upgrades &amp; Rollbacks)</h3>\n<p>NixOS 的系统更新是原子操作：</p>\n<ul>\n<li>新产物不会覆盖旧产物，系统 profile 切换支持原子更新</li>\n<li>激活脚本、服务重启、启动加载器和可写数据仍可能失败，回滚也不能代替备份</li>\n<li>随时可以回滚到之前的工作版本</li>\n</ul>\n<pre><code># 查看可回滚的系统版本\nsudo nixos-rebuild list-generations\n\n# 切换到特定版本\nsudo nix-env --profile /nix/var/nix/profiles/system --switch-generation 42\nsudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch</code></pre>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">参数</th>\n<th scope=\"col\">当前系统立即切换</th>\n<th scope=\"col\">写入默认启动项</th>\n<th scope=\"col\">重启后生效</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>switch</code></td>\n<td>是</td>\n<td>是</td>\n<td>是</td>\n</tr>\n<tr>\n<td><code>boot</code></td>\n<td>否</td>\n<td>是</td>\n<td>是</td>\n</tr>\n<tr>\n<td><code>test</code></td>\n<td>是</td>\n<td>否</td>\n<td>否，重启回滚</td>\n</tr>\n</tbody></table></div>\n<p><code>switch</code> 会立即激活并设为启动默认项；<code>boot</code> 只构建并设为启动默认项，不改当前运行系统；<code>test</code> 立即激活但不加入启动菜单。<a href=\"https://nixos.org/manual/nixos/stable/#sec-changing-config\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Manual</a></p>\n<p>更换登录管理器或关键服务时，<code>switch</code> 与 <code>test</code> 都可能中断当前会话。若目标是在下次启动采用新配置，可以先选择 <code>boot</code>：</p>\n<pre><code>sudo nixos-rebuild boot --flake .#workstation\n# 确认工作已保存后才重启\nsudo systemctl reboot</code></pre>\n<h3 id=\"section-06\">4. 可靠的包管理 (Reliable Package Management)</h3>\n<p>Nix 包管理器的特性：</p>\n<ul>\n<li><strong>隔离的包路径</strong>：不同包及版本不会互相覆盖；激活和程序运行仍可能产生副作用</li>\n<li><strong>多版本共存</strong>：同一软件的不同版本可以同时存在</li>\n<li><strong>垃圾回收</strong>：自动清理不再使用的包</li>\n<li><strong>二进制缓存</strong>：预编译的包可以快速安装</li>\n</ul>\n<h2 id=\"section-07\">NixOS 适用场景</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">场景</th>\n<th scope=\"col\">NixOS 的优势</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>开发环境</strong></td>\n<td>快速创建可复现的开发环境</td>\n</tr>\n<tr>\n<td><strong>服务器部署</strong></td>\n<td>声明式配置，易于管理和回滚</td>\n</tr>\n<tr>\n<td><strong>嵌入式系统</strong></td>\n<td>定制化构建，只包含必需的组件</td>\n</tr>\n<tr>\n<td><strong>CI/CD</strong></td>\n<td>一致的构建环境</td>\n</tr>\n<tr>\n<td><strong>桌面系统</strong></td>\n<td>可选择稳定分支或 unstable，并保留代际回滚</td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-08\">NixOS 的架构</h2>\n<pre><code>┌─────────────────────────────────────┐\n│          用户空间应用层              │\n│    (桌面环境、浏览器、编辑器等)       │\n├─────────────────────────────────────┤\n│          系统服务层                  │\n│    (systemd 服务、网络服务等)         │\n├─────────────────────────────────────┤\n│          NixOS 配置层                │\n│    (configuration.nix)               │\n├─────────────────────────────────────┤\n│          Nix 包管理器                │\n│    (nixpkgs、flakes)                 │\n├─────────────────────────────────────┤\n│          Linux 内核                  │\n└─────────────────────────────────────┘</code></pre>\n<h2 id=\"section-09\">学习建议</h2>\n<p>学习 NixOS 需要掌握以下内容：</p>\n<ol>\n<li><strong>Nix 语言基础</strong> - 用于编写配置文件</li>\n<li><strong>NixOS 模块系统</strong> - 理解配置选项的工作原理</li>\n<li><strong>nixpkgs</strong> - Nix 包集合的使用方法</li>\n<li><strong>Flakes</strong> - Nix 的新一代项目管理工具</li>\n</ol>\n<h2 id=\"section-10\">与其他 Linux 发行版的对比</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">特性</th>\n<th scope=\"col\">NixOS</th>\n<th scope=\"col\">Ubuntu</th>\n<th scope=\"col\">Arch Linux</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>配置方式</td>\n<td>声明式</td>\n<td>命令式</td>\n<td>命令式</td>\n</tr>\n<tr>\n<td>包管理</td>\n<td>Nix</td>\n<td>APT</td>\n<td>Pacman</td>\n</tr>\n<tr>\n<td>可复现性</td>\n<td>原生支持</td>\n<td>需额外工具</td>\n<td>需额外工具</td>\n</tr>\n<tr>\n<td>版本回滚</td>\n<td>原生支持</td>\n<td>有限支持</td>\n<td>有限支持</td>\n</tr>\n<tr>\n<td>学习曲线</td>\n<td>陡峭</td>\n<td>平缓</td>\n<td>中等</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-11\">参考资源</h2>\n<ul>\n<li><a href=\"https://nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 官方网站</a></li>\n<li><a href=\"https://nix.dev/\" target=\"_blank\" rel=\"noopener noreferrer\">nix.dev 官方教程</a></li>\n<li><a href=\"https://nixos-cn.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 中文社区</a></li>\n<li><a href=\"https://nixos.org/manual/nixos/stable/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 手册</a></li>\n</ul>\n<hr>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "slug": "waydroid",
+  "title": "Waydroid",
+  "deck": "理解 Android 容器的系统集成、图形网络路径与应用兼容性。",
+  "description": "专题覆盖 LXC 与 Binder 架构、多发行版安装、NixOS 声明式系统集成、GPU、网桥/NAT、属性和 ARM 转译，以及常见故障。容器运行、图形输出和目标应用可用是不同验证层，源码与版本约束先于通用调优结论。",
+  "articles": [
+    "waydroid-architecture",
+    "waydroid-installation",
+    "waydroid-nixos",
+    "waydroid-gpu",
+    "waydroid-network-security",
+    "waydroid-configuration",
+    "waydroid-troubleshooting",
+    "waydroid-practical-tips"
+  ],
+  "reading_guide": [
+    "先读共享内核、Binder、管理进程和桥接边界，避免把 LXC 当成虚拟机级隔离。",
+    "检查实际环境，再依发行版安装；分开验收容器、Android ready 和 UI。",
+    "先对照锁定模块源码，再设计系统配置、镜像和数据的管理边界。",
+    "从节点权限和 renderer 证据开始，必要时对照软件渲染。",
+    "按 DHCP、DNS、路由和实际防火墙规则逐层排查，避免全局放行。",
+    "按目标应用选择窗口、输入与转译方案，不套用品牌或 PID 通用优化。",
+    "保留日志后按症状定位，避免把 FAQ 的可能原因当作唯一根因。",
+    "结合 Ivon 的历史经验使用日常技巧，以当前官方接口补足剪藏缺项。"
+  ]
+}

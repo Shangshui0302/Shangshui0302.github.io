@@ -1,0 +1,26 @@
+{
+  "slug": "nix-flakes",
+  "title": "Flakes：项目与依赖管理",
+  "deck": "从输入图到系统输出，理解锁定、更新与回退。",
+  "description": "Flake 将项目组织成 inputs 和 outputs，flake.lock 记录解析后的输入图。专题先解释结构与锁定，再处理模板、外部依赖、系统迁移、完整教程和更新恢复。",
+  "articles": [
+    "nix-flake-schema",
+    "nix-flake-lock-determinism",
+    "nix-flake-utils-templates",
+    "nix-flake-external-sources",
+    "nix-flake-system-migration",
+    "nix-flake-tutorial",
+    "nix-flake-update-mechanics",
+    "nix-flake-lock-rollback"
+  ],
+  "reading_guide": [
+    "理解 Flake 输入、输出以及 self 和参数捕获的层级。",
+    "用版本锁定记录依赖来源，同时理解复现结果的条件。",
+    "为多个平台生成输出，并把开发环境整理成可复用模板。",
+    "连接外部模块和软件包，并检查依赖版本之间的关系。",
+    "从已有配置建立 Flake 入口，分别完成检查、构建和激活。",
+    "从输入语法到多主机组织，完整梳理 Flake 命令和项目结构。",
+    "区分输入更新、软件包集合、系统代际与缓存下载。",
+    "保留已有改动后恢复锁文件，并区分依赖回退与系统代际回退。"
+  ]
+}

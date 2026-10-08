@@ -1,0 +1,73 @@
+{
+  "slug": "nix-deploy-virtual-machines",
+  "number": "069",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "用 QEMU 验证 NixOS 配置",
+  "deck": "从最小配置到 GNOME 与 Sway，区分虚拟机声明和持久化磁盘状态。",
+  "sections": [
+    [
+      "section-01",
+      "本章学习目标"
+    ],
+    [
+      "section-02",
+      "前置要求"
+    ],
+    [
+      "section-03",
+      "1. 基础配置"
+    ],
+    [
+      "section-04",
+      "2. 构建虚拟机"
+    ],
+    [
+      "section-05",
+      "3. 运行虚拟机"
+    ],
+    [
+      "section-07",
+      "4. 图形化虚拟机（GNOME）"
+    ],
+    [
+      "section-09",
+      "5. Wayland 桌面（Sway）"
+    ],
+    [
+      "section-11",
+      "虚拟机配置选项"
+    ],
+    [
+      "section-12",
+      "实用技巧"
+    ],
+    [
+      "section-16",
+      "下一步"
+    ],
+    [
+      "section-17",
+      "参考资源"
+    ]
+  ],
+  "body": "<blockquote>\n<p>版本范围：下列示例保留 NixOS 24.05 的教程上下文；该版本已结束维护。实际项目应选择受支持的发行版、锁定 nixpkgs revision，并核对相应选项。<code>system.stateVersion</code> 表示兼容性基线，不应随升级机械改动。本文命令是教学示例，未在目标系统运行验证。</p>\n</blockquote>\n<blockquote>\n<p>翻译自 nix.dev: <a href=\"https://nix.dev/tutorials/nixos/nixos-configuration-on-vm\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS virtual machines</a></p>\n</blockquote>\n<p>本章介绍如何创建和管理 NixOS 虚拟机，这是测试配置和学习 NixOS 的绝佳方式。</p>\n<h2 id=\"section-01\">本章学习目标</h2>\n<ul>\n<li>创建一个基本的 NixOS 虚拟机配置</li>\n<li>使用 QEMU 运行虚拟机</li>\n<li>配置图形界面（GNOME/Sway）</li>\n<li>理解虚拟机参数</li>\n</ul>\n<h2 id=\"section-02\">前置要求</h2>\n<ul>\n<li>Linux 系统（支持虚拟化）</li>\n<li>已安装 Nix（可通过 <a href=\"https://nix.dev/install-nix\" target=\"_blank\" rel=\"noopener noreferrer\">nix.dev/install-nix</a> 安装）</li>\n<li>基本的 Nix 语言知识</li>\n</ul>\n<h2 id=\"section-03\">1. 基础配置</h2>\n<p>创建一个 <code>configuration.nix</code> 文件：</p>\n<pre><code>{ config, pkgs, ... }:\n{\n  # 引导加载器配置\n  boot.loader.systemd-boot.enable = true;\n  boot.loader.efi.canTouchEfiVariables = true;\n\n  # 创建用户\n  users.users.alice = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; ];  # 启用 sudo\n    initialPassword = &quot;&lt;VM_TEST_PASSWORD&gt;&quot;;   # 初始密码（仅演示用）\n  };\n\n  # 安装示例软件包\n  environment.systemPackages = with pkgs; [\n    cowsay\n    lolcat\n  ];\n\n  # 系统版本\n  system.stateVersion = &quot;24.05&quot;;\n}</code></pre>\n<h2 id=\"section-04\">2. 构建虚拟机</h2>\n<p>使用 <code>nix-build</code> 命令构建虚拟机：</p>\n<pre><code>nix-build &#39;&lt;nixpkgs/nixos&gt;&#39; -A vm \\\n  -I nixpkgs=channel:nixos-24.05 \\\n  -I nixos-config=./configuration.nix</code></pre>\n<p>命令解析：</p>\n<ul>\n<li><code>&lt;nixpkgs/nixos&gt;</code>: NixOS 的入口文件</li>\n<li><code>-A vm</code>: 构建 <code>vm</code> 属性</li>\n<li><code>-I nixpkgs=channel:nixos-24.05</code>: 使用 NixOS 24.05 频道</li>\n<li><code>-I nixos-config=./configuration.nix</code>: 指定你的配置文件</li>\n</ul>\n<h2 id=\"section-05\">3. 运行虚拟机</h2>\n<p>构建完成后，会在当前目录生成 <code>result</code> 符号链接：</p>\n<pre><code># 查看生成的文件\nls -R ./result\n\n# 运行虚拟机（无图形界面）\nQEMU_KERNEL_PARAMS=console=ttyS0 ./result/bin/run-nixos-vm -nographic</code></pre>\n<p><strong>注意：</strong> 退出虚拟机后运行 <code>reset</code>，恢复终端设置。明文 <code>initialPassword</code> 只适用于可丢弃的隔离测试 VM；生产系统使用密码文件或经过核对的 SSH 公钥配置。</p>\n<p>登录：</p>\n<ul>\n<li>用户名：<code>alice</code></li>\n<li>密码：配置中替换的 <code>&lt;VM_TEST_PASSWORD&gt;</code></li>\n</ul>\n<p>测试安装的软件：</p>\n<pre><code>cowsay hello | lolcat</code></pre>\n<p>退出虚拟机：</p>\n<pre><code>sudo poweroff</code></pre>\n<h3 id=\"section-06\">清理虚拟机状态</h3>\n<p>每次运行虚拟机会在目录下创建 <code>nixos.qcow2</code> 磁盘镜像文件，包含虚拟机的状态。修改配置后，如果要清除旧密码与运行时状态，先停止该 VM、确认没有需要保留的数据，再删除它的磁盘：</p>\n<pre><code>rm nixos.qcow2</code></pre>\n<h2 id=\"section-07\">4. 图形化虚拟机（GNOME）</h2>\n<p>要在虚拟机中运行 GNOME 桌面环境，修改配置：</p>\n<pre><code>{ config, pkgs, ... }:\n{\n  boot.loader.systemd-boot.enable = true;\n  boot.loader.efi.canTouchEfiVariables = true;\n\n  # 启用 X11\n  services.xserver.enable = true;\n\n  # 启用 GDM 和 GNOME\n  services.xserver.displayManager.gdm.enable = true;\n  services.xserver.desktopManager.gnome.enable = true;\n\n  users.users.alice = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; ];\n    initialPassword = &quot;&lt;VM_TEST_PASSWORD&gt;&quot;;\n  };\n\n  system.stateVersion = &quot;24.05&quot;;\n}</code></pre>\n<p>修改配置后重新执行前面的 VM 构建命令，再运行（不带 <code>-nographic</code> 参数）：</p>\n<pre><code>./result/bin/run-nixos-vm</code></pre>\n<h3 id=\"section-08\">使用预定义的安装镜像配置</h3>\n<p>NixOS 提供了预定义的图形安装镜像配置：</p>\n<pre><code>nix-shell -I nixpkgs=channel:nixos-24.05 -p &quot;$(cat &lt;&lt;EOF\n  let\n    pkgs = import &lt;nixpkgs&gt; { config = {}; overlays = []; };\n    iso-config = pkgs.path + /nixos/modules/installer/cd-dvd/installation-cd-graphical-gnome.nix;\n    nixos = pkgs.nixos iso-config;\n  in nixos.config.system.build.nixos-generate-config\nEOF\n)&quot;\n\nnixos-generate-config --dir ./</code></pre>\n<h2 id=\"section-09\">5. Wayland 桌面（Sway）</h2>\n<p>要运行 Sway（Wayland 窗口管理器）：</p>\n<pre><code>{ config, pkgs, ... }:\n{\n  boot.loader.systemd-boot.enable = true;\n  boot.loader.efi.canTouchEfiVariables = true;\n\n  services.xserver.enable = true;\n  services.xserver.displayManager.gdm.enable = true;\n\n  # 启用 Sway\n  programs.sway.enable = true;\n\n  users.users.alice = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; ];\n    initialPassword = &quot;&lt;VM_TEST_PASSWORD&gt;&quot;;\n  };\n\n  system.stateVersion = &quot;24.05&quot;;\n}</code></pre>\n<p><strong>注意：</strong> 在虚拟机中运行 Wayland 可能需要特定的 QEMU 显示驱动：</p>\n<pre><code>./result/bin/run-nixos-vm -device virtio-vga</code></pre>\n<h3 id=\"section-10\">在配置中声明 QEMU 选项</h3>\n<pre><code>{ config, pkgs, ... }:\n{\n  # ... 前面的配置 ...\n\n  # 导入 QEMU 虚拟机模块\n  imports = [ &lt;nixpkgs/nixos/modules/virtualisation/qemu-vm.nix&gt; ];\n\n  # 配置 QEMU 选项\n  virtualisation.qemu.options = [\n    &quot;-device virtio-vga&quot;\n  ];\n\n  system.stateVersion = &quot;24.05&quot;;\n}</code></pre>\n<h2 id=\"section-11\">虚拟机配置选项</h2>\n<p>查看所有可用的 QEMU 配置选项：</p>\n<ul>\n<li><a href=\"https://search.nixos.org/options?query=virtualisation.qemu\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Options: virtualisation.qemu</a></li>\n</ul>\n<h2 id=\"section-12\">实用技巧</h2>\n<h3 id=\"section-13\">快速重启虚拟机</h3>\n<pre><code># 在虚拟机内执行\nsudo reboot</code></pre>\n<h3 id=\"section-14\">强制停止虚拟机</h3>\n<pre><code># 从另一个终端确认该测试 VM 的 PID\npgrep -af qemu\n# 只终止已确认的测试 VM；替换占位符后执行\nkill &lt;TEST_VM_PID&gt;</code></pre>\n<h3 id=\"section-15\">查看虚拟机日志</h3>\n<pre><code>QEMU_KERNEL_PARAMS=console=ttyS0 ./result/bin/run-nixos-vm -nographic 2&gt;&amp;1 | tee vm.log</code></pre>\n<h2 id=\"section-16\">下一步</h2>\n<ul>\n<li><a href=\"/writing/nix-deploy-build-iso/\">05-构建ISO</a> - 构建可启动 ISO 镜像</li>\n<li><a href=\"/writing/nix-deploy-docker-images/\">06-Docker镜像</a> - 构建 Docker 镜像</li>\n<li><a href=\"/writing/nix-ecosystem-best-practices/\">10-最佳实践</a> - 最佳实践指南</li>\n</ul>\n<hr>\n<h2 id=\"section-17\">参考资源</h2>\n<ul>\n<li><a href=\"https://nixos.org/manual/nixos/stable/index.html#ch-configuration\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 手册 - 配置</a></li>\n<li><a href=\"https://nixos.org/manual/nixos/stable/index.html#sec-writing-modules\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 手册 - 模块</a></li>\n<li><a href=\"https://nixos.org/manual/nixos/stable/options.html\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 选项参考</a></li>\n<li><a href=\"https://www.qemu.org/docs/master/system/qemu-manpage.html\" target=\"_blank\" rel=\"noopener noreferrer\">QEMU 文档</a></li>\n</ul>\n<hr>\n",
+  "refs": [
+    [
+      "nix.dev 虚拟机教程",
+      "https://nix.dev/tutorials/nixos/nixos-configuration-on-vm"
+    ],
+    [
+      "QEMU 系统模拟器文档",
+      "https://www.qemu.org/docs/master/system/qemu-manpage.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "deployment"
+  ]
+}

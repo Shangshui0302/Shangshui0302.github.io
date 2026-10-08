@@ -1,0 +1,73 @@
+{
+  "slug": "sops-configuration-templates",
+  "number": "101",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "sops 配置模板与运行时渲染",
+  "deck": "按字段理解加密规则、sops-nix 配置和运行时占位符。",
+  "sections": [
+    [
+      "section-01",
+      "模板一：.sops.yaml（sops 客户端配置）"
+    ],
+    [
+      "section-02",
+      "creation_rules 常用字段速查"
+    ],
+    [
+      "section-03",
+      "模板二：host/sops.nix（sops-nix NixOS 模块）"
+    ],
+    [
+      "section-04",
+      "sops.nix 常用选项速查"
+    ],
+    [
+      "section-05",
+      "模板三：sops-nix 运行时配置渲染"
+    ],
+    [
+      "section-06",
+      "相关"
+    ]
+  ],
+  "body": "<blockquote>\n<p>两套模板，供复制使用：</p>\n<ol>\n<li><strong>配置模板</strong>（<code>.sops.yaml</code>）— sops 客户端加密规则，决定「哪些文件用哪些公钥加密」</li>\n<li><strong>加密模板</strong>（<code>host/sops.nix</code>）— sops-nix NixOS 模块，决定「运行时从哪解密、写到哪里、给谁读」</li>\n</ol>\n<p>本文是通用模板说明，依据当前上游 SOPS 与 sops-nix 源码核对；SOPS CLI 版本号不是 sops-nix 模块版本。项目部署前仍需检查 flake.lock 中锁定的 sops-nix revision。</p>\n</blockquote>\n<blockquote>\n<p>使用前必读\n模板中的 <code>AGE_RECIPIENT_PLACEHOLDER_NOT_VALID</code>是<strong>占位符</strong>。复制使用前必须替换成你自己的真实公钥，否则 sops 解析会报 <code>malformed recipient</code>。带 <code># 示例</code> 注释的段落同理。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">模板一：.sops.yaml（sops 客户端配置）</h2>\n<blockquote>\n<p>放在仓库根目录。当前 SOPS CLI 默认从工作目录向上寻找 <code>.sops.yaml</code>；跨目录调用宜显式 <code>--config</code>。目标文件路径按配置目录参与规则匹配。\n<strong>规则从上到下匹配，第一条命中的生效</strong>——越具体的规则放越前面。</p>\n</blockquote>\n<pre><code># ============================================================\n# .sops.yaml — sops 客户端加密规则模板\n# ============================================================\n\n# keys: 变量区（可选）——给公钥起别名，后面用 *别名 引用\n# 好处：定义一次、多处引用；改 key 只改这里\nkeys:\n  - &amp;server-key AGE_RECIPIENT_PLACEHOLDER_NOT_VALID   # SSH host key 的 age 公钥\n  - &amp;backup AGE_RECIPIENT_PLACEHOLDER_NOT_VALID           # 备用公钥（示例）\n\ncreation_rules:\n  # ================= 单规则 =================\n  # 一条规则 = 「匹配某类文件 → 用这些 key 加密」\n  # 规则从上到下，第一条匹配生效\n  - path_regex: host/secrets/secrets\\.yaml$\n    # path_regex: Go 风格正则，匹配相对 .sops.yaml 所在目录的路径\n    #   \\. = 转义点号（正则的 . 匹配任意字符，必须转义）\n    #   $  = 锚定结尾，防止误匹配 secrets.yaml.bak\n    key_groups:\n      # key_groups: 密钥组列表（高级用）。每个组内可以不同 key，shamir_threshold 控制阈值\n      - age:\n          - *server-key\n        # age: 用 age 公钥加密（数组写法，可以每把 key 一行 + 注释）\n        # pgp: 也能混用 PGP 指纹\n        # kms: 也能混用 AWS KMS ARN\n\n  # ================= 多接收者（平铺写法） =================\n  - path_regex: host/secrets/team\\.yaml$\n    age: &quot;AGE_RECIPIENT_PLACEHOLDER_NOT_VALID,AGE_RECIPIENT_PLACEHOLDER_NOT_VALID&quot;\n    # age: 逗号分隔的字符串写法。任何一把对应私钥都能解。\n    # 逗号分隔字符串可以在字符串外加 YAML 注释；需要逐个接收者注释时用 key_groups 数组\n\n  # ================= 不同文件用不同 key =================\n  - path_regex: clusters/dev/.*secrets.*\\.yaml$\n    encrypted_regex: ^(data|stringData)$\n    # encrypted_regex: 只加密匹配该正则的 key（K8s Secret 场景，metadata 保持明文）\n    age: &quot;AGE_RECIPIENT_PLACEHOLDER_NOT_VALID&quot;\n\n  # ================= 阈值解密（Shamir 门限） =================\n  - shamir_threshold: 2\n    # shamir_threshold: 需要几个 key_groups 满足才能解密（Shamir 秘密分享）\n    path_regex: \\.risc\\.yaml$\n    key_groups:\n      - age:\n          - &quot;AGE_RECIPIENT_PLACEHOLDER_NOT_VALID&quot;\n      - gcp_kms:\n          - resource_id: projects/EXAMPLE_PROJECT/locations/global/keyRings/EXAMPLE_RING/cryptoKeys/EXAMPLE_KEY\n\n  # ================= 兜底规则（可选，放最后） =================\n  - path_regex: .*\n    # 没有 path_regex 或 .* = 匹配所有文件的兜底规则\n    age: &quot;AGE_RECIPIENT_PLACEHOLDER_NOT_VALID&quot;</code></pre>\n<h2 id=\"section-02\">creation_rules 常用字段速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">字段</th>\n<th scope=\"col\">作用</th>\n<th scope=\"col\">类型</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>path_regex</code></td>\n<td>匹配文件路径（相对 .sops.yaml 目录）</td>\n<td>正则字符串</td>\n</tr>\n<tr>\n<td><code>age</code></td>\n<td>age recipients；顶层逗号字符串，key_groups 内数组</td>\n<td>按所在层级</td>\n</tr>\n<tr>\n<td><code>pgp</code></td>\n<td>PGP 指纹；顶层逗号字符串，key_groups 内数组</td>\n<td>按所在层级</td>\n</tr>\n<tr>\n<td><code>kms</code></td>\n<td>AWS KMS ARN；顶层字符串，key_groups 为对象数组</td>\n<td>按所在层级</td>\n</tr>\n<tr>\n<td><code>aws_profile</code></td>\n<td>AWS 配置档名</td>\n<td>str</td>\n</tr>\n<tr>\n<td><code>gcp_kms</code></td>\n<td>GCP KMS 资源 ID；key_groups 为 resource_id 对象数组</td>\n<td>按所在层级</td>\n</tr>\n<tr>\n<td><code>azure_keyvault</code></td>\n<td>Azure Key Vault URL</td>\n<td>str</td>\n</tr>\n<tr>\n<td><code>hc_vault_transit_uri</code></td>\n<td>HashiCorp Vault transit URI</td>\n<td>str</td>\n</tr>\n<tr>\n<td><code>key_groups</code></td>\n<td>密钥组（每把 key 一行可注释）</td>\n<td>list</td>\n</tr>\n<tr>\n<td><code>shamir_threshold</code></td>\n<td>需要几个组满足才可解密</td>\n<td>int</td>\n</tr>\n<tr>\n<td><code>encrypted_regex</code></td>\n<td>只加密匹配的 key</td>\n<td>正则</td>\n</tr>\n<tr>\n<td><code>unencrypted_regex</code></td>\n<td>保持明文的 key</td>\n<td>正则</td>\n</tr>\n<tr>\n<td><code>encrypted_suffix</code></td>\n<td>以此后缀结尾的 key 加密</td>\n<td>str</td>\n</tr>\n<tr>\n<td><code>unencrypted_suffix</code></td>\n<td>以此后缀结尾的 key 明文（默认 <code>_unencrypted</code>）</td>\n<td>str</td>\n</tr>\n<tr>\n<td><code>encrypted_comment_regex</code></td>\n<td>加密匹配的注释</td>\n<td>正则</td>\n</tr>\n<tr>\n<td><code>unencrypted_comment_regex</code></td>\n<td>保持明文的注释</td>\n<td>正则</td>\n</tr>\n<tr>\n<td><code>mac_only_encrypted</code></td>\n<td>MAC 只覆盖加密值</td>\n<td>bool</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p>何时用哪种写法</p>\n<ul>\n<li>一把 key / 一个文件：平铺字符串 <code>age: &quot;...&quot;</code> 最简</li>\n<li>多把 key 要注释归属：用 <code>key_groups</code> + 数组，每把一行加注释</li>\n<li>多环境 / 多团队：一条规则一个环境，具体放前面、兜底放最后</li>\n</ul>\n</blockquote>\n<hr>\n<h2 id=\"section-03\">模板二：host/sops.nix（sops-nix NixOS 模块）</h2>\n<blockquote>\n<p>系统级配置，决定运行时「解密来源、写入位置、文件属主权限」。</p>\n</blockquote>\n<pre><code>{ config, pkgs, lib, ... }:\n{\n  sops = {\n    # ============ 顶层 ============\n    defaultSopsFile = ./secrets/secrets.yaml;\n    #   type: path | 默认密文文件（所有 secret 的默认来源）\n    defaultSopsFormat = &quot;yaml&quot;;\n    #   type: str | 默认加密文件格式\n    #   enum: yaml | json | dotenv | ini | binary\n    defaultSopsKey = null;\n    #   null = 默认按 secret 名选择；空字符串 &quot;&quot; 才表示整个文件\n    useSystemdActivation = true;\n    #   type: bool | true=用 systemd service 解密；false=NixOS activation script\n    #   按实际用户管理、解密时序与挂载依赖选择\n    # validationPackage 通常保留模块默认的 sops-install-secrets 验证器\n    #   type: package | 此处不是任意 SOPS CLI 包\n\n    # ============ age（解密密钥来源） ============\n    age = {\n      keyFile = null;\n      #   type: nullOr path | 独立 age 私钥路径（null = 不用独立 key）\n      #   可与 sshKeyPaths 共存；仅在希望单一来源时主动关闭其他来源\n      generateKey = false;\n      #   type: bool | true=若 keyFile 不存在则自动生成\n      sshKeyPaths = [ &quot;/etc/ssh/ssh_host_ed25519_key&quot; ];\n      #   type: listOf path | 从 SSH key 导入作为 age 解密密钥\n      #   复用机器身份；仍需保管、备份并保证部署时可读\n      #   默认值: openssh hostKeys 里的 ed25519 key\n    };\n\n    # ============ secrets（每个机密单独配置） ============\n    secrets = {\n      app_env = {\n        sopsFile = ./secrets/secrets.yaml;\n        #   type: path | 覆盖默认文件；不填写则继承 defaultSopsFile\n        format = &quot;yaml&quot;;\n        #   type: enum | 覆盖格式（yaml/json/dotenv/ini/binary）\n        #   默认: 继承 defaultSopsFormat；不是按扩展名推断\n        path = &quot;/run/secrets/app_env&quot;;\n        #   type: str | 解密后写到哪\n        #   默认: /run/secrets/&lt;name&gt;（普通）/ /run/secrets-for-users/&lt;name&gt;（neededForUsers）\n        owner = null;\n        #   type: nullOr str | 文件属主（null = root）\n        group = null;\n        #   type: nullOr str | 文件属组（默认 = owner 的 group）\n        mode = &quot;0400&quot;;\n        #   type: str | 文件权限（默认 0400，仅属主可读）\n        neededForUsers = false;\n        #   type: bool | true=在 setupSecretsForUsers 阶段解密（早于用户就绪）\n        #   该阶段在用户创建前；owner/group 必须为 root，不能指定尚未存在的应用用户\n        restartUnits = [ ];\n        #   type: listOf str | 解密后要重启的 systemd 服务\n        reloadUnits = [ ];\n        #   type: listOf str | 解密后要 reload 的 systemd 服务\n      };\n    };\n\n    # ============ gnupg（可选，可与 age 来源共存） ============\n    gnupg = {\n      home = null;        # GnuPG home 目录\n      sshKeyPaths = [ ];  # 用 SSH key 作 GPG 密钥\n    };\n  };\n\n  # ============ 消费方示例 ============\n  # 服务用 EnvironmentFile 读解密后的环境变量\n  systemd.services.example = {\n    after = [ &quot;sops-install-secrets.service&quot; ];\n    requires = [ &quot;sops-install-secrets.service&quot; ];\n    serviceConfig.EnvironmentFile = &quot;/run/secrets/app_env&quot;;\n  };\n}</code></pre>\n<h2 id=\"section-04\">sops.nix 常用选项速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">选项</th>\n<th scope=\"col\">类型</th>\n<th scope=\"col\">默认</th>\n<th scope=\"col\">说明</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>sops.defaultSopsFile</code></td>\n<td>path</td>\n<td>—</td>\n<td>默认密文文件</td>\n</tr>\n<tr>\n<td><code>sops.defaultSopsFormat</code></td>\n<td>str</td>\n<td><code>yaml</code></td>\n<td>默认格式</td>\n</tr>\n<tr>\n<td><code>sops.defaultSopsKey</code></td>\n<td>nullOr str</td>\n<td>null</td>\n<td>默认取的 key 名</td>\n</tr>\n<tr>\n<td><code>sops.useSystemdActivation</code></td>\n<td>bool</td>\n<td>依 sysusers/userborn</td>\n<td>true=systemd service 解密；默认还依 userborn 等选项</td>\n</tr>\n<tr>\n<td><code>sops.validationPackage</code></td>\n<td>package</td>\n<td>sops-install-secrets</td>\n<td>验证工具</td>\n</tr>\n<tr>\n<td><code>sops.age.keyFile</code></td>\n<td>nullOr path</td>\n<td>null</td>\n<td>独立 age 私钥</td>\n</tr>\n<tr>\n<td><code>sops.age.generateKey</code></td>\n<td>bool</td>\n<td>false</td>\n<td>keyFile 不存在则生成</td>\n</tr>\n<tr>\n<td><code>sops.age.sshKeyPaths</code></td>\n<td>listOf path</td>\n<td>hostKeys</td>\n<td>用 SSH key 解密</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.path</code></td>\n<td>str</td>\n<td><code>/run/secrets/&lt;n&gt;</code></td>\n<td>输出路径</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.owner</code></td>\n<td>nullOr str</td>\n<td>null</td>\n<td>属主</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.group</code></td>\n<td>nullOr str</td>\n<td>owner 的组</td>\n<td>属组</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.mode</code></td>\n<td>str</td>\n<td><code>0400</code></td>\n<td>权限</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.sopsFile</code></td>\n<td>path</td>\n<td>defaultSopsFile</td>\n<td>覆盖密文文件</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.format</code></td>\n<td>enum</td>\n<td>defaultSopsFormat</td>\n<td>覆盖格式</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.neededForUsers</code></td>\n<td>bool</td>\n<td>false</td>\n<td>用户阶段解密</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.restartUnits</code></td>\n<td>listOf str</td>\n<td>[ ]</td>\n<td>解密后重启</td>\n</tr>\n<tr>\n<td><code>sops.secrets.&lt;n&gt;.reloadUnits</code></td>\n<td>listOf str</td>\n<td>[ ]</td>\n<td>解密后 reload</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p>解密来源可以共存\n<code>age.keyFile</code> 与 <code>age.sshKeyPaths</code> 不互斥，age 与 GnuPG 来源也可同时声明。选择哪些来源是权限和维护决策；不要把可共存的机制误写为类型约束。密钥位置必须在所选解密阶段可读，并且不能把私钥送进 Nix store。</p>\n</blockquote>\n<h2 id=\"section-05\">模板三：sops-nix 运行时配置渲染</h2>\n<p>前两套是 CLI 和模块的配置范例，和真正的 <code>sops.templates</code> 是不同概念。后者在 Nix 求值时只放占位符，秘密解密后由安装器替换成实际内容，从而避免明文进入 store。</p>\n<pre><code>{ config, ... }:\n{\n  sops.secrets.api_token = { };\n  sops.templates.&quot;example-app.env&quot; = {\n    content = &#39;&#39;\n      API_TOKEN=${config.sops.placeholder.api_token}\n    &#39;&#39;;\n    mode = &quot;0400&quot;;\n  };\n  systemd.services.example-app = {\n    after = [ &quot;sops-install-secrets.service&quot; ];\n    requires = [ &quot;sops-install-secrets.service&quot; ];\n    serviceConfig.EnvironmentFile = config.sops.templates.&quot;example-app.env&quot;.path;\n  };\n}</code></pre>\n<p>模板通常输出到 <code>/run/secrets/rendered/&lt;name&gt;</code>，通过 <code>.path</code> 引用更稳妥；可设置 content/file、path、owner/group、mode 和变更时的 restartUnits/reloadUnits。占位符替换不自动完成 JSON、YAML、Shell 或 EnvironmentFile 的转义，秘密含换行、引号或特殊字符时必须根据消费格式设计。上例要求值符合 EnvironmentFile 的安全编码；复杂秘密宜由应用直接读取凭据文件。这里仅展示片段，不是已部署的完整服务。</p>\n<h2 id=\"section-06\">相关</h2>\n<ul>\n<li>配置文件解读 → <a href=\"/writing/sops-cli-workflow/\">sops 使用指南</a></li>\n<li>换 key 流程 → <a href=\"/writing/sops-key-migration-rotation/\">sops 迁移指南</a></li>\n<li>参考：<a href=\"https://deepwiki.com/getsops/sops/2.1-configuration\" target=\"_blank\" rel=\"noopener noreferrer\">sops 配置文档</a> | <a href=\"https://github.com/Mic92/sops-nix\" target=\"_blank\" rel=\"noopener noreferrer\">sops-nix README</a></li>\n</ul>\n<hr>\n",
+  "refs": [
+    [
+      "SOPS 官方文档",
+      "https://getsops.io/docs/"
+    ],
+    [
+      "SOPS CLI 源码",
+      "https://github.com/getsops/sops/blob/main/cmd/sops/main.go"
+    ],
+    [
+      "SOPS 配置源码",
+      "https://github.com/getsops/sops/blob/main/config/config.go"
+    ],
+    [
+      "sops-nix 官方说明",
+      "https://github.com/Mic92/sops-nix"
+    ],
+    [
+      "sops-nix 模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/default.nix"
+    ],
+    [
+      "sops-nix 模板模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/templates/default.nix"
+    ],
+    [
+      "ssh-to-age 官方说明",
+      "https://github.com/Mic92/ssh-to-age"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "security",
+    "sops",
+    "nixos"
+  ]
+}

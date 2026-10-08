@@ -1,0 +1,22 @@
+{
+  "slug": "linux-commands",
+  "title": "Linux 命令行基础与组合",
+  "deck": "以六篇手册串联文件、进程、文本、Shell、fzf 与 xargs。",
+  "description": "文件操作是手，进程管理提供运行视图，文本处理帮助筛选信息，Shell 负责连接工具；fzf 与 xargs 进一步处理交互选择和参数传递。权限与 systemd 的深入内容通过现有专题衔接。",
+  "articles": [
+    "linux-command-file-operations",
+    "linux-command-process-jobs",
+    "linux-command-text-system",
+    "linux-command-shell",
+    "linux-command-fzf",
+    "linux-command-xargs"
+  ],
+  "reading_guide": [
+    "先练习浏览、查找与空间查询，再理解链接、归档和删除前的范围核对。",
+    "区分 PID、Shell 作业与 systemd unit，按 TERM 优先的次序理解信号。",
+    "从查看与搜索文件开始，再把查询结果用于判断内存、端口和网络状态。",
+    "跟踪 stdin、stdout、stderr，核对重定向顺序并区分 Bash 与其他 Shell。",
+    "先理解列表输入与选择输出，再检查取消选择、文件名边界及改变状态的操作。",
+    "重点比较默认空白解析、NUL 定界与 -I；最后阅读并发和 GNU 空集防护。"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "slug": "ssh-agent-keyring",
+  "number": "046",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "ssh-agent、passphrase 与 keyring",
+  "deck": "理解私钥文件保护、agent 签名接口与桌面密码保管箱的分工。",
+  "sections": [
+    [
+      "section-01",
+      "agent 到底是什么"
+    ],
+    [
+      "section-02",
+      "SSH_AUTH_SOCK：生态接口"
+    ],
+    [
+      "section-03",
+      "gcr-ssh-agent vs ssh-agent vs gnome-keyring 的分层"
+    ],
+    [
+      "section-04",
+      "passphrase 不是「密码的密码」"
+    ],
+    [
+      "section-05",
+      "keyring + PAM：登录密码怎么解锁 keyring"
+    ],
+    [
+      "section-06",
+      "忘了 passphrase 怎么办"
+    ],
+    [
+      "section-07",
+      "相关"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">agent 到底是什么</h2>\n<blockquote>\n<p><strong>ssh-agent = 专门替你「保管已解锁私钥」的内存进程。</strong></p>\n</blockquote>\n<p>它只做一件事：把私钥<strong>加载进内存</strong>，别的程序通过 socket（<code>SSH_AUTH_SOCK</code>）找它要签名服务。<strong>常规 agent 签名接口不把私钥交给请求签名的客户端</strong>——真正认证时，程序把「待签名数据」发给 agent，agent 用内存里的私钥签名返回结果。</p>\n<p>对比：</p>\n<ul>\n<li><strong>无 agent</strong>：每次新连接使用加密私钥文件时，通常需要读取文件并输入 passphrase；连接复用或其他密钥提供方式另论</li>\n<li><strong>有 agent</strong>：解锁一次，私钥进内存，之后使用该密钥时通常无需反复输入 passphrase，具体还受有效期与确认策略限制</li>\n</ul>\n<blockquote>\n<p>私钥最小暴露\n签名在 agent 内存里完成，私钥文件不需要被每个进程读。这是 agent 最核心的安全设计——按接口寻址、按密钥匹配，进程不知道也不关心私钥长什么样。</p>\n</blockquote>\n<h2 id=\"section-02\">SSH_AUTH_SOCK：生态接口</h2>\n<p><strong>agent 不主动知道「什么进程要什么密码」，全靠一套标准接口 + 约定的环境变量</strong>：</p>\n<pre><code>SSH_AUTH_SOCK=/run/user/&lt;uid&gt;/gcr/ssh</code></pre>\n<p>任何 SSH 客户端（<code>ssh</code>、<code>git</code>、<code>scp</code>、<code>rsync</code>……）启动时都读这个变量，找到 socket，就知道「去 <code>SSH_AUTH_SOCK</code> 指向的 socket 找 agent 要签名」。这是<strong>生态建设</strong>而非个人配置：OpenSSH 定义了 agent 协议，gnome-keyring 实现了兼容这个协议的 agent，客户端按标准去连。</p>\n<h2 id=\"section-03\">gcr-ssh-agent vs ssh-agent vs gnome-keyring 的分层</h2>\n<p>三层关系，别混：</p>\n<pre><code>gnome-keyring-daemon  → 通用秘密存储（Secret Service 等）\ngcr-ssh-agent        → 桌面 SSH agent 集成（版本与启动方式依发行版而异）\nOpenSSH ssh-agent    → 标准 agent 签名进程\nssh / ssh-add       → 通过 SSH_AUTH_SOCK 访问 agent</code></pre>\n<p>GNOME 的 SSH agent 组件经历过迁移，不能把 gcr 当作所有版本中都嵌在 gnome-keyring-daemon 内部的固定组件。常见 gcr 集成会结合 OpenSSH agent、密码提示与 keyring；实际服务、socket 与自动加载行为应按发行版的版本和用户会话核对。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">组件</th>\n<th scope=\"col\">定位</th>\n<th scope=\"col\">常用操作入口</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>gnome-keyring</code></td>\n<td>通用密码保管箱</td>\n<td>桌面密码管理界面、Secret Service 客户端</td>\n</tr>\n<tr>\n<td><code>gcr-ssh-agent</code></td>\n<td>桌面 SSH agent 集成</td>\n<td>agent 服务；客户端仍可用 <code>ssh-add</code></td>\n</tr>\n<tr>\n<td><code>ssh-agent</code></td>\n<td>OpenSSH 标准 agent</td>\n<td><code>ssh-add</code> 查询、添加、移除密钥</td>\n</tr>\n</tbody></table></div>\n<p><code>ssh-keygen</code> 属于 OpenSSH，不需要安装 gcr。能生成密钥、运行 sshd 与桌面自动解锁是不同功能；安装或启用的具体方式取决于系统配置。</p>\n<h2 id=\"section-04\">passphrase 不是「密码的密码」</h2>\n<p>SSH 里有两个不同的「密码」概念：</p>\n<p><strong>① 身份 = 密钥（key）</strong>：私钥 <code>id_ed25519</code> 不是一串密码，而是一个<strong>数学签名工具</strong>。认证时：你的机器拿私钥生成签名 → 对端拿你登记过的公钥验证 → 通过就放行。</p>\n<p><strong>② passphrase = 给私钥文件上把锁</strong>：私钥是一个文件，没保护的话谁读到文件谁就能冒用。passphrase 就是给这个文件加的密码锁——<strong>只有你本地打开私钥文件时才需要它</strong>。</p>\n<pre><code>真正的认证：  GitHub ◄──签名── 你的私钥     ← 只有这一层是「认证」\n                                    │\n本地保护：                    私钥文件被 passphrase 锁着    ← 这只是「开文件」</code></pre>\n<p>passphrase <strong>不参与</strong>网络认证，GitHub 完全不知道你有没有 passphrase。它不是「套娃」，而是「把私钥裸奔这个最大的坑补上」。</p>\n<h2 id=\"section-05\">keyring + PAM：登录密码怎么解锁 keyring</h2>\n<p>启用了匹配的 PAM、keyring 与桌面 agent 集成时，可能形成如下链路：</p>\n<pre><code>显示管理器登录输入密码\n    │\n    ▼\nPAM 的 pam_gnome_keyring.so\n    │  （实际登录服务的 PAM 栈，路径与内容依系统而异）\n    ▼\ngnome-keyring 用登录密码解锁 keyring\n    │\n    ▼\ngcr-ssh-agent 从 keyring 取出 SSH passphrase\n    │\n    ▼\n按集成策略解锁或按需加载私钥，减少 passphrase 提示</code></pre>\n<p>keyring 文件在 <code>~/.local/share/keyrings/</code>（文件名依版本与 keyring 而异）。</p>\n<blockquote>\n<p>关于「没设密码」\n如果 login keyring 密码与登录密码一致且 PAM 集成生效，登录时可自动解锁。自动登录、指纹等不提供明文登录密码的方式不保证解锁。真正的风险点是「改了系统登录密码但 keyring 没同步更新」：旧 keyring 用旧密码加密，新密码解不开，需要手动输一次旧密码。</p>\n</blockquote>\n<h2 id=\"section-06\">忘了 passphrase 怎么办</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">场景</th>\n<th scope=\"col\">结果</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>平时用 SSH</td>\n<td>已配置并解锁的 agent/keyring 可减少重复输入</td>\n</tr>\n<tr>\n<td>忘了 passphrase</td>\n<td>仅当可访问的 keyring 已保存它或 agent 仍持有密钥时，现有流程才可能继续；不是恢复保证</td>\n</tr>\n<tr>\n<td>重启/注销</td>\n<td>agent 内存密钥会丢失，需重新加载；是否自动恢复取决于 keyring 与集成</td>\n</tr>\n<tr>\n<td>无法解锁私钥且没有可用备份</td>\n<td>通常需生成新密钥并更新服务端授权；建议备份和密码管理器</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p>不可恢复的密码\n无法取得私钥的 passphrase 且没有可恢复副本时，OpenSSH 没有重置口令以解锁原私钥的后门。SSH 登录授权通常可通过其他管理通道替换；若同一密钥用于加密数据，恢复条件另行判断。</p>\n</blockquote>\n<h2 id=\"section-07\">相关</h2>\n<ul>\n<li>认证模型 → <a href=\"/writing/ssh-authentication-model/\">SSH 认证体系</a></li>\n<li>命令行操作 → <a href=\"/writing/ssh-usage-guide/\">SSH 使用指南</a></li>\n<li>参考：<a href=\"https://docs.oracle.com/cd/E19683-01/817-0707/6mgg5un8o/#DESCRIPTION\" target=\"_blank\" rel=\"noopener noreferrer\">ssh-agent 手册</a> | <a href=\"https://manpages.debian.org/wheezy/openssh-client/ssh-agent.1.en.html\" target=\"_blank\" rel=\"noopener noreferrer\">Debian ssh-agent 手册</a></li>\n</ul>\n<p>agent 不是隔离整个账户的安全边界：同一用户或 root 能访问 socket 时可能请求签名。转发 agent 也会将签名能力暴露给远端，使用前需评估远端信任。</p>\n",
+  "refs": [
+    [
+      "OpenSSH ssh-agent 手册",
+      "https://man.openbsd.org/ssh-agent"
+    ],
+    [
+      "GNOME Keyring PAM 文档",
+      "https://wiki.gnome.org/Projects/GnomeKeyring/Pam"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "ssh"
+  ]
+}

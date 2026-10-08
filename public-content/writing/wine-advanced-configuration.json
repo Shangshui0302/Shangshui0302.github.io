@@ -1,0 +1,61 @@
+{
+  "slug": "wine-advanced-configuration",
+  "number": "156",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Wine 与 Proton 配置边界",
+  "deck": "按组件和版本使用环境变量、DLL、注册表、多 GPU、HDR 与性能参数。",
+  "sections": [
+    [
+      "section-01",
+      "环境变量与支持范围"
+    ],
+    [
+      "section-06",
+      "Wine 注册表调优"
+    ],
+    [
+      "section-10",
+      "DLL 覆盖策略"
+    ],
+    [
+      "section-14",
+      "前沿配置"
+    ],
+    [
+      "section-21",
+      "来源与核验边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>环境变量与版本范围参考、注册表调优、DLL 覆盖策略、多 GPU 配置、HDR/Wayland 前沿功能。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">环境变量与支持范围</h2>\n<h3 id=\"section-02\">Wine 核心变量</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">变量</th>\n<th scope=\"col\">值</th>\n<th scope=\"col\">作用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>WINEPREFIX</code></td>\n<td><code>/path/to/prefix</code></td>\n<td>指定 Prefix 路径</td>\n</tr>\n<tr>\n<td><code>WINEARCH</code></td>\n<td>按 Wine 构建支持的值</td>\n<td>创建时的架构策略，不用于任意原地转换已有 Prefix</td>\n</tr>\n<tr>\n<td><code>WINEDEBUG</code></td>\n<td><code>-all</code> / <code>+seh,+loaddll</code></td>\n<td>调试输出控制</td>\n</tr>\n<tr>\n<td><code>WINEESYNC</code></td>\n<td><code>1</code> / <code>0</code></td>\n<td>仅在携带 esync 实现的 runner 中启用/禁用</td>\n</tr>\n<tr>\n<td><code>WINEFSYNC</code></td>\n<td><code>1</code> / <code>0</code></td>\n<td>仅在携带 fsync 实现的 runner 中启用/禁用</td>\n</tr>\n<tr>\n<td><code>WINEDLLOVERRIDES</code></td>\n<td><code>dllname=n,b</code></td>\n<td>DLL 覆盖（见下文）</td>\n</tr>\n<tr>\n<td><code>WINE_FULLSCREEN_FSR</code></td>\n<td><code>1</code></td>\n<td>特定 Wine/GE 补丁中的 FSR 路径，不是所有上游 Wine 的通用功能</td>\n</tr>\n<tr>\n<td><code>WINE_FULLSCREEN_FSR_STRENGTH</code></td>\n<td><code>0-5</code></td>\n<td>特定补丁的强度参数；含义与范围需查对应版本，不当作固定质量/性能等级</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-03\">Proton 专用变量</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">变量</th>\n<th scope=\"col\">作用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>PROTON_USE_WINED3D=1</code></td>\n<td>用 WineD3D (OpenGL) 代替 DXVK</td>\n</tr>\n<tr>\n<td><code>PROTON_NO_D3D11=1</code></td>\n<td>禁用 D3D11</td>\n</tr>\n<tr>\n<td><code>PROTON_NO_D3D12=1</code></td>\n<td>旧教程/构建相关开关，核验时当前官方表未列出；不要据此假定已禁用</td>\n</tr>\n<tr>\n<td><code>PROTON_NO_ESYNC=1</code></td>\n<td>旧版禁用 esync；官方当前 README 标注在 Proton 11.0 过时</td>\n</tr>\n<tr>\n<td><code>PROTON_NO_FSYNC=1</code></td>\n<td>禁用 fsync</td>\n</tr>\n<tr>\n<td><code>PROTON_ENABLE_WAYLAND=1</code></td>\n<td>仅在所选 runner 支持时启用原生 Wayland</td>\n</tr>\n<tr>\n<td><code>PROTON_ENABLE_MEDIACONV=1</code></td>\n<td>历史/构建相关媒体开关，先查对应 runner 是否仍支持</td>\n</tr>\n<tr>\n<td><code>PROTON_HIDE_NVIDIA_GPU=1</code></td>\n<td>隐藏 NVIDIA GPU</td>\n</tr>\n<tr>\n<td><code>PROTON_DISABLE_NVAPI=1</code></td>\n<td>禁用 NVAPI</td>\n</tr>\n<tr>\n<td><code>PROTON_LOG=1</code></td>\n<td>生成调试日志</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-04\">GE 与游戏相关变量（并非全部 GE 专属）</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">变量</th>\n<th scope=\"col\">作用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>PROTON_FSR4_UPGRADE=1</code></td>\n<td>兼容游戏的可选 FSR4 DLL 下载/升级；支持范围含所适配 RDNA3，但需驱动/GPU/游戏条件</td>\n</tr>\n<tr>\n<td><code>PROTON_FSR4_RDNA3_UPGRADE=1</code></td>\n<td>核验时 GE README 标为过时且无效，适配的 RDNA3 改用 FSR4_UPGRADE</td>\n</tr>\n<tr>\n<td><code>PROTON_DLSS_UPGRADE=1</code></td>\n<td>DLSS DLL 自动升级到最新</td>\n</tr>\n<tr>\n<td><code>PROTON_XESS_UPGRADE=1</code></td>\n<td>XeSS 2 DLL 自动升级</td>\n</tr>\n<tr>\n<td><code>PROTON_FSR4_INDICATOR=1</code></td>\n<td>FSR 4 水印指示器</td>\n</tr>\n<tr>\n<td><code>PROTON_DLSS_INDICATOR=1</code></td>\n<td>DLSS 水印指示器</td>\n</tr>\n<tr>\n<td><code>PROTON_DISCORD_BRIDGE=1</code></td>\n<td>旧教程中的 Discord 集成变量，当前支持未确认</td>\n</tr>\n<tr>\n<td><code>PROTON_EAC_RUNTIME</code></td>\n<td>特定构建/运行时路径；不能启用未获支持的反作弊</td>\n</tr>\n<tr>\n<td><code>PROTON_BATTLEYE_RUNTIME</code></td>\n<td>特定构建/运行时路径；不能绕过游戏方策略</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-05\">DXVK/VKD3D 变量</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">变量</th>\n<th scope=\"col\">作用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>DXVK_HDR=1</code></td>\n<td>启用 HDR 输出</td>\n</tr>\n<tr>\n<td><code>ENABLE_HDR_WSI=1</code></td>\n<td>特定 HDR WSI 路径变量，需实际组件/版本支持</td>\n</tr>\n<tr>\n<td><code>DXVK_ASYNC=1</code></td>\n<td>旧/第三方 async 补丁变量，不能当作上游 DXVK 当前通用选项</td>\n</tr>\n<tr>\n<td><code>DXVK_FRAME_RATE=60</code></td>\n<td>限制帧率</td>\n</tr>\n<tr>\n<td><code>DXVK_CONFIG_FILE</code></td>\n<td>指定 DXVK 配置文件路径</td>\n</tr>\n<tr>\n<td><code>VKD3D_CONFIG=no_upload_hvv</code></td>\n<td>禁用 host-visible VRAM</td>\n</tr>\n<tr>\n<td><code>VKD3D_SHADER_MODEL=6_6</code></td>\n<td>强制 Shader Model 版本</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-06\">Wine 注册表调优</h2>\n<h3 id=\"section-07\">通过 winecfg</h3>\n<pre><code>WINEPREFIX=/path/to/prefix winecfg</code></pre>\n<p>关键面板：</p>\n<ul>\n<li><strong>Applications</strong>：按应用设置 Windows 版本报告（Win10/Win11）</li>\n<li><strong>Libraries</strong>：DLL 覆盖优先级</li>\n<li><strong>Graphics</strong>：虚拟桌面模式、DPI 设置</li>\n<li><strong>Staging</strong>：启用/禁用 staging 实验性功能</li>\n</ul>\n<h3 id=\"section-08\">通过 reg.exe 命令行</h3>\n<p>只修改 <code>ProductName</code> 改变的是注册表字符串，不等于 winecfg 的版本设置、NT 版本报告或 API 支持。设置模拟版本优先使用 winecfg，或当前 runner 支持的 winetricks 版本 verb。以下 GPU 注册表值也只影响某些 WineD3D 报告，不改变真实 GPU：</p>\n<pre><code>\n# 按 WineD3D/应用要求测试供应商报告；不是更换真实 GPU\nWINEPREFIX=/path/to/prefix wine reg add &#39;HKCU\\Software\\Wine\\Direct3D&#39; \\\n  /v VideoPciVendorID /t REG_DWORD /d 0x1002 /f  # AMD</code></pre>\n<h3 id=\"section-09\">注册表路径与渲染后端范围</h3>\n<pre><code>HKCU\\Software\\Wine\\\n├── Direct3D\\\n│   ├── MaxVersionGL          # 限制 OpenGL 版本\n│   ├── renderer              # 强制渲染器 (gl/vulkan/gdi)\n│   └── VideoMemorySize       # 覆盖显存大小(MB)\n├── Drivers\\\n│   └── winex11.drv\\\n│       └── GrabFullscreen    # 全屏独占\n└── FileOpenAssociations\\     # 文件关联</code></pre>\n<hr>\n<p>注册表键可能是历史 WineD3D 选项，DXVK/VKD3D 或所选 runner 未必读取它们。修改前导出相关项或保留前缀备份，记录旧值；不能因为 reg add 成功就判定图形配置生效。</p>\n<h2 id=\"section-10\">DLL 覆盖策略</h2>\n<h3 id=\"section-11\">覆盖语法</h3>\n<pre><code>WINEDLLOVERRIDES=&quot;d3d11=n,b;nvapi64=;d3d12=b&quot; wine game.exe</code></pre>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">标志</th>\n<th scope=\"col\">含义</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>n</code></td>\n<td>Native 优先（用真实 DLL）</td>\n</tr>\n<tr>\n<td><code>b</code></td>\n<td>Builtin 优先（用 Wine 自带）</td>\n</tr>\n<tr>\n<td>空值（如 <code>nvapi64=</code>）</td>\n<td>禁用此 DLL；使用标准空覆盖语法</td>\n</tr>\n<tr>\n<td><code>,</code></td>\n<td>先尝试第一个，失败再第二个</td>\n</tr>\n<tr>\n<td><code>;</code></td>\n<td>分隔多个 DLL</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-12\">常见覆盖组合</h3>\n<pre><code># 优先加载已正确安装的 DXVK DLL；n,b 仍允许 builtin 回退\nWINEDLLOVERRIDES=&quot;d3d9,d3d11,d3d10core=n,b;dxgi=n,b&quot;\n\n# 禁用 NVAPI（部分游戏检测后崩溃）\nWINEDLLOVERRIDES=&quot;nvapi64=;nvapi=&quot;\n\n# 网络隔离不通过 DLL 覆盖实现；wininet=n,b / winhttp=n,b 是加载顺序。\n# 若需禁止联网，使用经核对的沙箱/网络命名空间或防火墙策略。</code></pre>\n<h3 id=\"section-13\">模组 DLL 与加载启发式</h3>\n<p>模组（例如 ReShade）可能在游戏目录放置同名 DLL。是否优先加载它，取决于 DLL 搜索、runner 版本、覆盖、进程位宽和游戏启动方式，不能仅凭原材料所称的 Wine 11.6 自动规则保证有效。</p>\n<p>使用 <code>WINEDEBUG=+loaddll</code> 或所选 runner 的日志确认实际加载位置；先校验模组来源与游戏支持，保留原文件，遇到异常撤销单项覆盖。禁用 NVAPI 可能同时影响 DLSS/Reflex 等功能；错误覆盖图形 DLL 会造成启动失败。不要把本地 DLL 当作可信或通用加速补丁。</p>\n<h2 id=\"section-14\">前沿配置</h2>\n<h3 id=\"section-15\">HDR 输出</h3>\n<p>HDR 是整条显示链路的结果，需要同时核对：游戏是否提供 HDR、DXVK/VKD3D 或原生渲染路径、runner/WSI、compositor 或 Gamescope、GPU 驱动、显示连接与 HDR 显示器。只有显示器支持或设置一个变量不足以证明正确输出。</p>\n<pre><code># Steam 启动栏的条件性示例：仅适用于明确支持这些开关的组件。\nDXVK_HDR=1 ENABLE_HDR_WSI=1 %command%\n\n# Gamescope 的可选入口；按安装版本核对 --hdr-enabled 等参数。\ngamescope -W 3840 -H 2160 --hdr-enabled -- %command%</code></pre>\n<p>分别确认 compositor 的 HDR 状态、游戏设置与输出链路，再观察亮度、色彩及截图/显示行为。不能用统一的 kernel、Plasma、驱动或 Proton 最低版本表保证所有链路可用。</p>\n<h3 id=\"section-16\">Wayland 原生运行（区别于 XWayland）</h3>\n<pre><code># 仅用于所选 runner 明确支持该变量的构建。\nPROTON_ENABLE_WAYLAND=1 %command%</code></pre>\n<p>设置变量不证明 winewayland.drv 已被使用；从日志确认驱动，再测试窗口、缩放、鼠标、输入法、剪贴板、全屏和 VR 等应用需求。某些情况下 XWayland 更兼容，不能承诺原生 Wayland 必定更低延迟或与 Gamescope 叠加就更好。</p>\n<h3 id=\"section-17\">多 GPU 环境</h3>\n<p>GPU 选择有不同层次：Mesa 的设备选择、NVIDIA PRIME render offload、Vulkan ICD/物理设备枚举，以及 DXVK/VKD3D 自身的适配器选择。不要把 <code>DRI_PRIME=1</code> 当作所有混合显卡的统一开关。</p>\n<pre><code># Mesa 驱动环境中的条件性选择示例。\nDRI_PRIME=1 %command%\n\n# NVIDIA PRIME render offload 的条件性示例；还需正确驱动/会话配置。\n__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia %command%</code></pre>\n<p>Vulkan 的 ICD 路径是库加载层，指定它不等于选择某块物理 GPU；沙箱里尤其不能写死宿主 JSON。若所选 VKD3D-Proton 支持 <code>VKD3D_VULKAN_DEVICE</code>，索引应从该环境实际枚举结果核对，不能假定 <code>1</code> 永远是独显。</p>\n<p>用目标游戏的 DXVK/VKD3D 日志、HUD 和实际负载验证设备，并记录 Flatpak/Steam runtime 与宿主诊断的区别。只看 <code>vulkaninfo</code> 的第一项或一个环境变量不足以完成验收。</p>\n<h3 id=\"section-18\">FSR / DLSS 自动升级（Proton-GE）</h3>\n<pre><code># FSR4 可选升级：兼容的 GPU、驱动与游戏前提\nPROTON_FSR4_UPGRADE=1 %command%\n\n# GE 的可选 DLSS DLL 下载：按所选 release/manifest 核对版本\nPROTON_DLSS_UPGRADE=1 %command%\n\n# 指示器提供线索；仍需核对游戏设置、DLL 与实际渲染链路\nPROTON_FSR4_INDICATOR=1 PROTON_FSR4_UPGRADE=1 %command%\nPROTON_DLSS_INDICATOR=1 PROTON_DLSS_UPGRADE=1 %command%</code></pre>\n<h3 id=\"section-19\">帧生成与多帧生成</h3>\n<p>帧生成需要游戏自身集成、支持的 GPU、驱动、正确的组件和游戏设置。普通 DLSS 超分、Frame Generation 与 Multi Frame Generation 是不同能力，下载新版 DLL 不会为任意游戏/显卡添加它们。</p>\n<pre><code># 只启用所选 GE 构建的 DLL 升级；不等于帧生成已开启。\nPROTON_DLSS_UPGRADE=1 %command%</code></pre>\n<p>然后检查游戏是否提供相应选项、运行日志是否加载目标 DLL，测量实际显示帧率、基础渲染帧率与延迟。核验时 GE README 支持可选下载机制，但不能由一个固定 DLL 下限概括所有版本的多帧生成支持。</p>\n<h3 id=\"section-20\">内存、文件句柄与配置优化</h3>\n<p>先测量并定位瓶颈，再调整一个参数。文件描述符限制对使用大量句柄的旧同步路径可能有影响，但不能对全部当前 Proton 统一设定数十万的 <code>ulimit</code>。</p>\n<pre><code>ulimit -Sn\nulimit -Hn\ncat /proc/sys/vm/max_map_count\ncat /sys/kernel/mm/transparent_hugepage/enabled</code></pre>\n<p>上述是读取诊断值。若确需调整进程 soft limit，必须处于 hard limit 范围并有日志依据；<code>vm.max_map_count</code> 与句柄上限属于不同资源。THP 可能影响特定工作负载，但不默认禁用，也不在教程中通过 sudo 写 <code>/sys</code> 改全系统策略。NixOS 持久配置要走声明式模块，并把构建、激活与运行结果分别验收。</p>\n<p>DXVK 配置需要使用实际版本支持的键，不照抄历史 async 补丁的线程参数。下面演示已核对配置文件的传入方式，不预填未知优化项：</p>\n<pre><code># 配置文件应由当前 DXVK 的文档说明创建，保留原配置与对照结果。\nDXVK_CONFIG_FILE=&quot;$HOME/Games/MyGame/dxvk.conf&quot; %command%</code></pre>\n<p>配置文件出现在目录里不证明被读取；从日志核对生效设置，再在同一场景比较帧时间、稳定性与资源。去掉开关和配置文件可以恢复对照，避免“参数更多”被当作性能更好。</p>\n<p>版本说明：以上变量分属 Wine、官方 Proton、GE、DXVK、VKD3D 与历史补丁，未知或失效变量可能静默被忽略。当前参考不能替代所选 release 的说明；本篇未运行命令或验证任何 GPU/HDR/帧生成效果。</p>\n<h2 id=\"section-21\">来源与核验边界</h2>\n<p>以下参考定义相关机制与支持范围。安装、构建、激活、前缀状态与实际应用行为需要按目标环境分别核验；示例命令没有附带任何主机运行成功的结论。</p>\n<ul>\n<li><a href=\"https://github.com/ValveSoftware/Proton\" target=\"_blank\" rel=\"noopener noreferrer\">官方 Proton README</a></li>\n<li><a href=\"https://github.com/GloriousEggroll/proton-ge-custom\" target=\"_blank\" rel=\"noopener noreferrer\">GE-Proton README</a></li>\n<li><a href=\"https://docs.kernel.org/userspace-api/ntsync.html\" target=\"_blank\" rel=\"noopener noreferrer\">Linux NTSYNC 接口</a></li>\n<li><a href=\"https://docs.flatpak.org/en/latest/extension.html\" target=\"_blank\" rel=\"noopener noreferrer\">Flatpak 图形扩展</a></li>\n<li><a href=\"https://docs.flatpak.org/en/latest/sandbox-permissions.html\" target=\"_blank\" rel=\"noopener noreferrer\">Flatpak 沙箱权限</a></li>\n</ul>\n",
+  "refs": [
+    [
+      "官方 Proton README",
+      "https://github.com/ValveSoftware/Proton"
+    ],
+    [
+      "GE-Proton README",
+      "https://github.com/GloriousEggroll/proton-ge-custom"
+    ],
+    [
+      "Linux NTSYNC 接口",
+      "https://docs.kernel.org/userspace-api/ntsync.html"
+    ],
+    [
+      "Flatpak 图形扩展",
+      "https://docs.flatpak.org/en/latest/extension.html"
+    ],
+    [
+      "Flatpak 沙箱权限",
+      "https://docs.flatpak.org/en/latest/sandbox-permissions.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "wine",
+    "proton",
+    "configuration"
+  ]
+}

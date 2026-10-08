@@ -1,0 +1,48 @@
+{
+  "slug": "home-manager-bootstrap",
+  "number": "033",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Home Manager 集成与模块化",
+  "deck": "比较独立模式和 NixOS 模块模式，再拆分用户配置。",
+  "sections": [
+    [
+      "section-01",
+      "两种安装模式的权衡"
+    ],
+    [
+      "section-02",
+      "实战：在 Flake 中以模块方式集成"
+    ],
+    [
+      "section-05",
+      "模块化你的 home.nix"
+    ],
+    [
+      "section-06",
+      "为什么选模块模式？"
+    ]
+  ],
+  "body": "<hr>\n<h2 id=\"section-01\">两种安装模式的权衡</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th align=\"left\">特性</th>\n<th align=\"left\">1. 独立模式 (Standalone)</th>\n<th align=\"left\">2. NixOS 模块模式 (Module)</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><strong>应用命令</strong></td>\n<td align=\"left\"><code>home-manager switch</code></td>\n<td align=\"left\"><code>nixos-rebuild switch</code></td>\n</tr>\n<tr>\n<td align=\"left\"><strong>独立性</strong></td>\n<td align=\"left\">高，可以不改系统配置</td>\n<td align=\"left\">低，必须写在系统配置里</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>回滚</strong></td>\n<td align=\"left\">系统回滚与 HM 回滚是分开的</td>\n<td align=\"left\">随系统一起回滚 (极其同步)</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>推荐人群</strong></td>\n<td align=\"left\">想在 Arch/macOS 上用 Nix</td>\n<td align=\"left\"><strong>NixOS 用户 (强烈推荐此项)</strong></td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-02\">实战：在 Flake 中以模块方式集成</h2>\n<p>这种方式能保证你的系统和个人配置通过同一个 <code>flake.lock</code> 管理。</p>\n<h3 id=\"section-03\">1. 修改 flake.nix</h3>\n<pre><code>{\n  inputs = {\n    nixpkgs.url = &quot;github:nixos/nixpkgs/nixos-unstable&quot;;\n    home-manager = {\n      url = &quot;github:nix-community/home-manager&quot;;\n      inputs.nixpkgs.follows = &quot;nixpkgs&quot;;\n    };\n  };\n\n  outputs = { nixpkgs, home-manager, ... }: {\n    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {\n      system = &quot;x86_64-linux&quot;;\n      modules = [\n        ./configuration.nix\n        home-manager.nixosModules.home-manager {\n          home-manager.useGlobalPkgs = true;\n          home-manager.useUserPackages = true;\n          home-manager.users.alice = import ./home.nix;\n        }\n      ];\n    };\n  };\n}</code></pre>\n<h3 id=\"section-04\">2. 创建 home.nix</h3>\n<p>这是你个人配置的核心。</p>\n<pre><code>{ config, pkgs, ... }: {\n  home.username = &quot;alice&quot;;\n  home.homeDirectory = &quot;/home/alice&quot;;\n\n  # 只有在这里添加的包，才属于你个人\n  home.packages = [ pkgs.ripgrep pkgs.fd ];\n\n  programs.home-manager.enable = true;\n  home.stateVersion = &quot;24.11&quot;; # 示例初装版本，升级输入时不自动修改\n}</code></pre>\n<hr>\n<h2 id=\"section-05\">模块化你的 home.nix</h2>\n<p>随着配置变多，<code>home.nix</code> 会变得非常臃肿。你可以利用 <code>imports</code> 拆分它：</p>\n<pre><code># home.nix\n{\n  imports = [\n    ./modules/zsh.nix\n    ./modules/git.nix\n    ./modules/vscode.nix\n  ];\n}</code></pre>\n<hr>\n<h2 id=\"section-06\">为什么选模块模式？</h2>\n<p>当你在引导界面选择一个旧版本回滚时，如果是模块模式，系统配置会包含对应的 Home Manager 激活入口；用户配置是否已经切换仍应检查激活服务。程序的可变数据、正在运行的进程和数据库不会自动恢复为历史快照。</p>\n",
+  "refs": [
+    [
+      "Home Manager 手册",
+      "https://nix-community.github.io/home-manager/"
+    ],
+    [
+      "Home Manager 命令源码",
+      "https://github.com/nix-community/home-manager/blob/master/home-manager/home-manager"
+    ],
+    [
+      "Home Manager 文件选项源码",
+      "https://github.com/nix-community/home-manager/blob/master/modules/lib/file-type.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "home-manager"
+  ]
+}

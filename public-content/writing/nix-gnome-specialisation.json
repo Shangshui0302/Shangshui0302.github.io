@@ -1,0 +1,57 @@
+{
+  "slug": "nix-gnome-specialisation",
+  "number": "079",
+  "category": "LINUX / SYSTEMS",
+  "title": "用 Specialisation 构建 GNOME 变体",
+  "deck": "在父模块图上派生独立系统 toplevel，并明确继承、覆盖与恢复路径。",
+  "sections": [
+    [
+      "section-01",
+      "为什么需要"
+    ],
+    [
+      "section-02",
+      "机制：它不是一个配置文件复制"
+    ],
+    [
+      "section-03",
+      "配置"
+    ],
+    [
+      "section-05",
+      "切换"
+    ],
+    [
+      "section-06",
+      "验证（不切换就构建变体）"
+    ],
+    [
+      "section-07",
+      "关联"
+    ],
+    [
+      "section-08",
+      "切换前的运行边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>核验范围：2026 年 10 月查询的 nixpkgs <code>nixos-unstable</code> 模块与上游文档。分组列表、包数和服务默认值会随 revision 改变；部署时应以项目锁定的 nixpkgs 和 Home Manager 源码为准。本文没有构建、激活或桌面运行测试。</p>\n</blockquote>\n<h2 id=\"section-01\">为什么需要</h2>\n<p>NixOS 的配置是&quot;一份 flake 描述整个系统&quot;。但有时你想要<strong>多个形态</strong>：默认走 kmscon + Hyprland/niri，偶尔想要完整 GNOME 桌面。直接加 GNOME 会污染主配置（换登录管理器、塞一堆包）。Specialisation 允许你<strong>在一个 flake 里派生多个独立系统配置</strong>，各自有自己的 boot 条目。</p>\n<blockquote>\n<p>用途</p>\n<ul>\n<li>多桌面环境共存（示例：base 使用 TTY，gnome 变体使用 GDM）</li>\n<li>实验性配置隔离（换内核、换内核参数）</li>\n<li>可保留默认系统作为恢复入口；用户数据、磁盘与部分运行状态仍共享</li>\n</ul>\n</blockquote>\n<h2 id=\"section-02\">机制：它不是一个配置文件复制</h2>\n<p>Specialisation 的构筑本质（nixpkgs 源码 <code>activation/specialisation.nix</code>）：</p>\n<ol>\n<li>每个 <code>specialisation.&lt;name&gt;</code> 用 <code>extendModules</code> 在<strong>父配置的模块图上扩展</strong>出一个独立子配置（不是复制配置，是模块系统的原生能力）</li>\n<li><code>inheritParentConfig = true</code>（默认）→ 子配置继承整个主系统，<code>configuration</code> 块<strong>叠加</strong>其上</li>\n<li>每个变体生成一个<strong>完整独立的 toplevel</strong>（自己的 systemd 单元、activation 脚本、/etc）</li>\n<li>父 toplevel 里 symlink 引用它们：<code>$out/specialisation/&lt;name&gt;</code></li>\n<li>bootloader 通过 bootspec（RFC 0125）发现并生成 boot 条目</li>\n</ol>\n<p>所以变体有独立的系统 toplevel，但不是 VM、容器或独立用户数据隔离。Nix store 会共享相同的依赖；增加的 closure 引用、差异包和构建工作才是实际成本。</p>\n<h2 id=\"section-03\">配置</h2>\n<pre><code># host/gnome.nix（被 host/default.nix import）\n{ config, lib, pkgs, ... }:\n{\n  specialisation.gnome.configuration = {\n    services.desktopManager.gnome.enable = true;\n    services.displayManager.gdm.enable = true;\n    services.kmscon.enable = lib.mkForce false;   # ← 见下方 mkForce\n  };\n}</code></pre>\n<h3 id=\"section-04\">继承与覆盖：mkForce / mkDefault</h3>\n<ul>\n<li>变体<strong>继承</strong>主配置（例如 kmscon、其他 compositor、输入法和 Home Manager 声明，依父配置而定）</li>\n<li>主配置里<strong>硬赋值</strong>（<code>enable = true</code>）的选项，变体要覆盖必须 <code>lib.mkForce</code>，与父配置值不同且优先级相同，通常会报 conflicting definitions；列表等可合并类型则依其合并规则处理</li>\n<li>如果想让主配置的值<strong>允许被子变体覆盖</strong>，主配置里写 <code>lib.mkDefault</code>（降低优先级）</li>\n</ul>\n<blockquote>\n<p>嵌套 specialisation 被禁用\n变体内部不能再有变体（no-clone.nix 强制清空）。所以在 gnome 变体里 <code>/run/current-system/specialisation/</code> 是空的——<strong>切回 base 用 <code>nixos-rebuild switch</code></strong>，不能在 gnome 里用同样的脚本切回。</p>\n</blockquote>\n<h2 id=\"section-05\">切换</h2>\n<pre><code># 1. 重启，boot 菜单选 &quot;NixOS (gnome)&quot;（条目名 = specialisation 的 key）\n# 2. 运行时切换（不重启，激活当前 generation 的变体）\nsudo nixos-rebuild switch --specialisation gnome\n\n# 3. 直接用已构建变体的激活脚本\nsudo /run/current-system/specialisation/gnome/bin/switch-to-configuration switch   # 激活并更新启动配置；具体启动项由 bootloader 决定\nsudo /run/current-system/specialisation/gnome/bin/switch-to-configuration test     # 临时激活，不更新启动默认</code></pre>\n<p>回 base 时明确选择原始父 flake，例如 <code>sudo nixos-rebuild switch --flake .#workstation</code>（不带 <code>--specialisation</code>）。构建前可记录父系统 store 路径，按恢复计划运行其 <code>bin/switch-to-configuration test</code>；不要依赖当前变体下存在父路径 symlink。</p>\n<h2 id=\"section-06\">验证（不切换就构建变体）</h2>\n<pre><code># config.system.build.toplevel.specialisation.&lt;name&gt; 不存在，用这个路径：\nnix build .#nixosConfigurations.workstation.config.specialisation.gnome.configuration.system.build.toplevel</code></pre>\n<blockquote>\n<p>坑：新文件要 git add\nGit flake 通常只纳入已跟踪文件；新 <code>.nix</code> 文件未跟踪会被过滤。可在适当的 Git 流程中加入跟踪，也可使用 <code>path:.#...</code> 明确纳入当前目录。<code>git add</code> 不等于提交，评估成功也不等于变体可启动。</p>\n</blockquote>\n<h2 id=\"section-07\">关联</h2>\n<ul>\n<li><a href=\"/writing/nix-gnome-declarative-management/\">GNOME 声明式管理</a> — 变体的实际内容</li>\n<li><a href=\"/writing/declarative-and-state/\">NixOS 声明层与运行时层</a> — 变体 = 声明层的&quot;多态&quot;</li>\n</ul>\n<h2 id=\"section-08\">切换前的运行边界</h2>\n<p>切换显示管理器、桌面服务或内核可能影响当前图形会话。保存工作、保留可用 TTY/控制台与已知可启动的 base generation；内核、启动参数或驱动变化往往需要重新启动。<code>nix build</code> 只验证产物，不验证 GDM 登录、锁屏、输入法和用户服务，需要目标机器的实际会话检查。</p>\n",
+  "refs": [
+    [
+      "NixOS specialisation 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/system/activation/specialisation.nix"
+    ],
+    [
+      "NixOS bootspec RFC",
+      "https://github.com/NixOS/rfcs/blob/master/rfcs/0125-bootspec.md"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos",
+    "gnome"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "slug": "nix-gnome-diff-export-extensions",
+  "number": "078",
+  "category": "LINUX / SYSTEMS",
+  "title": "从设置 diff 到声明与扩展",
+  "deck": "导出差异、核对 schema 键和类型，再声明软件包与扩展启用列表。",
+  "sections": [
+    [
+      "section-01",
+      "1. 导出 diff 配置"
+    ],
+    [
+      "section-02",
+      "2. 查找对应的键名"
+    ],
+    [
+      "section-03",
+      "3. 安装插件扩展"
+    ],
+    [
+      "section-04",
+      "4. 找到包名"
+    ],
+    [
+      "section-05",
+      "关联"
+    ],
+    [
+      "section-06",
+      "声明启用扩展"
+    ]
+  ],
+  "body": "<blockquote>\n<p>核验范围：2026 年 10 月查询的 nixpkgs <code>nixos-unstable</code> 模块与上游文档。分组列表、包数和服务默认值会随 revision 改变；部署时应以项目锁定的 nixpkgs 和 Home Manager 源码为准。本文没有构建、激活或桌面运行测试。</p>\n</blockquote>\n<p>「在 GNOME 设置里改了一堆东西，怎么让它换机后还在？」完整答案是一条四步工作流：<strong>导出 diff → 查键名 → 写声明 →（要装东西就）找包名/装扩展</strong>。下面是可审阅的命令示例，底层机制对照 nixpkgs 源码；没有在目标桌面执行验证。</p>\n<h2 id=\"section-01\">1. 导出 diff 配置</h2>\n<p>dconf 数据库（<code>~/.config/dconf/user</code>）<strong>保存显式写入的用户键值</strong>，不一定都异于默认值。两次导出相减可以观察这段时间里的数据库变化；后台应用同时写入的状态也会出现在 diff 中：</p>\n<pre><code>dconf dump / &gt; before.txt      # 改动前导出\n# ……在 GNOME 设置里改几个选项……\ndconf dump / &gt; after.txt\ndiff before.txt after.txt      # 就是你这次改的所有设置</code></pre>\n<blockquote>\n<p>输出格式需要转换\n<code>dconf dump</code> 输出是 INI 风格，但 section 是路径，例如 <code>[org/gnome/desktop/interface]</code>；<code>extraGSettingsOverrides</code> 使用 schema ID，例如 <code>[org.gnome.desktop.interface]</code>。两者必须按实际 schema/path 映射转换（见 <a href=\"/writing/nix-gnome-gsettings-dconf/\">NixOS GSettings 与 dconf 设置管理</a>），筛掉无关状态、核对 schema ID 与类型并添加 schema 提供包后，再写入 <code>host/gnome.nix</code>。</p>\n</blockquote>\n<p>想实时看改的是哪个键：<code>dconf watch /org/gnome/desktop/interface/</code>，开着它再改设置，能抓到键路径。</p>\n<h2 id=\"section-02\">2. 查找对应的键名</h2>\n<p>设置界面只显示翻译后的选项名，不告诉你底层键。三条路：</p>\n<pre><code>gsettings list-recursively | grep -i dark        # 全局搜&quot;值/键名&quot;含 dark\ngsettings list-keys org.gnome.desktop.interface   # 某 schema 的全部键\ngsettings describe org.gnome.desktop.interface color-scheme   # 键的含义\ngsettings range org.gnome.desktop.interface color-scheme      # 允许值\ndconf list /org/gnome/desktop/interface/          # dconf 路径视角</code></pre>\n<ul>\n<li><strong><code>gsettings</code></strong> 是 schema 感知 API（<code>schema.key</code> 记法）；<strong><code>dconf</code></strong> 是底层数据库（<code>/org/gnome/...</code> 路径记法）。读同一个库。</li>\n<li>不记得 schema 名？<code>gsettings list-schemas | grep -i 关键词</code>。</li>\n<li>图形化兜底：<code>dconf-editor</code> 能浏览整棵树 + 搜索，看到每个键的当前值和类型。</li>\n<li>源码层面：每个键的定义（默认值、range、description）在 <code>gsettings-desktop-schemas</code> 包的 <code>*.gschema.xml</code> 里——<code>gsettings describe</code> 读的就是它。</li>\n</ul>\n<h2 id=\"section-03\">3. 安装插件扩展</h2>\n<p>扩展在 NixOS 上推荐声明式安装：</p>\n<pre><code># host/gnome.nix（示例）\nenvironment.systemPackages = [ pkgs.gnomeExtensions.kimpanel ];</code></pre>\n<p>底层机制（nixpkgs 源码 <code>pkgs/desktops/gnome/extensions/</code>）：</p>\n<ul>\n<li><code>extensions.json</code> 是<strong>从 extensions.gnome.org 爬取的索引</strong>，每条含 <code>shell_version_map</code>（扩展支持哪些 GNOME 版本）</li>\n<li><code>default.nix</code> 按当前 shell 版本过滤 → <code>buildGnomeExtension.nix</code> 构建 → 安装到 <code>$out/share/gnome-shell/extensions/&lt;uuid&gt;/</code></li>\n<li><code>pkgs.gnomeExtensions</code> 按 nixpkgs 的扩展生成与版本选择策略聚合扩展，<strong>键名是可读 pname</strong>，不是 uuid</li>\n<li>GNOME Shell 通过 <code>XDG_DATA_DIRS</code> 扫描 <code>/run/current-system/sw/share/gnome-shell/extensions/</code> 发现系统级扩展</li>\n</ul>\n<blockquote>\n<p>装完要启用\n装进 systemPackages ≠ 已启用。在 GNOME 里开 Extensions 应用手动开，或命令行：<code>gnome-extensions enable &lt;uuid&gt;</code>。新安装的扩展若没有被当前 Shell 发现，通常需重新登录；已发现的兼容扩展可通过启用命令切换。</p>\n<p>用户级替代：手动把扩展解压到 <code>~/.local/share/gnome-shell/extensions/&lt;uuid&gt;/</code>——但这<strong>不是声明式</strong>，rebuild 不影响、换机丢失。除非扩展没进 nixpkgs，否则别走这条路。</p>\n</blockquote>\n<h2 id=\"section-04\">4. 找到包名</h2>\n<p>找包名分两问：<strong>attrset 里叫什么</strong>、<strong>在不在 nixpkgs</strong>。</p>\n<pre><code>nix search nixpkgs gnomeExtensions | grep -i &quot;&lt;关键词&gt;&quot;   # 模糊搜\nnix eval nixpkgs#gnomeExtensions --apply builtins.attrNames --json | jq -r &#39;.[]&#39; # 列出全部扩展名</code></pre>\n<ul>\n<li>在 extensions.gnome.org 上看到的扩展先记下 <strong>UUID</strong>（如 <code>kimpanel@kde.org</code>），再到本地源码 <code>pkgs/desktops/gnome/extensions/extensions.json</code> 里按 pname 或 uuid 搜，能直接确认 nixpkgs 收录名和版本。</li>\n<li>收录名和显示名常常不一致（<code>Forge</code>、<code>Pop Shell</code>、<code>ArcMenu</code> 都有专门 pname）。<code>nix search</code> 是最快的对齐工具。</li>\n</ul>\n<blockquote>\n<p>从运行偏好到可复用声明\n这四个技能合起来就是&quot;GNOME 调优闭环&quot;：改 → diff 抓键 → 写进 <code>extraGSettingsOverrides</code> → 需要新能力时 <code>nix search gnomeExtensions</code> 装。全部可重现，不再有&quot;这台机器上配好的，换机就没了&quot;。</p>\n</blockquote>\n<h2 id=\"section-05\">关联</h2>\n<ul>\n<li><a href=\"/writing/nix-gnome-gsettings-dconf/\">NixOS GSettings 与 dconf 设置管理</a> — 导出的设置写进哪、为什么是&quot;宽松默认&quot;</li>\n<li><a href=\"/writing/nix-gnome-declarative-management/\">GNOME 声明式管理</a> — 分组开关与模块层面</li>\n<li><a href=\"/writing/declarative-and-state/\">NixOS 声明层与运行时层</a> — dconf 是运行时层，导出就是&quot;提升到声明层&quot;</li>\n</ul>\n<h2 id=\"section-06\">声明启用扩展</h2>\n<p>安装包与启用 UUID 是两件事。可以在 Home Manager 中声明启用列表：</p>\n<pre><code>dconf.settings.&quot;org/gnome/shell&quot; = {\n  disable-user-extensions = false;\n  enabled-extensions = [ &quot;kimpanel@kde.org&quot; ];\n};</code></pre>\n<p>该列表会在 activation 写回，应包含需要保留的全部扩展 UUID，而不是每个模块都覆盖成自己的单个扩展。UUID 应从已安装扩展的 metadata.json 或 <code>gnome-extensions list</code> 核实；shell version 不匹配、扩展报错和安装路径问题仍需运行时检查。</p>\n",
+  "refs": [
+    [
+      "Nixpkgs GNOME 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/desktop-managers/gnome.nix"
+    ],
+    [
+      "Nixpkgs GNOME 文档",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/desktop-managers/gnome.md"
+    ],
+    [
+      "GLib GSettings 与 vendor overrides",
+      "https://docs.gtk.org/gio/class.Settings.html"
+    ],
+    [
+      "Home Manager dconf 模块",
+      "https://github.com/nix-community/home-manager/blob/master/modules/misc/dconf.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos",
+    "gnome"
+  ]
+}

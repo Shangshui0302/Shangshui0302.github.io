@@ -1,0 +1,76 @@
+{
+  "slug": "home-manager-tutorial",
+  "number": "038",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Home Manager 用户级配置管理教程",
+  "deck": "完整介绍安装、程序模块、dotfiles、服务和激活流程。",
+  "sections": [
+    [
+      "section-01",
+      "示例版本与使用边界"
+    ],
+    [
+      "section-02",
+      "管理范围"
+    ],
+    [
+      "section-03",
+      "安装 Home Manager"
+    ],
+    [
+      "section-07",
+      "Home Manager 基础配置"
+    ],
+    [
+      "section-10",
+      "程序配置"
+    ],
+    [
+      "section-16",
+      "文件管理（Dotfiles）"
+    ],
+    [
+      "section-17",
+      "服务管理"
+    ],
+    [
+      "section-18",
+      "完整示例"
+    ],
+    [
+      "section-19",
+      "Home Manager 的工作原理"
+    ],
+    [
+      "section-20",
+      "当前版本的接口检查"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">示例版本与使用边界</h2>\n<p>本教程保留 Home Manager/NixOS 24.05 的历史例子。它们用于说明模块结构，实际使用前需选择匹配且受支持的输入，并检查对应选项。<code>home.stateVersion</code> 是兼容行为基线，通常保留初次配置的值，不随输入升级。构建、激活和应用运行验证是不同层次。</p>\n<h2 id=\"section-02\">管理范围</h2>\n<p>Home Manager 是 Nix 生态系统中专门管理用户级配置的工具。它可以管理：</p>\n<ul>\n<li>用户软件包</li>\n<li>配置文件（dotfiles）</li>\n<li>环境变量</li>\n<li>服务（如 systemd 用户服务）</li>\n</ul>\n<hr>\n<h2 id=\"section-03\">安装 Home Manager</h2>\n<h3 id=\"section-04\">方式一：作为 NixOS 模块安装（推荐）</h3>\n<p>将 Home Manager 集成到 NixOS 系统配置中：</p>\n<pre><code># /etc/nixos/configuration.nix\n{ config, pkgs, ... }:\n\n{\n  imports = [\n    # 导入 Home Manager NixOS 模块\n    &lt;home-manager/nixos&gt;\n  ];\n\n  # 配置用户及 Home Manager\n  users.users.alice = {\n    isNormalUser = true;\n    home = &quot;/home/alice&quot;;\n    description = &quot;Alice&quot;;\n  };\n\n  # 为用户 alice 配置 Home Manager\n  home-manager.users.alice = { pkgs, ... }: {\n    home.packages = with pkgs; [\n      git\n      vim\n      htop\n    ];\n    \n    # Git 配置\n    programs.git = {\n      enable = true;\n      userName = &quot;Alice&quot;;\n      userEmail = &quot;alice@example.com&quot;;\n    };\n    \n    # Bash 配置\n    programs.bash = {\n      enable = true;\n      shellAliases = {\n        ll = &quot;ls -la&quot;;\n        &quot;..&quot; = &quot;cd ..&quot;;\n      };\n    };\n    \n    # 状态版本（必须设置）\n    home.stateVersion = &quot;24.05&quot;;\n  };\n}</code></pre>\n<p>重建系统：</p>\n<pre><code>sudo nixos-rebuild switch</code></pre>\n<h3 id=\"section-05\">方式二：独立安装（非 NixOS 系统）</h3>\n<p>在任何 Linux/macOS 系统上安装：</p>\n<pre><code># 添加 nix-channel 通道\nnix-channel --add https://github.com/nix-community/home-manager/archive/release-24.05.tar.gz home-manager\nnix-channel --update\n\n# 安装\nnix-shell &#39;&lt;home-manager&gt;&#39; -A install</code></pre>\n<p>创建配置文件：</p>\n<pre><code># 生成初始配置\nhome-manager init\n\n# 编辑\nnano ~/.config/home-manager/home.nix</code></pre>\n<h3 id=\"section-06\">方式三：使用 Flakes 安装（现代方式）</h3>\n<pre><code># ~/.config/home-manager/flake.nix\n{\n  description = &quot;Home Manager configuration&quot;;\n\n  inputs = {\n    nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-24.05&quot;;\n    home-manager = {\n      url = &quot;github:nix-community/home-manager/release-24.05&quot;;\n      inputs.nixpkgs.follows = &quot;nixpkgs&quot;;\n    };\n  };\n\n  outputs = { self, nixpkgs, home-manager }: {\n    homeConfigurations.&quot;alice&quot; = home-manager.lib.homeManagerConfiguration {\n      pkgs = nixpkgs.legacyPackages.x86_64-linux;\n      modules = [ ./home.nix ];\n    };\n  };\n}</code></pre>\n<pre><code># ~/.config/home-manager/home.nix\n{ config, pkgs, ... }:\n\n{\n  home.username = &quot;alice&quot;;\n  home.homeDirectory = &quot;/home/alice&quot;;\n\n  home.packages = with pkgs; [\n    firefox\n    thunderbird\n  ];\n\n  home.stateVersion = &quot;24.05&quot;;\n  programs.home-manager.enable = true;\n}</code></pre>\n<p>激活配置：</p>\n<pre><code>home-manager switch --flake ~/.config/home-manager#alice</code></pre>\n<hr>\n<h2 id=\"section-07\">Home Manager 基础配置</h2>\n<h3 id=\"section-08\">基本结构</h3>\n<pre><code>{ config, pkgs, ... }:\n\n{\n  # 用户基本信息\n  home.username = &quot;alice&quot;;\n  home.homeDirectory = &quot;/home/alice&quot;;\n  home.stateVersion = &quot;24.05&quot;;  # 必需\n\n  # 用户级别的软件包\n  home.packages = with pkgs; [\n    # 开发工具\n    git\n    vim\n    tmux\n    \n    # 日常软件\n    firefox\n    vlc\n    \n    # 命令行工具\n    htop\n    ripgrep\n    fd\n    fzf\n    bat\n  ];\n\n  # 启用 Home Manager\n  programs.home-manager.enable = true;\n}</code></pre>\n<h3 id=\"section-09\">常用命令详解</h3>\n<pre><code># 激活配置\nhome-manager switch\n\n# 激活特定配置（Flakes）\nhome-manager switch --flake ~/my-config#user\n\n# 构建配置，不激活，也不是运行时测试\nhome-manager build\n\n# 回滚到上一版本\nhome-manager switch --rollback\n\n# 查看历史版本\nhome-manager generations\n\n# 激活指定历史代际（先从 generations 输出确认实际路径）\n/path/from/home-manager-generations/activate\n\n# 编辑配置文件\nhome-manager edit\n\n# 检查构建出的激活脚本（不执行）\nhome-manager build\nless result/activate\n\n# 清理旧版本\nhome-manager expire-generations &quot;-30 days&quot;</code></pre>\n<hr>\n<h2 id=\"section-10\">程序配置</h2>\n<h3 id=\"section-11\">Git 完整配置</h3>\n<pre><code>programs.git = {\n  enable = true;\n  userName = &quot;Alice&quot;;\n  userEmail = &quot;alice@example.com&quot;;\n  \n  # 额外配置\n  extraConfig = {\n    init.defaultBranch = &quot;main&quot;;\n    push.autoSetupRemote = true;\n    pull.ff = &quot;only&quot;;\n    core = {\n      editor = &quot;vim&quot;;\n      autocrlf = &quot;input&quot;;\n    };\n  };\n  \n  # 忽略文件\n  ignores = [\n    &quot;*.swp&quot;\n    &quot;*.swo&quot;\n    &quot;.DS_Store&quot;\n    &quot;node_modules/&quot;\n  ];\n  \n  # Aliases\n  aliases = {\n    st = &quot;status&quot;;\n    co = &quot;checkout&quot;;\n    br = &quot;branch&quot;;\n    ci = &quot;commit&quot;;\n    lg = &quot;log --oneline --graph --all&quot;;\n  };\n};</code></pre>\n<h3 id=\"section-12\">Vim/Neovim 配置</h3>\n<pre><code>programs.vim = {\n  enable = true;\n  \n  settings = {\n    number = true;        # 显示行号\n    relativenumber = true; # 相对行号\n    tabstop = 2;          # Tab 宽度\n    shiftwidth = 2;       # 缩进宽度\n    expandtab = true;     # 空格代替 tab\n    mouse = &quot;a&quot;;          # 启用鼠标\n  };\n  \n  extraConfig = &#39;&#39;\n    &quot; 自定义配置\n    set hlsearch\n    set incsearch\n    set smartcase\n    set ignorecase\n    set clipboard=unnamedplus\n    \n    &quot; 配色\n    syntax on\n    colorscheme desert\n  &#39;&#39;;\n  \n  # 插件（需要额外配置）\n  plugins = with pkgs.vimPlugins; [\n    vim-airline\n    nerdtree\n  ];\n};\n\n# 或使用 Neovim\nprograms.neovim = {\n  enable = true;\n  defaultEditor = true;\n  \n  plugins = with pkgs.vimPlugins; [\n  nvim-treesitter\n  telescope-nvim\n  ];\n  \n  extraConfig = &#39;&#39;\n    lua &lt;&lt; EOF\n    -- Lua 配置\n    vim.wo.number = true\n    vim.bo.expandtab = true\n    EOF\n  &#39;&#39;;\n};</code></pre>\n<h3 id=\"section-13\">Bash/Zsh/Fish 配置</h3>\n<pre><code># Bash\nprograms.bash = {\n  enable = true;\n  \n  # 环境变量\n  sessionVariables = {\n    EDITOR = &quot;vim&quot;;\n    PAGER = &quot;less&quot;;\n    PATH = &quot;$HOME/.local/bin:$PATH&quot;;\n  };\n  \n  # 别名\n  shellAliases = {\n    ll = &quot;ls -la&quot;;\n    la = &quot;ls -a&quot;;\n    &quot;..&quot; = &quot;cd ..&quot;;\n    &quot;...&quot; = &quot;cd ../..&quot;;\n  };\n  \n  # 初始化脚本\n  initExtra = &#39;&#39;\n    # 自定义函数\n    mkcd() {\n      mkdir -p &quot;$@&quot; &amp;&amp; cd &quot;$@&quot;\n    }\n    \n    # 提示符\n    PS1=&#39;\\[\\033[01;32m\\]\\u@\\h\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ &#39;\n  &#39;&#39;;\n};\n\n# Zsh（推荐）\nprograms.zsh = {\n  enable = true;\n  \n  oh-my-zsh = {\n    enable = true;\n    theme = &quot;robbyrussell&quot;;\n    plugins = [ &quot;git&quot; &quot;docker&quot; &quot;sudo&quot; ];\n  };\n  \n  zplug = {\n    enable = true;\n    plugins = [\n      { name = &quot;zsh-users/zsh-autosuggestions&quot;; }\n      { name = &quot;zsh-users/zsh-syntax-highlighting&quot;; }\n    ];\n  };\n  \n  # 环境变量\n  envExtra = &#39;&#39;\n    export PATH=&quot;$HOME/.cargo/bin:$PATH&quot;\n  &#39;&#39;;\n  \n  shellAliases = {\n    g = &quot;git&quot;;\n    ga = &quot;git add&quot;;\n    gc = &quot;git commit&quot;;\n    gp = &quot;git push&quot;;\n  };\n};\n\n# Fish\nprograms.fish = {\n  enable = true;\n  \n  plugins = [\n    { name = &quot;fisher&quot;; src = pkgs.fishPlugins.fisher.src; }\n  ];\n  \n  shellAliases = {\n    l = &quot;ls -la&quot;;\n    c = &quot;clear&quot;;\n  };\n  \n  shellInit = &#39;&#39;\n    # Fish 配置\n    set -x EDITOR vim\n  &#39;&#39;;\n};</code></pre>\n<h3 id=\"section-14\">SSH 配置</h3>\n<pre><code>programs.ssh = {\n  enable = true;\n  \n  # 主机配置\n  matchBlocks = {\n    &quot;github&quot; = {\n      host = &quot;github.com&quot;;\n      user = &quot;git&quot;;\n      identityFile = &quot;~/.ssh/id_ed25519&quot;;\n    };\n    \n    &quot;myserver&quot; = {\n      host = &quot;server.example.com&quot;;\n      user = &quot;admin&quot;;\n      port = 2222;\n      identityFile = &quot;~/.ssh/id_server&quot;;\n      extraOptions = {\n        &quot;ServerAliveInterval&quot; = &quot;60&quot;;\n        &quot;ServerAliveCountMax&quot; = &quot;3&quot;;\n      };\n    };\n  };\n  \n  # 全局配置\n  extraConfig = &#39;&#39;\n    AddKeysToAgent yes\n    IgnoreUnknown UseKeychain\n    UseKeychain yes # 主要针对 macOS；Linux 通常应删除这一项\n  &#39;&#39;;\n};</code></pre>\n<h3 id=\"section-15\">Tmux 配置</h3>\n<pre><code>programs.tmux = {\n  enable = true;\n  \n  # 快捷键前缀\n  shortcut = &quot;a&quot;;  # Ctrl+a\n  \n  # 基础配置\n  baseIndex = 1;\n  escapeTime = 0;\n  historyLimit = 10000;\n  \n  # 插件\n  plugins = with pkgs.tmuxPlugins; [\n    sensible\n    yank\n    resurrect\n    continuum\n  ];\n  \n  extraConfig = &#39;&#39;\n    # 鼠标支持\n    set -g mouse on\n    \n    # 状态栏\n    set -g status-bg black\n    set -g status-fg white\n    \n    # 窗口标题\n    set -g set-titles on\n    set -g set-titles-string &quot;#W&quot;\n    \n    # 重新加载配置\n    bind r source-file ~/.config/tmux/tmux.conf \\; display &quot;配置已重载!&quot;\n    \n    # 窗口分割\n    bind | split-window -h\n    bind - split-window -v\n    \n    # 同步窗格\n    bind y setw synchronize-panes\n  &#39;&#39;;\n};</code></pre>\n<hr>\n<h2 id=\"section-16\">文件管理（Dotfiles）</h2>\n<p>Home Manager 可以直接管理任意配置文件：</p>\n<pre><code># 创建配置文件\nhome.file = {\n  # 简单的文本文件\n  &quot;.config/myapp/config.toml&quot;.text = &#39;&#39;\n    [settings]\n    theme = &quot;dark&quot;\n    language = &quot;zh&quot;\n  &#39;&#39;;\n  \n  # 从本地文件复制\n  &quot;.config/alacritty/alacritty.yml&quot;.source = ./dotfiles/alacritty.yml;\n  \n  # 从 store 路径\n  &quot;.config/doom/config.el&quot;.source = pkgs.fetchFromGitHub {\n    owner = &quot;hlissner&quot;;\n    repo = &quot;doom-emacs&quot;;\n    rev = &quot;&lt;fixed-commit&gt;&quot;;\n    hash = &quot;sha256-&lt;actual-source-hash&gt;&quot;;\n  } + &quot;/templates/config.example.el&quot;;\n  \n  # 可执行脚本\n  &quot;.local/bin/my-script&quot; = {\n    source = ./scripts/my-script.sh;\n    executable = true;\n  };\n  \n  # 目录\n  &quot;.config/nvim/lua/custom&quot;.source = ./nvim-lua;\n};\n\n# 使用 xdg 配置（推荐）\nxdg.configFile = {\n  &quot;i3/config&quot;.source = ./i3-config;\n  &quot;polybar/config.ini&quot;.text = &#39;&#39;\n    [bar/main]\n    width = 100%\n    height = 30\n  &#39;&#39;;\n};\n\nxdg.dataFile = {\n  # 数据文件\n  &quot;applications/myapp.desktop&quot; = {\n    text = &#39;&#39;\n      [Desktop Entry]\n      Name=MyApp\n      Exec=myapp\n      Type=Application\n    &#39;&#39;;\n  };\n};</code></pre>\n<hr>\n<h2 id=\"section-17\">服务管理</h2>\n<pre><code>services = {\n  # GPG 代理\n  gpg-agent = {\n    enable = true;\n    enableSshSupport = true;\n    pinentryPackage = pkgs.pinentry-curses;\n  };\n  \n  # 密码管理器\n  password-store = {\n    enable = true;\n    settings = {\n      PASSWORD_STORE_DIR = &quot;~/.password-store&quot;;\n    };\n  };\n  \n  # 剪贴板管理\n  copyq = {\n    enable = true;\n  };\n  \n  # 键位修改\n  keynav = {\n    enable = true;\n  };\n};</code></pre>\n<hr>\n<h2 id=\"section-18\">完整示例</h2>\n<pre><code>{ config, pkgs, lib, ... }:\n\n{\n  home.username = &quot;alice&quot;;\n  home.homeDirectory = &quot;/home/alice&quot;;\n  home.stateVersion = &quot;24.05&quot;;\n\n  # === 软件包 ===\n  home.packages = with pkgs; [\n    # 开发\n    git\n    vim\n    tmux\n    vscode\n    jetbrains.idea-community\n    \n    # 工具\n    htop\n    ripgrep\n    fd\n    fzf\n    bat\n    eza\n    \n    # 浏览器\n    firefox\n    chromium\n    \n    # 通讯\n    thunderbird\n    slack\n    \n    # 多媒体\n    vlc\n    obs-studio\n  ];\n\n  # === 程序配置 ===\n  programs.home-manager.enable = true;\n  \n  programs.git = {\n    enable = true;\n    userName = &quot;Alice&quot;;\n    userEmail = &quot;alice@example.com&quot;;\n    extraConfig = {\n      init.defaultBranch = &quot;main&quot;;\n      core.editor = &quot;vim&quot;;\n    };\n  };\n  \n  programs.zsh = {\n    enable = true;\n    oh-my-zsh = {\n      enable = true;\n      theme = &quot;robbyrussell&quot;;\n      plugins = [ &quot;git&quot; &quot;docker&quot; ];  \n    };\n    shellAliases = {\n      g = &quot;git&quot;;\n      l = &quot;ls -la&quot;;\n    };\n  };\n  \n  programs.tmux = {\n    enable = true;\n    plugins = with pkgs.tmuxPlugins; [\n      sensible yank\n    ];\n  };\n  \n  # === 环境变量 ===\n  home.sessionVariables = {\n    EDITOR = &quot;vim&quot;;\n    BROWSER = &quot;firefox&quot;;\n    TERMINAL = &quot;alacritty&quot;;\n  };\n  \n  # === 配置文件 ===\n  home.file = {\n    &quot;.myconfig&quot;.text = &quot;配置内容&quot;;\n  };\n  \n  # === 服务 ===\n  services.gpg-agent = {\n    enable = true;\n    enableSshSupport = true;\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-19\">Home Manager 的工作原理</h2>\n<pre><code>┌─────────────────────────────────────────┐\n│         home.nix (你的配置)              │\n└─────────────────┬───────────────────────┘\n                  │ 解析为 Nix 表达式\n                  ▼\n┌─────────────────────────────────────────┐\n│      Home Manager 生成激活脚本          │\n│    - 创建符号链接到 ~/.config/           │\n│    - 安装软件包到 ~/.nix-profile/        │\n│    - 设置环境变量                        │\n│    - 启动用户服务                        │\n└─────────────────────────────────────────┘</code></pre>\n<p>激活时，Home Manager 会：</p>\n<ol>\n<li>创建所有配置文件（符号链接）</li>\n<li>安装指定的软件包</li>\n<li>设置环境变量和别名</li>\n<li>启动/停止相应服务</li>\n<li>维护 Home Manager 代际；已有普通文件冲突通常会阻止激活，备份需要显式配置（例如 CLI 的 <code>-b backup</code>）。</li>\n</ol>\n<hr>\n<h2 id=\"section-20\">当前版本的接口检查</h2>\n<p>历史例子使用 Git 的 <code>userName</code>、<code>userEmail</code> 和 <code>extraConfig</code>；当前 Home Manager 已提供向 <code>programs.git.settings</code> 迁移的兼容入口。Shell、编辑器和桌面选项也应以锁定版本为准。Home Manager 代际恢复的是其管理的配置和包，不会恢复应用数据库、秘密或其他可变数据。</p>\n",
+  "refs": [
+    [
+      "Home Manager 手册",
+      "https://nix-community.github.io/home-manager/"
+    ],
+    [
+      "Home Manager 命令源码",
+      "https://github.com/nix-community/home-manager/blob/master/home-manager/home-manager"
+    ],
+    [
+      "Home Manager 文件选项源码",
+      "https://github.com/nix-community/home-manager/blob/master/modules/lib/file-type.nix"
+    ],
+    [
+      "Home Manager Git 模块源码",
+      "https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "home-manager"
+  ]
+}

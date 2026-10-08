@@ -1,0 +1,60 @@
+{
+  "slug": "linux-command-file-operations",
+  "number": "039",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "文件与目录操作",
+  "deck": "从目录浏览、文件查找到链接、归档和空间查询，掌握日常文件操作。",
+  "sections": [
+    [
+      "section-01",
+      "查看与浏览"
+    ],
+    [
+      "section-04",
+      "创建与删除"
+    ],
+    [
+      "section-08",
+      "查找与定位"
+    ],
+    [
+      "section-10",
+      "链接"
+    ],
+    [
+      "section-12",
+      "打包与压缩"
+    ],
+    [
+      "section-15",
+      "磁盘空间"
+    ],
+    [
+      "section-18",
+      "输出与传输"
+    ],
+    [
+      "section-20",
+      "与已有知识的衔接"
+    ]
+  ],
+  "body": "<blockquote>\n<p><code>rm</code>、<code>cp</code>、<code>mv</code> 是文件操作的最小集。下面补全日常高频的其余命令。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">查看与浏览</h2>\n<h3 id=\"section-02\">ls — 列出目录内容</h3>\n<p>最常用的命令，没有之一。</p>\n<pre><code>ls          # 平铺列出当前目录\nls -l       # 长格式：权限/大小/日期\nls -a       # 显示隐藏文件（. 开头的）\nls -la      # 长格式 + 隐藏文件\nls -lh      # 人类可读的大小（1K 234M 3G）\nls -lt      # 按修改时间排序，最新的在前</code></pre>\n<p>记忆口诀：<code>ls -lah</code> = 全看到 + 能读懂。</p>\n<h3 id=\"section-03\">通配符配合 ls</h3>\n<pre><code>ls *.md       # 列出所有 .md 文件\nls report_??  # 列出 report_01, report_02 等两字符后缀\nls [abc]*     # 列出以 a/b/c 开头的文件</code></pre>\n<hr>\n<h2 id=\"section-04\">创建与删除</h2>\n<h3 id=\"section-05\">mkdir — 创建目录</h3>\n<pre><code>mkdir new_dir           # 创建一个目录\nmkdir -p a/b/c/d        # 级联创建，不报错</code></pre>\n<p><code>-p</code> 是最常用的选项：父目录不存在时自动创建，已存在也不报错。</p>\n<h3 id=\"section-06\">touch — 创建空文件 / 更新修改时间</h3>\n<pre><code>touch note.md           # 新建空文件（不存在时）\ntouch existing_file     # 更新时间戳为现在（存在时）</code></pre>\n<h3 id=\"section-07\">rmdir — 删除空目录</h3>\n<pre><code>rmdir empty_dir         # 只删空目录，非空时报错（安全）</code></pre>\n<p>实际上更常用 <code>rm -rf</code> 删非空目录，但需要格外小心。</p>\n<hr>\n<h2 id=\"section-08\">查找与定位</h2>\n<h3 id=\"section-09\">find — 按条件搜索文件</h3>\n<pre><code>find . -name &quot;*.md&quot;              # 按名字在当前目录及子目录搜索\nfind . -type d -name &quot;Notes&quot;     # 只搜目录\nfind . -type f -size +100M       # 搜 &gt;100M 的文件\nfind . -mtime -7                  # 最近 7 天修改过的文件</code></pre>\n<p><code>find</code> 的强大在于能对搜到的文件执行操作：</p>\n<pre><code>find . -type f -name &quot;*.tmp&quot; -print  # 先核对待删除文件\nfind . -type f -name &quot;*.tmp&quot; -delete # 确认目录与匹配范围后删除，无法自动撤回\nfind . -name &quot;*.md&quot; -exec wc -l {} +   # 统计每个 .md 文件的行数</code></pre>\n<hr>\n<h2 id=\"section-10\">链接</h2>\n<h3 id=\"section-11\">ln — 创建硬链接和软链接</h3>\n<pre><code>ln target link_name        # 硬链接：同一个文件的两个名字\nln -s target link_name     # 软链接：指向目标的快捷方式</code></pre>\n<p>日常几乎只用软链接：</p>\n<pre><code>ln -s /path/to/long/directory/app  ~/shortcut</code></pre>\n<p>软链接可以类比快捷方式，但它保存的是路径。删除目标路径后，软链接会断开；硬链接仍指向同一 inode，直到最后一个硬链接删除且没有进程打开该文件，文件数据才释放。硬链接通常不能跨文件系统，也通常不能链接目录。</p>\n<hr>\n<h2 id=\"section-12\">打包与压缩</h2>\n<h3 id=\"section-13\">tar — 打包</h3>\n<pre><code>tar -cvf archive.tar dir/         # 打包（不压缩）\ntar -czvf archive.tar.gz dir/     # 打包 + gzip 压缩\ntar -xvf archive.tar              # 解包\ntar -xzvf archive.tar.gz          # 解包 + 解 gzip</code></pre>\n<p>记忆：<code>c</code> = create 创建，<code>x</code> = extract 解包，<code>z</code> = gzip，<code>v</code> = verbose 显示过程，<code>f</code> = file 指定文件名。</p>\n<h3 id=\"section-14\">zip / unzip — 跨平台压缩</h3>\n<pre><code>zip -r archive.zip dir/           # 递归压缩\nunzip archive.zip                 # 解压\nunzip -l archive.zip              # 只看不解</code></pre>\n<hr>\n<h2 id=\"section-15\">磁盘空间</h2>\n<h3 id=\"section-16\">du — 目录/文件占多少空间</h3>\n<pre><code>du -sh dir/          # 总计大小，人类可读\ndu -sh *             # 当前目录每个文件/文件夹各占多少\ndu -sh * | sort -hr  # 从大到小排</code></pre>\n<h3 id=\"section-17\">df — 磁盘还剩多少空间</h3>\n<pre><code>df -h                # 各分区用量，人类可读</code></pre>\n<hr>\n<h2 id=\"section-18\">输出与传输</h2>\n<h3 id=\"section-19\">echo 与 cat</h3>\n<pre><code>echo &quot;hello&quot;              # 输出文本到终端\necho &quot;hello&quot; &gt; file.txt   # 输出到文件（覆盖）\ncat file.txt              # 显示文件全部内容\ncat a.txt b.txt &gt; c.txt   # 合并两个文件</code></pre>\n<hr>\n<h2 id=\"section-20\">与已有知识的衔接</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">你已经知道</th>\n<th scope=\"col\">现在补上</th>\n<th scope=\"col\">关系</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>rm</code></td>\n<td><code>rmdir</code> / <code>find -delete</code></td>\n<td>按条件删除；<code>-delete</code> 同样不可撤回</td>\n</tr>\n<tr>\n<td><code>cp</code></td>\n<td><code>tar</code> / <code>zip</code></td>\n<td>归档多个文件，便于复制或传输</td>\n</tr>\n<tr>\n<td><code>mv</code></td>\n<td><code>ln -s</code></td>\n<td>移动 vs 引用</td>\n</tr>\n<tr>\n<td>无</td>\n<td><code>ls</code> / <code>du</code> / <code>df</code></td>\n<td><strong>看见</strong>文件系统的眼睛</td>\n</tr>\n</tbody></table></div>\n<p>权限管理（<code>chmod</code> / <code>chown</code> / <code>chgrp</code>）在 <a href=\"/writing/linux-permissions/\">Linux 文件权限</a> 中详述。</p>\n<hr>\n<hr>\n",
+  "refs": [
+    [
+      "GNU Coreutils 手册",
+      "https://www.gnu.org/software/coreutils/manual/coreutils.html"
+    ],
+    [
+      "GNU Findutils 手册",
+      "https://www.gnu.org/software/findutils/manual/html_mono/find.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "cli"
+  ]
+}

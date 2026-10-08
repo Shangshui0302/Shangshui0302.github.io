@@ -1,0 +1,76 @@
+{
+  "slug": "sops-principles",
+  "number": "098",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "sops 原理：混合加密与接收者",
+  "deck": "理解密文版本管理、数据密钥与多接收者授权的边界。",
+  "sections": [
+    [
+      "section-01",
+      "sops 解决什么问题"
+    ],
+    [
+      "section-02",
+      "混合加密：两层结构"
+    ],
+    [
+      "section-03",
+      "加密对象与格式：sops 加密的是\"值/字节流\"，不是\"格式\""
+    ],
+    [
+      "section-04",
+      "age 和 ed25519 的关系"
+    ],
+    [
+      "section-05",
+      "recipient 登记制：为什么加公钥就能解密"
+    ],
+    [
+      "section-06",
+      "为什么「clone 仓库 + 加公钥」拿不到明文"
+    ],
+    [
+      "section-07",
+      "相关"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">sops 解决什么问题</h2>\n<p><strong>sops 不是「加密钱包/保险箱」，而是「git 友好的 secrets 版本控制方案」。</strong> 核心痛点：需要版本化或 review 的秘密配置可以以密文进入 git，而明文和解密密钥应留在仓库外。</p>\n<p>围绕这个目标，sops 提供三件事：</p>\n<ol>\n<li><strong>把密文当普通文件管理</strong> — <code>secrets.yaml</code> 是普通 YAML，<code>git diff</code>、<code>git log</code>、PR review 都能做。</li>\n<li><strong>密钥与仓库解耦</strong> — 密文进 git，解密密钥留在机器上，多人/多机共享仓库但各用自己的私钥。</li>\n<li><strong>加密细节标准化</strong> — <code>sops edit</code>、<code>sops -d</code> 封装底层算法。</li>\n</ol>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\"></th>\n<th scope=\"col\">加密钱包/保险箱</th>\n<th scope=\"col\">sops</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>核心问题</td>\n<td>怎么安全<strong>存放</strong>一份秘密</td>\n<td>怎么安全<strong>版本化/分发</strong>秘密</td>\n</tr>\n<tr>\n<td>谁持有</td>\n<td>一个人，一个设备</td>\n<td>一群人/多台机器，共享仓库</td>\n</tr>\n<tr>\n<td>关注点</td>\n<td>加密强度</td>\n<td>密钥管理、协作、审计、变更追踪</td>\n</tr>\n</tbody></table></div>\n<p>一句话：<strong>sops = 把 secrets 从「git 里的明文」变成「git 里的密文」，解密能力（私钥）留在机器上。</strong></p>\n<h2 id=\"section-02\">混合加密：两层结构</h2>\n<p>sops <strong>不是</strong>用公钥直接加密 secrets，而是<strong>混合加密</strong>：</p>\n<pre><code>1. 生成一把随机的对称 AES 数据密钥\n2. 用 AES 密钥加密每个 value（数据层）\n3. 用你的 age 公钥加密那把 AES 密钥（密钥层）</code></pre>\n<p>这解释了 secrets.yaml 的两层：</p>\n<pre><code>app_env: &quot;SOPS_CIPHERTEXT_PLACEHOLDER_NOT_VALID&quot; # 数据层（AES）\nsops:\n  age:\n    - enc: &quot;AGE_WRAPPED_DATA_KEY_PLACEHOLDER_NOT_VALID&quot; # 密钥层（age）\n      recipient: &quot;AGE_RECIPIENT_PLACEHOLDER_NOT_VALID&quot; # 接收者公钥</code></pre>\n<p><strong>数据层字段</strong>：<code>AES256_GCM</code>（对称加密）、<code>data</code>（密文）、<code>iv</code>（初始化向量，保证相同明文密文不同）、<code>tag</code>（GCM 认证标签防篡改）、<code>type</code>（原数据类型）。</p>\n<p><strong>密钥层 + 元数据</strong>：<code>age</code>（用 age 公钥体系）、<code>enc</code>（AES 密钥用你公钥加密的结果）、<code>recipient</code>（你的公钥）、<code>lastmodified</code>、<code>mac</code>（整个文件完整性校验）、<code>unencrypted_suffix</code>、<code>version</code>。</p>\n<h2 id=\"section-03\">加密对象与格式：sops 加密的是&quot;值/字节流&quot;，不是&quot;格式&quot;</h2>\n<p><strong>sops 加密内容，并依据所选格式决定如何解析、保存和解密。</strong> 结构化模式需要理解 YAML、JSON、dotenv 或 INI，解密输出可能经过重新序列化，不能保证原始排版逐字节保留。binary 模式把原文件视为字节流，适合需要还原任意文件内容的场景。</p>\n<p><strong>两种加密粒度</strong>（关键区分）：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">模式</th>\n<th scope=\"col\">sops 怎么处理</th>\n<th scope=\"col\">何时用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>结构化</strong>（yaml/json/dotenv/ini）</td>\n<td>解析文件 → 分成多个键 → 每个键一个值加密</td>\n<td>想要&quot;一个文件多个机密、可单独引用&quot;</td>\n</tr>\n<tr>\n<td><strong>binary</strong>（万能兜底）</td>\n<td>整个文件当作一段字节流整体加密，不解析内部</td>\n<td>任意格式文件想整体加密</td>\n</tr>\n</tbody></table></div>\n<p><strong>binary 可用于任意字节内容</strong>：例如将 <code>.conf</code> 整体加密，再以 binary 输出解密，并用 <code>cmp</code> 检查还原。此处是验证方法，不代表当前已运行验证。所以&quot;文件格式不支持&quot;不是问题——用 <code>binary</code> 通吃；只有想要&quot;一个文件拆多个键&quot;时才用结构化格式。</p>\n<h2 id=\"section-04\">age 和 ed25519 的关系</h2>\n<p><strong>它们是完全不同的密码学工具，但在同一个曲线家族。</strong></p>\n<ul>\n<li><strong>ed25519</strong>：数字<strong>签名</strong>算法（Edwards25519 曲线）。SSH、Git 做身份认证。</li>\n<li><strong>age</strong>：<strong>加密</strong>工具/格式。底层用 <strong>Curve25519（X25519）</strong> 做公钥加密。</li>\n</ul>\n<p>两者都源自 25519 曲线家族，但<strong>格式不同、用途不同、不能互换</strong>。<code>ssh-to-age</code> 能把 SSH ed25519 host key 转成 age 格式（工具按其支持的 Ed25519 密钥编码完成转换；不能把两种文件格式直接互换）——这也是 sops 能直接用 SSH host key 解密的原因。</p>\n<h2 id=\"section-05\">recipient 登记制：为什么加公钥就能解密</h2>\n<p><strong>一对多授权模型</strong>：</p>\n<pre><code>sops:\n  age:\n    - enc: &lt;AES 密钥用旧公钥加密&gt;\n      recipient: AGE_RECIPIENT_PLACEHOLDER_NOT_VALID\n    - enc: &lt;同一把 AES 密钥用新公钥加密&gt;\n      recipient: AGE_RECIPIENT_PLACEHOLDER_NOT_VALID</code></pre>\n<ul>\n<li>AES 数据密钥只有一把，但对每个 recipient 各生成一个加密副本</li>\n<li>旧机器用自己私钥解开第一个块 → 拿到 AES 密钥 → 解密数据</li>\n<li>新机器解开第二个块 → <strong>拿到同一把</strong> AES 密钥 → 解密数据</li>\n</ul>\n<p>所以「把新机器公钥加进 recipient 就能解密」——每台机器用自己私钥解开属于自己的密钥块，不需要拷贝私钥。</p>\n<h2 id=\"section-06\">为什么「clone 仓库 + 加公钥」拿不到明文</h2>\n<p>关键安全边界：</p>\n<ul>\n<li>公钥<strong>只能加密，不能解密</strong>（单向门）</li>\n<li>B clone 仓库后没有你的私钥 → 解不开你已加密的数据</li>\n<li>B 加自己的公钥 → sops 需「已有私钥解开现有文件」才能重加密 → 没有你的私钥直接 FAILED</li>\n<li>B 重新加密一份新文件 → 只是 B 自己写的内容，不含你的明文</li>\n</ul>\n<p><strong>明文泄露并不只来自私钥泄露。</strong> 编辑器临时文件、日志、备份、运行时文件、进程环境、已有授权接收者或被控制的解密机器都可能暴露秘密。密文提交也会保留键名、结构和某些元数据。</p>\n<h2 id=\"section-07\">相关</h2>\n<ul>\n<li>运行时怎么用 → <a href=\"/writing/sops-nixos-integration/\">sops-nix 集成</a></li>\n<li>命令行操作 → <a href=\"/writing/sops-cli-workflow/\">sops 使用指南</a></li>\n<li>参考：<a href=\"https://linuxcommandlibrary.com/man/sops\" target=\"_blank\" rel=\"noopener noreferrer\">sops 手册</a> | <a href=\"https://github.com/FiloSottile/age/discussions/301\" target=\"_blank\" rel=\"noopener noreferrer\">age 格式讨论</a></li>\n</ul>\n<hr>\n",
+  "refs": [
+    [
+      "SOPS 官方文档",
+      "https://getsops.io/docs/"
+    ],
+    [
+      "SOPS CLI 源码",
+      "https://github.com/getsops/sops/blob/main/cmd/sops/main.go"
+    ],
+    [
+      "SOPS 配置源码",
+      "https://github.com/getsops/sops/blob/main/config/config.go"
+    ],
+    [
+      "sops-nix 官方说明",
+      "https://github.com/Mic92/sops-nix"
+    ],
+    [
+      "sops-nix 模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/default.nix"
+    ],
+    [
+      "sops-nix 模板模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/templates/default.nix"
+    ],
+    [
+      "ssh-to-age 官方说明",
+      "https://github.com/Mic92/ssh-to-age"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "security",
+    "sops"
+  ]
+}

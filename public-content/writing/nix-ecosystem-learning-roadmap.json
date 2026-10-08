@@ -1,0 +1,68 @@
+{
+  "slug": "nix-ecosystem-learning-roadmap",
+  "number": "092",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "NixOS 学习路线：基础、Flakes、用户配置与进阶",
+  "deck": "保存六个学习模块、语言生态和进阶资源，并给出清晰的前后依赖。",
+  "sections": [
+    [
+      "section-01",
+      "模块一：基础认知"
+    ],
+    [
+      "section-05",
+      "模块二：系统配置"
+    ],
+    [
+      "section-09",
+      "模块三：Flakes（常用工作流）"
+    ],
+    [
+      "section-12",
+      "模块四：Home Manager"
+    ],
+    [
+      "section-15",
+      "模块五：开发环境"
+    ],
+    [
+      "section-18",
+      "模块六：进阶主题（按需）"
+    ],
+    [
+      "section-19",
+      "推荐学习顺序"
+    ],
+    [
+      "section-20",
+      "综合资源"
+    ],
+    [
+      "section-21",
+      "学习中的验收边界"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">模块一：基础认知</h2>\n<h3 id=\"section-02\">1.1 NixOS 是什么 &amp; 设计哲学</h3>\n<ul>\n<li>声明式 vs 命令式系统管理</li>\n<li>函数式包管理的含义</li>\n<li><code>/nix/store</code> 的工作原理</li>\n<li>与 Arch/Debian 的根本差异</li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://nixos.org/explore.html\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS About Page</a></li>\n<li><a href=\"https://nixos.org/guides/how-nix-works/\" target=\"_blank\" rel=\"noopener noreferrer\">How Nix Works</a></li>\n<li><a href=\"https://www.youtube.com/watch?v=GMQPzv3Sx58\" target=\"_blank\" rel=\"noopener noreferrer\">Nix: Under the Hood (YouTube)</a></li>\n</ul>\n<h3 id=\"section-03\">1.2 Nix 语言基础</h3>\n<ul>\n<li>基本类型：string, int, bool, list, attrset</li>\n<li><code>let ... in</code>、<code>with</code>、<code>import</code></li>\n<li>函数语法（<code>x: x + 1</code>）</li>\n<li>路径类型与字符串插值</li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://nix.dev/tutorials/nix-language\" target=\"_blank\" rel=\"noopener noreferrer\">Nix Language Basics (official)</a></li>\n<li><a href=\"https://nixos.org/guides/nix-pills/our-first-derivation\" target=\"_blank\" rel=\"noopener noreferrer\">Nix Pills Ch.4-6</a></li>\n<li><a href=\"https://nix.dev/\" target=\"_blank\" rel=\"noopener noreferrer\">nix.dev</a> — Nix 官方文档站，适合结合教程与参考手册阅读。</li>\n</ul>\n<h3 id=\"section-04\">本地构建文档</h3>\n<p>在可信的 nix.dev 源码 checkout 中，先按仓库版本选择开发环境，再执行构建：</p>\n<pre><code>cd /path/to/nix.dev\ndirenv allow    # 阅读 .envrc 后授权；或使用仓库支持的 nix-shell\nmake html\nxdg-open build/html/index.html</code></pre>\n<p>构建入口与输出路径以 checkout 的 README/Makefile 为准。</p>\n<h2 id=\"section-05\">模块二：系统配置</h2>\n<h3 id=\"section-06\">2.1 configuration.nix 核心结构</h3>\n<ul>\n<li><code>environment.systemPackages</code></li>\n<li><code>services.*</code> 启用系统服务</li>\n<li><code>users.users.*</code> 用户管理</li>\n<li><code>networking</code>, <code>time</code>, <code>i18n</code> 基础配置</li>\n<li><code>nixos-rebuild switch / boot / test</code> 的区别</li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://nixos.org/manual/nixos/stable/#ch-configuration\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Manual: Configuration</a></li>\n<li><a href=\"https://search.nixos.org/options\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Options Search</a> — 查所有可用 option 的必备工具</li>\n<li><a href=\"https://mynixos.com/\" target=\"_blank\" rel=\"noopener noreferrer\">MyNixOS</a> — 可视化浏览 options</li>\n</ul>\n<h3 id=\"section-07\">2.2 包管理</h3>\n<ul>\n<li><code>nix search</code>、<code>nix-env</code>（legacy）vs declarative</li>\n<li>Unfree 包的开启方式</li>\n<li>Overlays 简介：覆盖/修改已有包</li>\n<li><code>nix-shell -p</code> 临时环境</li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://search.nixos.org/packages\" target=\"_blank\" rel=\"noopener noreferrer\">Nixpkgs Search</a></li>\n<li><a href=\"https://nixos.org/manual/nixos/stable/#sec-package-management\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Manual: Package Management</a></li>\n<li><a href=\"https://nixos.org/manual/nixpkgs/stable/#chap-overlays\" target=\"_blank\" rel=\"noopener noreferrer\">Nixpkgs Manual: Overlays</a></li>\n</ul>\n<h3 id=\"section-08\">2.3 Generations &amp; 回滚</h3>\n<ul>\n<li>成功构建与 profile 切换形成可恢复配置世代；求值检查不等于创建或激活世代</li>\n<li>GRUB 多 generation 启动</li>\n<li><code>nix-collect-garbage</code> 清理旧 generation</li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://nixos.org/manual/nixos/stable/#sec-rollback\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Manual: Rollback</a></li>\n</ul>\n<h2 id=\"section-09\">模块三：Flakes（常用工作流）</h2>\n<h3 id=\"section-10\">3.1 Flakes 是什么</h3>\n<ul>\n<li>解决了什么问题（reproducibility, <code>nix-channel</code> 的缺点）</li>\n<li><code>flake.nix</code> 结构：<code>inputs</code> / <code>outputs</code></li>\n<li><code>flake.lock</code> 版本锁定</li>\n</ul>\n<h3 id=\"section-11\">3.2 启用 Flakes &amp; 迁移</h3>\n<ul>\n<li>在 <code>configuration.nix</code> 启用实验性功能</li>\n<li>用 <code>nixos-rebuild switch --flake .#workstation</code> 构建</li>\n<li>管理多机器配置</li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://nix.dev/concepts/flakes\" target=\"_blank\" rel=\"noopener noreferrer\">Flakes Introduction (nix.dev)</a></li>\n<li><a href=\"https://zero-to-nix.com/concepts/flakes\" target=\"_blank\" rel=\"noopener noreferrer\">Zero to Nix: Flakes</a></li>\n<li><a href=\"https://jade.fyi/blog/flakes-arent-real/\" target=\"_blank\" rel=\"noopener noreferrer\">Flakes aren&#39;t real (博客，辩证看待)</a></li>\n</ul>\n<h2 id=\"section-12\">模块四：Home Manager</h2>\n<h3 id=\"section-13\">4.1 Home Manager 简介</h3>\n<ul>\n<li>系统配置 vs 用户配置的边界</li>\n<li>standalone 模式 vs NixOS module 模式</li>\n<li><code>home.nix</code> 基本结构</li>\n</ul>\n<h3 id=\"section-14\">4.2 常见用途</h3>\n<ul>\n<li>管理 dotfiles（<code>.zshrc</code>, <code>nvim</code>, <code>git</code> 等）</li>\n<li><code>programs.*</code> 直接配置应用</li>\n<li><code>home.file.*</code> 声明式 symlink</li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://nix-community.github.io/home-manager/\" target=\"_blank\" rel=\"noopener noreferrer\">Home Manager Manual</a></li>\n<li><a href=\"https://home-manager-option-search.dev/\" target=\"_blank\" rel=\"noopener noreferrer\">Home Manager Options Search</a> 或 <a href=\"https://mynixos.com/\" target=\"_blank\" rel=\"noopener noreferrer\">MyNixOS HM options</a></li>\n<li><a href=\"https://github.com/nix-community/home-manager\" target=\"_blank\" rel=\"noopener noreferrer\">nix-community/home-manager (GitHub)</a></li>\n</ul>\n<h2 id=\"section-15\">模块五：开发环境</h2>\n<h3 id=\"section-16\">5.1 nix-shell &amp; nix develop</h3>\n<ul>\n<li><code>shell.nix</code> 编写</li>\n<li><code>flake.nix</code> 的 <code>devShells</code> output</li>\n<li>与 <code>direnv</code> 集成（<code>use flake</code> / <code>use nix</code>）</li>\n</ul>\n<h3 id=\"section-17\">5.2 语言生态</h3>\n<ul>\n<li>Python：<code>python3.withPackages</code>、uv 与 nix 的边界问题</li>\n<li>Rust：<code>fenix</code> / <code>rust-overlay</code></li>\n<li>C/C++：<code>pkgs.mkShell</code> + <code>stdenv</code></li>\n</ul>\n<p><strong>资料：</strong></p>\n<ul>\n<li><a href=\"https://nix.dev/tutorials/dev-environment\" target=\"_blank\" rel=\"noopener noreferrer\">nix.dev: Dev Environments</a></li>\n<li><a href=\"https://github.com/nix-community/nix-direnv\" target=\"_blank\" rel=\"noopener noreferrer\">nix-direnv (GitHub)</a></li>\n<li><a href=\"https://github.com/nix-community/fenix\" target=\"_blank\" rel=\"noopener noreferrer\">nix-community/fenix</a> — Rust toolchain</li>\n</ul>\n<h2 id=\"section-18\">模块六：进阶主题（按需）</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">主题</th>\n<th scope=\"col\">简介</th>\n<th scope=\"col\">资料</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>NixOS Modules 系统</td>\n<td>如何写自己的 module</td>\n<td><a href=\"https://nixos.org/manual/nixos/stable/#sec-writing-modules\" target=\"_blank\" rel=\"noopener noreferrer\">Module System deep dive</a></td>\n</tr>\n<tr>\n<td>Cross-compilation</td>\n<td>交叉编译嵌入式目标</td>\n<td><a href=\"https://nixos.org/manual/nixpkgs/stable/#chap-cross\" target=\"_blank\" rel=\"noopener noreferrer\">Nixpkgs Cross Manual</a></td>\n</tr>\n<tr>\n<td>Hydra / CI</td>\n<td>Nix 原生 CI 系统</td>\n<td><a href=\"https://hydra.nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">Hydra Docs</a></td>\n</tr>\n<tr>\n<td>NixOS on ARM / 嵌入式</td>\n<td>RPi, STM32 sysroot</td>\n<td><a href=\"https://github.com/nix-community/nixos-hardware\" target=\"_blank\" rel=\"noopener noreferrer\">nix-community/nixos-hardware</a></td>\n</tr>\n<tr>\n<td>Secrets 管理</td>\n<td>agenix / sops-nix</td>\n<td><a href=\"https://github.com/ryantm/agenix\" target=\"_blank\" rel=\"noopener noreferrer\">agenix</a> / <a href=\"https://github.com/Mic92/sops-nix\" target=\"_blank\" rel=\"noopener noreferrer\">sops-nix</a></td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-19\">推荐学习顺序</h2>\n<pre><code>模块一 → 模块二 → 模块三（Flakes）\n                ↓\n           模块四（Home Manager）\n                ↓\n           模块五（Dev Env）\n                ↓\n        模块六（按项目需求选）</code></pre>\n<h2 id=\"section-20\">综合资源</h2>\n<ul>\n<li><a href=\"https://zero-to-nix.com/\" target=\"_blank\" rel=\"noopener noreferrer\">zero-to-nix.com</a> — 最友好的入门站点</li>\n<li><a href=\"https://nix.dev/\" target=\"_blank\" rel=\"noopener noreferrer\">nix.dev</a> — Nix 官方教程与参考集合</li>\n<li><a href=\"https://github.com/NixOS/nixpkgs\" target=\"_blank\" rel=\"noopener noreferrer\">Nixpkgs GitHub</a> — 直接读源码学写法</li>\n<li><a href=\"https://github.com/nix-community/awesome-nix\" target=\"_blank\" rel=\"noopener noreferrer\">awesome-nix</a> — 社区资源汇总</li>\n<li><a href=\"https://discourse.nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Discourse</a> — 提问/找案例的最佳论坛</li>\n<li><a href=\"https://wiki.nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Wiki</a> — 比 ArchWiki 小但在成长</li>\n</ul>\n<h2 id=\"section-21\">学习中的验收边界</h2>\n<p>基础认知先连接 <code>/nix/store</code>、Nix 语言与系统配置；随后理解 Flake 输入锁定、Home Manager 用户边界，再按项目学习开发环境与 ARM、CI、交叉编译、Secrets。<code>build</code> 只构建，<code>test</code> 激活但不设启动默认，<code>boot</code> 设下次启动，<code>switch</code> 即时激活并设默认；这些阶段要分别验证。参考资源中的第三方教程与观点保留原链接，不能替代当前锁定版本的选项和源码。</p>\n",
+  "refs": [
+    [
+      "Nix 语言教程",
+      "https://nix.dev/tutorials/nix-language"
+    ],
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Home Manager 手册",
+      "https://nix-community.github.io/home-manager/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

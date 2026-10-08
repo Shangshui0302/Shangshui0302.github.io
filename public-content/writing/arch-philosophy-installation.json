@@ -1,0 +1,60 @@
+{
+  "slug": "arch-philosophy-installation",
+  "number": "055",
+  "category": "LINUX / SYSTEMS",
+  "title": "Arch Linux 的哲学与安装规划",
+  "deck": "从滚动更新、引导模式和存储规划理解安装前需要作出的选择。",
+  "sections": [
+    [
+      "section-01",
+      "Arch 哲学：简洁、现代与用户中心"
+    ],
+    [
+      "section-02",
+      "安装前置研究"
+    ],
+    [
+      "section-06",
+      "可选的 SSH 安装入口"
+    ],
+    [
+      "section-09",
+      "从引导环境建立基础系统"
+    ],
+    [
+      "section-12",
+      "常见问题"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">Arch 哲学：简洁、现代与用户中心</h2>\n<p>Arch Linux 的设计原则包含简洁性、现代性、实用主义、用户中心与多用途性。这里的简洁不是界面简陋，而是尽量避免不必要的修改和复杂抽象，让用户理解并控制系统。</p>\n<ul>\n<li><strong>简洁性</strong>：按需求选择工具。<code>systemd-boot</code>、<code>systemd-networkd</code> 可组成精简的系统，但 GRUB、NetworkManager 也都是合理选择。</li>\n<li><strong>现代性</strong>：滚动更新让新内核和用户空间特性较快进入仓库。UKI 与 Btrfs 是可选技术，并非默认安装要求。</li>\n<li><strong>用户中心</strong>：<code>archinstall</code> 能减少重复操作；手动安装更直接地展示分区、挂载、引导和系统配置之间的关系。二者都需要读懂将被应用的设置。</li>\n</ul>\n<h2 id=\"section-02\">安装前置研究</h2>\n<h3 id=\"section-03\">引导模式</h3>\n<p>若计划使用 <code>systemd-boot</code>、UKI 与 Secure Boot，应从 UEFI 模式启动安装镜像。Arch 也支持 BIOS 安装；只有本系列讨论的 UEFI 信任链方案依赖 UEFI。</p>\n<pre><code>ls /sys/firmware/efi/efivars</code></pre>\n<p>目录不存在可能表示当前安装环境以 BIOS/CSM 模式启动。</p>\n<h3 id=\"section-04\">ESP 空间</h3>\n<p>新建 EFI System Partition 时，可把 <strong>1 GiB</strong> 作为起点，再按内核数量、UKI、固件更新和双系统需求调整。UKI 大小随模块和 initramfs 内容变化，不宜保证固定为某个区间。已有 Windows ESP 不要直接重新格式化，先检查容量和其中的启动文件。</p>\n<h3 id=\"section-05\">存储与恢复</h3>\n<p>先决定是否使用 LUKS2、Btrfs 子卷、磁盘交换和休眠，再设计挂载布局。保存恢复介质、重要数据备份及加密恢复口令。手动安装和脚本安装都应先检查磁盘名称，安装器中的格式化确认会真正删除数据。</p>\n<h2 id=\"section-06\">可选的 SSH 安装入口</h2>\n<p>SSH 可以帮助在另一终端完成安装，但临时安装环境和正式系统的访问策略不同。不要在尚未验证普通用户登录前就禁用唯一可用的入口。</p>\n<h3 id=\"section-07\">生成密钥</h3>\n<pre><code>ssh-keygen -t ed25519 -C &quot;arch-install-key&quot;</code></pre>\n<p>Ed25519 是常用选择。RSA 使用足够密钥长度与现代 RSA-SHA2 签名时仍有适用场景，不能将旧 <code>ssh-rsa</code> 的 SHA-1 签名限制等同于禁止整个 RSA 算法。</p>\n<h3 id=\"section-08\">正式系统的访问配置</h3>\n<p>在 <code>/etc/ssh/sshd_config</code> 中可以采用：</p>\n<pre><code>PermitRootLogin no\nPasswordAuthentication no</code></pre>\n<p>应用前先验证公钥登录、sudo 权限和配置语法，并保留原会话。OpenSSH 默认算法会随版本更新，不复制带省略号的 <code>KexAlgorithms</code> 列表，也不为追求某个名称覆盖维护良好的默认组合。</p>\n<h2 id=\"section-09\">从引导环境建立基础系统</h2>\n<pre><code>graph TD\n    A[安装镜像] --&gt; B[选择是否使用 LUKS2]\n    B --&gt; C[文件系统和子卷布局]\n    C --&gt; D[pacstrap 基础包]\n    D --&gt; E[配置引导程序或 UKI]\n    E --&gt; F[验证恢复入口后配置 Secure Boot]</code></pre>\n<h3 id=\"section-10\">安装工具的选择</h3>\n<p><code>archinstall</code> 的界面和可选功能随版本变化，具体以现场版本和官方文档为准。自定义脚本可把时区、Locale、Sudoers 等固定步骤整理为 Heredoc，但磁盘选择、密钥注册和凭据不应盲目自动化。</p>\n<h3 id=\"section-11\">基础包示例</h3>\n<p>以下示例假设目标根分区及 ESP 已正确挂载到 <code>/mnt</code> 对应位置，且选用了 Btrfs。它只安装基础组件，不完成全部系统初始化：</p>\n<pre><code>pacstrap -K /mnt base linux linux-firmware sudo btrfs-progs sbctl networkmanager neovim</code></pre>\n<ul>\n<li><code>-K</code> 在目标中初始化空的 pacman 密钥环，不是复制安装环境的密钥环。</li>\n<li><code>btrfs-progs</code> 提供 Btrfs 管理工具；使用其他文件系统时调整。</li>\n<li><code>sbctl</code> 用于 Secure Boot 密钥及签名管理，仅在采用该方案时需要。</li>\n<li><code>networkmanager</code> 提供网络管理，安装后还需配置启动。</li>\n<li>按 CPU 类型选择 <code>intel-ucode</code> 或 <code>amd-ucode</code>；不靠微码包名称推断实际硬件。</li>\n</ul>\n<h2 id=\"section-12\">常见问题</h2>\n<h3 id=\"section-13\">GRUB 还是 systemd-boot？</h3>\n<p>GRUB 支持多种引导模式和复杂布局；systemd-boot 适合 UEFI、常规内核条目及 UKI。根据磁盘布局、双系统和快照引导需求选择。</p>\n<h3 id=\"section-14\">ESP 空间不足或输出路径不对？</h3>\n<p>检查实际挂载点、UKI 输出位置和空闲空间。<code>/efi</code>、<code>/boot</code> 或 <code>/boot/efi</code> 的选择必须和生成工具、引导程序配置一致。</p>\n",
+  "refs": [
+    [
+      "ArchWiki：Arch Linux",
+      "https://wiki.archlinux.org/title/Arch_Linux"
+    ],
+    [
+      "ArchWiki：Installation guide",
+      "https://wiki.archlinux.org/title/Installation_guide"
+    ],
+    [
+      "ArchWiki：EFI system partition",
+      "https://wiki.archlinux.org/title/EFI_system_partition"
+    ],
+    [
+      "pacstrap(8)",
+      "https://man.archlinux.org/man/pacstrap.8.en"
+    ],
+    [
+      "ArchWiki：OpenSSH",
+      "https://wiki.archlinux.org/title/OpenSSH"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux"
+  ]
+}

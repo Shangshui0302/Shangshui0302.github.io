@@ -1,0 +1,57 @@
+{
+  "slug": "arch-gnome-install",
+  "number": "064",
+  "category": "LINUX / SYSTEMS",
+  "title": "Arch Linux 与 Btrfs：手动安装和 archinstall",
+  "deck": "完整梳理 UEFI、Btrfs 子卷、基础系统、GRUB 和 archinstall 的安装流程。",
+  "sections": [
+    [
+      "section-01",
+      "操作前提"
+    ],
+    [
+      "section-02",
+      "安装系统"
+    ],
+    [
+      "section-31",
+      "官方核对入口"
+    ]
+  ],
+  "body": "<p>本文整理自 <a href=\"https://github.com/shorinkiwata/archlinuxinstall\" target=\"_blank\" rel=\"noopener noreferrer\">shorinkiwata/archlinuxinstall</a>，保留原教程的操作深度并进行匿名化与风险校正。安装包名、扩展、驱动和界面可能随滚动更新变化，以下命令均为阅读示例，没有在此任务中执行或验证。</p>\n<h2 id=\"section-01\">操作前提</h2>\n<p>本文展示的是 UEFI + Btrfs + GRUB 路径。先备份数据、确认磁盘及分区，区分新建 ESP 与已有双系统 ESP。<code>cfdisk</code> 写入分区表、<code>mkfs.*</code> 格式化均可能删除数据；只对明确允许重建的目标执行，不要格式化 Windows 的现有 ESP。所有 <code>/dev/*_partition</code> 或 <code>/dev/EXAMPLE_DISK</code> 都必须替换成现场确认的目标，不是可直接运行的设备名。</p>\n<p>交换文件大小 <code>4g</code> 只是示例。休眠要求目标交换空间能容纳当时的镜像，并正确配置恢复位置。Btrfs 活跃 swapfile 所在子卷不能创建普通快照，单独的 <code>@swap</code> 有助于分离这个限制。</p>\n<h2 id=\"section-02\">安装系统</h2>\n<h3 id=\"section-03\">手动安装</h3>\n<p>参考链接： <a href=\"https://arch.icekylin.online/\" target=\"_blank\" rel=\"noopener noreferrer\">archlinux 简明指南</a> <a href=\"https://wiki.archlinuxcn.org/wiki/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97\" target=\"_blank\" rel=\"noopener noreferrer\">安装指南 - Arch Linux 中文维基</a></p>\n<h3 id=\"section-04\">确认网络</h3>\n<pre><code>ip link 查看网络接口\nip a 查看网络连接信息\nping archlinux.org 确认网络正常\n</code></pre>\n<h3 id=\"section-05\">iwctl 连接 wifi</h3>\n<pre><code>iwctl\n</code></pre>\n<pre><code>station wlan0 connect &lt;WIFI_SSID&gt;\n</code></pre>\n<pre><code>exit\n</code></pre>\n<h3 id=\"section-06\">同步时间</h3>\n<pre><code>timedatectl set-ntp true\n</code></pre>\n<h3 id=\"section-07\">硬盘分区</h3>\n<pre><code>lsblk -p  查看当前分区情况\nfdisk -l 小写字母l，查看详细分区信息\n</code></pre>\n<pre><code>cfdisk /dev/EXAMPLE_DISK # 替换为已核对且允许重新分区的目标磁盘\n</code></pre>\n<p>新建 ESP 可从 1 GiB 开始规划，类型 EFI System；其余空间按需要划为 Linux filesystem。双系统已有 ESP 时先检查，不要重建或格式化它。</p>\n<h3 id=\"section-08\">格式化分区</h3>\n<p>检查挂载和分区号，格式化会删除该分区数据。双系统现有 ESP 只挂载，不格式化。</p>\n<pre><code>lsblk -p 查看分区情况\n</code></pre>\n<ul>\n<li>格式化 efi 启动分区</li>\n</ul>\n<pre><code>mkfs.fat -F 32 /dev/efi_system_partition # 仅新建且允许擦除的 ESP\n</code></pre>\n<ul>\n<li>格式化 btrfs 根分区</li>\n</ul>\n<pre><code>mkfs.btrfs /dev/root_partition\n</code></pre>\n<h3 id=\"section-09\">btrfs 子卷</h3>\n<ul>\n<li>挂载</li>\n</ul>\n<pre><code>mount -t btrfs -o compress=zstd /dev/root_partition /mnt\n</code></pre>\n<ul>\n<li>创建子卷</li>\n</ul>\n<pre><code>btrfs subvolume create /mnt/@\nbtrfs subvolume create /mnt/@home\nbtrfs subvolume create /mnt/@swap\n</code></pre>\n<ul>\n<li>确认</li>\n</ul>\n<pre><code>btrfs subvolume list -p /mnt\n</code></pre>\n<ul>\n<li>取消挂载</li>\n</ul>\n<pre><code>umount /mnt\n</code></pre>\n<h3 id=\"section-10\">挂载</h3>\n<pre><code>mount -t btrfs -o subvol=/@,compress=zstd /dev/root_partition /mnt #根目录\nmount --mkdir -t btrfs -o subvol=/@home,compress=zstd /dev/root_partition /mnt/home #/home目录\nmount --mkdir -t btrfs -o subvol=/@swap,compress=zstd /dev/root_partition /mnt/swap #/swap目录\nmount --mkdir /dev/efi_partition /mnt/boot #/boot目录\nmount --mkdir /dev/winefi_partition /mnt/winboot #windows的启动分区，为双系统引导做准备\n</code></pre>\n<pre><code>df -h 复查挂载情况\n</code></pre>\n<h3 id=\"section-11\">安装系统</h3>\n<pre><code>可选：下载速度慢的话\n\nvim /etc/pacman.d/mirrorlist\n\n拿出手机，浏览器搜索 archlinux中国镜像源，找一个镜像源添加\n</code></pre>\n<ul>\n<li>更新密钥</li>\n</ul>\n<pre><code>pacman -Syu archlinux-keyring\n</code></pre>\n<ul>\n<li>安装系统</li>\n</ul>\n<pre><code>pacstrap -K /mnt base base-devel linux linux-firmware btrfs-progs\n\n-K 在目标中初始化空的 pacman 密钥环（隐含 -G）\nbase-devel是编译其他软件的时候用的\nlinux是内核，可以更换\nlinux-firmware是固件\nbtrfs-progs是btrfs文件系统的管理工具\n</code></pre>\n<ul>\n<li>安装必要的功能性软件</li>\n</ul>\n<pre><code>pacstrap /mnt networkmanager vim sudo amd-ucode\n\nnetworkmanager 是联网用的\nvim 是文本编辑器\nsudo 和权限管理有关\namd-ucode 是微码，用来修复和优化cpu\n</code></pre>\n<h3 id=\"section-12\">设置 swap 参考链接：Swap - ArchWiki</h3>\n<p>创建 swap 文件</p>\n<pre><code>btrfs filesystem mkswapfile --size 4g --uuid clear /mnt/swap/swapfile\n</code></pre>\n<p>启动 swap</p>\n<pre><code>swapon /mnt/swap/swapfile\n</code></pre>\n<h3 id=\"section-13\">生成 fstab 文件</h3>\n<pre><code>genfstab -U /mnt &gt; /mnt/etc/fstab\n</code></pre>\n<h3 id=\"section-14\">change root</h3>\n<pre><code>arch-chroot /mnt\n</code></pre>\n<h3 id=\"section-15\">主机名</h3>\n<p>在 <code>/etc/hostname</code> 写入自选主机名，例如 <code>workstation</code>，避免把个人设备名嵌入公开配置。</p>\n<h3 id=\"section-16\">设置时间和时区</h3>\n<pre><code>ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime\n</code></pre>\n<pre><code>hwclock --systohc\n</code></pre>\n<h3 id=\"section-17\">本地化设置</h3>\n<pre><code>vim /etc/locale.gen\n\n取消en_US.UTF-8 UTF-8的注释\n</code></pre>\n<pre><code>locale-gen\n</code></pre>\n<pre><code>vim /etc/locale.conf\n写入 LANG=en_US.UTF-8\n</code></pre>\n<h3 id=\"section-18\">设置 root 密码</h3>\n<pre><code>passwd\n</code></pre>\n<h3 id=\"section-19\">安装引导程序</h3>\n<pre><code>pacman -S grub efibootmgr os-prober\n\nefibootmgr 管理uefi启动项\nos-prober 用来搜索win11\n</code></pre>\n<pre><code>grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ARCH\n</code></pre>\n<ul>\n<li>编辑 grub 的源文件</li>\n</ul>\n<pre><code>vim /etc/default/grub\n可按排障需要去掉 quiet 或调整 loglevel；不要把关闭 watchdog 和硬件模块黑名单当作安装必需参数。\n手动写入或者取消GRUB_DISABLE_OS_PROBER=false的注释\n</code></pre>\n<ul>\n<li>生成配置文件</li>\n</ul>\n<pre><code>grub-mkconfig -o /boot/grub/grub.cfg\n</code></pre>\n<h3 id=\"section-20\">完成安装</h3>\n<pre><code>exit # 退出 arch-chroot\numount -R /mnt # 确认无忙碌挂载\nreboot\n</code></pre>\n<h3 id=\"section-21\">启动网络</h3>\n<pre><code>systemctl enable --now NetworkManager\n</code></pre>\n<p>连接 wifi</p>\n<pre><code>nmcli dev wifi connect &lt;WIFI_SSID&gt; password &lt;WIFI_PASSWORD&gt;\n</code></pre>\n<h3 id=\"section-22\">可选的终端演示工具</h3>\n<pre><code>pacman -S fastfetch lolcat cmatrix\n</code></pre>\n<h3 id=\"section-23\">脚本安装</h3>\n<h3 id=\"section-24\">确认网络连接</h3>\n<ul>\n<li>ip a 查看网络连接</li>\n<li>ping 一个网址确认网络正常</li>\n<li>连接 wifi</li>\n</ul>\n<pre><code>iwctl #开启wifi连接\nstation wlan0 connect wifi名\n在跳出的条目内输入密码\nexit退出iwctl\n</code></pre>\n<ul>\n<li>ping 一个网址确认网络正常</li>\n</ul>\n<h3 id=\"section-25\">更新 archinstall</h3>\n<ul>\n<li>更新 archlinux-keyring</li>\n</ul>\n<pre><code>pacman -Syu archlinux-keyring\n</code></pre>\n<ul>\n<li>更新 archinstall</li>\n</ul>\n<pre><code>pacman -S archinstall\n</code></pre>\n<ul>\n<li>archinstall 开启安装脚本（脚本内上下左右移动光标，回车选中，tab 给括号打勾，/ 左斜杠搜索）</li>\n</ul>\n<h3 id=\"section-26\">设置镜像源</h3>\n<ul>\n<li>mirror 选自己所在地区或国家，也可以不手动选，在 optional repositories 里开启 32 位源（multilib）玩游戏或者运行 windows 程序需要 32 位支持</li>\n</ul>\n<h3 id=\"section-27\">磁盘分区 disk configuration</h3>\n<h3 id=\"section-28\">启动分区</h3>\n<p>wiki 推荐是 1GB，所以填入 1024MB，类型 fat32,挂载点是/boot</p>\n<h3 id=\"section-29\">swap 交换空间</h3>\n<p>交换空间不必须等于 RAM；需要休眠时按实际镜像大小和可靠恢复测试规划。\nswap 与虚拟内存和休眠有关，可以创建 swap 分区或者 swap 文件，二选一，前者配置更简单，后者配置稍复杂，但是更加灵活。\nswap 分区\n创建一个和内存大小相同的硬盘分区，类型选择 swap\nswap 文件\n将所有剩余空间分到一个分区，类型选择 btrfs,设置 compress（透明压缩,可以节省磁盘空间），添加 sub volume。</p>\n<ul>\n<li>@ 对应 /</li>\n<li>@home 对应 /home</li>\n<li>@swap 对应 /swap 交换文件的创建方法：<a href=\"https://wiki.archlinux.org/title/Swap\" target=\"_blank\" rel=\"noopener noreferrer\">Swap - ArchWiki</a></li>\n</ul>\n<pre><code>btrfs filesystem mkswapfile --size 4g --uuid clear /swap/swapfile\n</code></pre>\n<pre><code>swapon /swap/swapfile\n</code></pre>\n<pre><code>vim /etc/fstab\n写入\n/swap/swapfile none swap defaults 0 0\n</code></pre>\n<h3 id=\"section-30\">其他</h3>\n<ul>\n<li>bootloader 选择 grub，因为主流发行版用的都是 grub,配置简单，遇到问题时网上帖子多</li>\n<li>设置 root 密码</li>\n<li>设置普通用户，添加管理员权限</li>\n<li>profile 可以预装桌面环境，有需要的自行选择，选择桌面之后还可以选择安装显卡驱动</li>\n<li>内核（kernel）根据硬件和负载选择；linux 与 linux-zen 都应验证功耗、响应和驱动兼容性</li>\n<li>networ configuration 选择第三项 networkmanager，因为主流桌面环境默认与这个集成</li>\n<li>additional pakages 里面选 vim 和 os-prober, zen 内核的话这里再选个 linux-zen-headers</li>\n<li>设置时区</li>\n</ul>\n<h2 id=\"section-31\">官方核对入口</h2>\n<p><a href=\"https://wiki.archlinux.org/title/Installation_guide\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Installation guide</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/EFI_system_partition\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：EFI system partition</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/Btrfs\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Btrfs</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/GRUB\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：GRUB</a>。</p>\n<p><a href=\"https://man.archlinux.org/man/pacstrap.8.en\" target=\"_blank\" rel=\"noopener noreferrer\">pacstrap(8)</a>。</p>\n",
+  "refs": [
+    [
+      "原教程：shorinkiwata/archlinuxinstall",
+      "https://github.com/shorinkiwata/archlinuxinstall"
+    ],
+    [
+      "ArchWiki：Installation guide",
+      "https://wiki.archlinux.org/title/Installation_guide"
+    ],
+    [
+      "ArchWiki：EFI system partition",
+      "https://wiki.archlinux.org/title/EFI_system_partition"
+    ],
+    [
+      "ArchWiki：Btrfs",
+      "https://wiki.archlinux.org/title/Btrfs"
+    ],
+    [
+      "ArchWiki：GRUB",
+      "https://wiki.archlinux.org/title/GRUB"
+    ],
+    [
+      "pacstrap(8)",
+      "https://man.archlinux.org/man/pacstrap.8.en"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "gnome"
+  ]
+}

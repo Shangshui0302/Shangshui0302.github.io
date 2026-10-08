@@ -1,0 +1,53 @@
+{
+  "slug": "nix-functions-scopes",
+  "number": "022",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Nix 函数与作用域",
+  "deck": "辨认 let、inherit、with 和函数参数中每个变量的来源。",
+  "sections": [
+    [
+      "section-01",
+      "变量定义：let ... in"
+    ],
+    [
+      "section-02",
+      "简写魔法：inherit"
+    ],
+    [
+      "section-03",
+      "危险警告：with pkgs;"
+    ],
+    [
+      "section-04",
+      "函数与参数解析"
+    ],
+    [
+      "section-05",
+      "实战技巧：嵌套作用域"
+    ],
+    [
+      "section-06",
+      "通过 ++ 运算符可以合并两个列表。"
+    ]
+  ],
+  "body": "<blockquote>\n<p>&quot;看懂 Nix 代码的关键在于：知道这个变量是从哪来的。&quot;</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">变量定义：let ... in</h2>\n<p>这是最常用的局部变量定义方式。</p>\n<pre><code>let\n  myUser = &quot;alice&quot;;\n  myShell = pkgs.zsh;\nin {\n  users.users.${myUser} = {\n    shell = myShell;\n  };\n}</code></pre>\n<ul>\n<li><strong>规则</strong>：<code>let</code> 绑定在各绑定值及 <code>in</code> 后表达式中可见，因此绑定可相互引用；不会泄露到表达式外。</li>\n</ul>\n<hr>\n<h2 id=\"section-02\">简写魔法：inherit</h2>\n<p>当你想把一个同名变量赋值给一个属性时，可以使用 <code>inherit</code>。</p>\n<p><strong>常规写法：</strong></p>\n<pre><code>{\n  git = pkgs.git;\n  vim = pkgs.vim;\n}</code></pre>\n<p><strong>使用 <code>inherit</code> 简写：</strong></p>\n<pre><code>{\n  inherit (pkgs) git vim;\n}</code></pre>\n<p>这在 <code>flake.nix</code> 和模块配置中极其常见。</p>\n<hr>\n<h2 id=\"section-03\">危险警告：with pkgs;</h2>\n<p><code>with set; body</code> 给 body 增加属性查找范围；已有词法绑定优先，不会把属性变成普通 let 绑定。</p>\n<pre><code>with pkgs; [ git vim htop ]</code></pre>\n<ul>\n<li><strong>风险</strong>：容易造成变量名冲突，且难以调试（不知道某个变量到底是来自 <code>pkgs</code> 还是全局作用域）。</li>\n<li><strong>建议</strong>：在列表 <code>[ ... ]</code> 里使用没问题，但在大的配置块里尽量少用。</li>\n</ul>\n<hr>\n<h2 id=\"section-04\">函数与参数解析</h2>\n<p>Nix 文件的顶层通常是一个匿名函数：</p>\n<pre><code>{ config, pkgs, lib, ... }: {\n  # 配置内容\n}</code></pre>\n<ul>\n<li><strong><code>...</code> (Ellipsis)</strong>：表示该函数接受更多参数，但我现在不需要它们（防止参数不匹配导致的报错）。</li>\n<li><strong>解构赋值</strong>：你可以直接在花括号里指定你需要的参数名。</li>\n</ul>\n<hr>\n<h2 id=\"section-05\">实战技巧：嵌套作用域</h2>\n<pre><code>let\n  commonPkgs = with pkgs; [ git vim ];\nin {\n  environment.systemPackages = commonPkgs ++ (let extra = [ pkgs.htop ]; in extra);\n}</code></pre>\n<h2 id=\"section-06\">通过 ++ 运算符可以合并两个列表。</h2>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "nix-language"
+  ]
+}

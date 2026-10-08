@@ -1,0 +1,92 @@
+{
+  "slug": "nixos-system-home-management",
+  "number": "016",
+  "category": "LINUX / SYSTEMS",
+  "title": "用 Flake 与 Home Manager 管理系统",
+  "deck": "把依赖入口、系统模块、用户配置和项目开发环境分清职责。",
+  "sections": [
+    [
+      "section-01",
+      "核心概念速览"
+    ],
+    [
+      "section-02",
+      "Nix 语言基础"
+    ],
+    [
+      "section-07",
+      "flake.nix 详解"
+    ],
+    [
+      "section-10",
+      "configuration.nix 详解"
+    ],
+    [
+      "section-12",
+      "home.nix 详解"
+    ],
+    [
+      "section-13",
+      "系统级 vs 用户级 边界"
+    ],
+    [
+      "section-15",
+      "模块系统"
+    ],
+    [
+      "section-16",
+      "推荐目录结构"
+    ],
+    [
+      "section-17",
+      "常用命令速查"
+    ],
+    [
+      "section-18",
+      "Per-project Dev Shell 模板"
+    ],
+    [
+      "section-19",
+      "调试技巧"
+    ],
+    [
+      "section-20",
+      "参考资源"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">核心概念速览</h2>\n<p>NixOS 的配置由三个层次组成，理解它们的关系是一切的基础：</p>\n<pre><code>flake.nix          ← nix 命令直接读取，声明依赖，组装系统\n    └── configuration.nix   ← 系统级配置（需要 sudo）\n    └── home.nix            ← 用户级配置（home-manager 管理）</code></pre>\n<hr>\n<h2 id=\"section-02\">Nix 语言基础</h2>\n<p>Nix 文件本质是<strong>一个返回值的表达式</strong>，最常见的返回值是 attribute set（键值对集合）。</p>\n<h3 id=\"section-03\">Attribute Set（键值对集合）</h3>\n<pre><code>{\n  name = &quot;Alice&quot;;\n  age = 25;\n  nested = {\n    key = &quot;value&quot;;\n  };\n}</code></pre>\n<h3 id=\"section-04\">函数</h3>\n<pre><code># 基本形式：参数: 返回值\nx: x + 1\n\n# 解构 attribute set 作为参数\n{ name, age }: &quot;Hello, ${name}, you are ${age}&quot;\n\n# 带默认值\n{ name, age ? 0 }: &quot;Hello ${name}&quot;\n\n# 捕获整个参数集合（@语法）\n{ name, ... }@args: args</code></pre>\n<h3 id=\"section-05\">常用语法糖</h3>\n<pre><code># with 语句：展开 attribute set，避免重复前缀\nwith pkgs; [ git neovim curl ]\n# 等价于\n[ pkgs.git pkgs.neovim pkgs.curl ]\n\n# inherit：继承上层作用域的变量\n{ inherit inputs pkgs; }\n# 等价于\n{ inputs = inputs; pkgs = pkgs; }\n\n# let...in：局部变量\nlet\n  myVar = &quot;hello&quot;;\nin\n&quot;${myVar} world&quot;\n\n# 字符串插值\n&quot;Hello ${name}, you are on ${config.networking.hostName}&quot;</code></pre>\n<h3 id=\"section-06\">列表</h3>\n<pre><code>[ &quot;item1&quot; &quot;item2&quot; pkgs.git ]</code></pre>\n<hr>\n<h2 id=\"section-07\">flake.nix 详解</h2>\n<p><code>flake.nix</code> 不是函数，是一个有固定 schema 的 attribute set。Nix 工具认识这个结构，类似 npm 和 <code>package.json</code> 的关系。</p>\n<pre><code>{\n  description = &quot;My NixOS config&quot;;   # 可选，描述信息\n\n  inputs = {\n    # 声明外部依赖；默认作为 flake 处理，也可用 flake = false 引入普通源码\n    nixpkgs.url = &quot;github:nixos/nixpkgs/nixos-unstable&quot;;\n\n    home-manager = {\n      url = &quot;github:nix-community/home-manager&quot;;\n      inputs.nixpkgs.follows = &quot;nixpkgs&quot;;  # 让 HM 用同一份 nixpkgs，避免重复下载\n    };\n  };\n\n  # outputs 的值是函数，参数是所有 inputs 求值后的结果\n  outputs = { self, nixpkgs, home-manager, ... }@inputs: {\n\n    # nixosConfigurations 是约定的 key，nixos-rebuild 会来这里找\n    nixosConfigurations.&quot;workstation&quot; = nixpkgs.lib.nixosSystem {\n      system = &quot;x86_64-linux&quot;;\n\n      # specialArgs 把额外变量传递给所有子模块\n      specialArgs = { inherit inputs; };\n\n      modules = [\n        ./configuration.nix\n        home-manager.nixosModules.home-manager\n        {\n          home-manager.useGlobalPkgs = true;\n          home-manager.useUserPackages = true;\n          home-manager.users.alice = import ./home.nix;\n          home-manager.extraSpecialArgs = { inherit inputs; };\n        }\n      ];\n    };\n  };\n}</code></pre>\n<h3 id=\"section-08\">inputs.X.follows 的作用</h3>\n<pre><code>home-manager.inputs.nixpkgs.follows = &quot;nixpkgs&quot;;</code></pre>\n<p>让 Home Manager 的 nixpkgs input 指向系统的同一锁定节点，减少重复输入。不同输入可能产生不同依赖集合，但并非必然下载两份或不兼容；Home Manager 分支也需要与系统版本匹配。</p>\n<h3 id=\"section-09\">flake.lock</h3>\n<p>自动生成，记录每个 input 的精确 git commit hash。<strong>不要手动编辑</strong>。</p>\n<ul>\n<li><code>nix flake update</code> → 更新所有 inputs</li>\n<li><code>nix flake update nixpkgs</code> → 只更新 nixpkgs</li>\n</ul>\n<hr>\n<h2 id=\"section-10\">configuration.nix 详解</h2>\n<p>系统级配置，配置整台机器。修改后需要 <code>sudo nixos-rebuild switch</code>。</p>\n<pre><code># 这是一个函数，参数由 NixOS 模块系统传入\n{ config, lib, pkgs, inputs, ... }:\n\n{\n  imports = [\n    ./hardware-configuration.nix   # 硬件配置，自动生成的\n    ./modules/audio.nix            # 可以拆分成子模块\n  ];\n\n  # ── Boot ──────────────────────────────\n  boot.loader.systemd-boot.enable = true;\n  boot.loader.efi.canTouchEfiVariables = true;\n\n  # ── Network ───────────────────────────\n  networking.hostName = &quot;workstation&quot;;\n  networking.networkmanager.enable = true;\n\n  # ── System packages ───────────────────\n  environment.systemPackages = with pkgs; [\n    wget curl git neovim\n  ];\n\n  # ── Users ─────────────────────────────\n  # 本例把用户包统一交给 home.nix，用户身份和组由系统管理\n  users.users.alice = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; &quot;networkmanager&quot; &quot;video&quot; ];\n  };\n\n  # ── 不要改这个值 ──────────────────────\n  system.stateVersion = &quot;25.11&quot;;\n}</code></pre>\n<h3 id=\"section-11\">传入参数说明</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">参数</th>\n<th scope=\"col\">含义</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>pkgs</code></td>\n<td>nixpkgs 里所有包的集合</td>\n</tr>\n<tr>\n<td><code>config</code></td>\n<td>当前系统配置（可以引用其他选项）</td>\n</tr>\n<tr>\n<td><code>lib</code></td>\n<td>nixpkgs 工具函数库</td>\n</tr>\n<tr>\n<td><code>inputs</code></td>\n<td>flake inputs（需要 specialArgs 传入）</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-12\">home.nix 详解</h2>\n<p>用户级配置，由 home-manager 管理。配置的是某个用户的家目录、dotfiles、用户软件。</p>\n<pre><code>{ config, pkgs, inputs, ... }:\n\n{\n  imports = [\n    ./modules/shell.nix\n    ./modules/dev.nix\n    inputs.some-flake.homeModules.default   # 接口示意，须在 inputs 中定义并按该项目实际输出替换\n  ];\n\n  # ── 必填 ──────────────────────────────\n  home.username = &quot;alice&quot;;\n  home.homeDirectory = &quot;/home/alice&quot;;\n  home.stateVersion = &quot;25.11&quot;;   # 不要随意改\n\n  # ── 用户软件 ──────────────────────────\n  home.packages = with pkgs; [\n    htop btop obsidian\n    ghostty kitty\n  ];\n\n  # ── 程序配置（带 dotfile 管理）─────────\n  programs.git = {\n    enable = true;\n    settings = {\n      user.name = &quot;Example User&quot;;\n      user.email = &quot;user@example.com&quot;;\n      init.defaultBranch = &quot;main&quot;;\n    };\n  };\n\n  programs.zsh = {\n    enable = true;\n    autosuggestion.enable = true;\n    syntaxHighlighting.enable = true;\n  };\n\n  programs.home-manager.enable = true;\n}</code></pre>\n<hr>\n<h2 id=\"section-13\">系统级 vs 用户级 边界</h2>\n<blockquote>\n<p>判断依据：这个东西是&quot;机器&quot;需要的，还是&quot;用户&quot;需要的？</p>\n</blockquote>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">放 <code>configuration.nix</code></th>\n<th scope=\"col\">放 <code>home.nix</code></th>\n</tr>\n</thead>\n<tbody><tr>\n<td>内核模块、驱动</td>\n<td>终端模拟器、编辑器</td>\n</tr>\n<tr>\n<td>系统服务（pipewire, bluetooth）</td>\n<td>shell 配置（zsh, bash）</td>\n</tr>\n<tr>\n<td>防火墙、网络</td>\n<td>dotfiles</td>\n</tr>\n<tr>\n<td>字体（系统级）</td>\n<td>用户软件包</td>\n</tr>\n<tr>\n<td><code>users.users.X</code>（账户及组）</td>\n<td><code>programs.git</code>, <code>programs.zsh</code> 等</td>\n</tr>\n<tr>\n<td>输入法框架（fcitx5）</td>\n<td>输入法个性配置</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-14\">统一包管理入口</h3>\n<pre><code># 有效的 NixOS 用户包选项，但在此组织方式中避免双入口\nusers.users.alice.packages = with pkgs; [ obsidian ];\n\n# 使用 Home Manager 时可统一放在 home.nix\nhome.packages = with pkgs; [ obsidian ];</code></pre>\n<hr>\n<h2 id=\"section-15\">模块系统</h2>\n<p>NixOS 和 home-manager 都使用同一套模块系统，理解它可以看懂任何配置。</p>\n<pre><code># 一个模块的完整结构\n{ config, lib, pkgs, ... }:\n\n{\n  # imports：引入其他模块\n  imports = [ ./other-module.nix ];\n\n  # options：声明这个模块提供的选项（写库/框架时用）\n  options.myModule.enable = lib.mkOption {\n    type = lib.types.bool;\n    default = false;\n  };\n\n  # config：实际配置（条件激活时常用）\n  config = lib.mkIf config.myModule.enable {\n    environment.systemPackages = [ pkgs.hello ];\n  };\n}</code></pre>\n<p>大多数时候你只需要写顶层的配置，不需要 <code>options</code> 和 <code>config</code> 包装。</p>\n<hr>\n<h2 id=\"section-16\">推荐目录结构</h2>\n<pre><code>/etc/nixos/\n├── flake.nix                  # 入口，声明依赖\n├── flake.lock                 # 自动生成，不要手动改\n├── hardware-configuration.nix # 自动生成\n├── configuration.nix          # 系统配置入口（精简，只 imports）\n├── modules/                   # 系统级子模块\n│   ├── locale.nix             # i18n / 时区 / 输入法\n│   ├── graphics.nix           # GPU / Hyprland / display\n│   ├── audio.nix              # pipewire / bluetooth\n│   ├── network.nix            # network / firewall\n│   └── nix-settings.nix      # substituters / nix-ld / flakes\n└── home/\n    ├── home.nix               # 用户配置入口\n    ├── packages.nix           # home.packages 列表\n    └── programs/\n        ├── shell.nix          # zsh/bash/starship/zoxide\n        ├── dev.nix            # git/zellij/direnv/neovim\n        └── desktop.nix        # foot/ghostty/主题</code></pre>\n<hr>\n<h2 id=\"section-17\">常用命令速查</h2>\n<p>更新锁文件和激活是两步；先审阅锁文件差异并构建，通过后再按需要执行 <code>test</code>、<code>boot</code> 或 <code>switch</code>。清理命令会移除回滚点。</p>\n<pre><code># 重建并切换到新配置\nsudo nixos-rebuild switch --flake /etc/nixos#workstation\n\n# 临时激活新配置（会切换运行系统，重启回到启动默认项）\nsudo nixos-rebuild test --flake /etc/nixos#workstation\n\n# 回滚到上一代\nsudo nixos-rebuild switch --rollback\n\n# 列出所有系统代\nnix-env --list-generations --profile /nix/var/nix/profiles/system\n\n# 更新所有 flake inputs\nsudo nix flake update --flake /etc/nixos\n\n# 只更新某一个 input\nsudo nix flake update nixpkgs --flake /etc/nixos\n\n# 清理旧代（释放磁盘）\nsudo nix-collect-garbage -d\n\n# 查找包\nnix search nixpkgs firefox\n\n# 临时试用一个包（不安装）\nnix shell nixpkgs#ripgrep\n\n# 进入 devshell\nnix develop</code></pre>\n<hr>\n<h2 id=\"section-18\">Per-project Dev Shell 模板</h2>\n<blockquote>\n<p>用 Nix 提供项目工具和系统依赖；是否叠加 Python venv/uv 取决于项目，mkShell 本身不提供容器式进程隔离。</p>\n</blockquote>\n<pre><code># 放在项目根目录的 flake.nix\n{\n  inputs.nixpkgs.url = &quot;github:nixos/nixpkgs/nixos-unstable&quot;;\n\n  outputs = { nixpkgs, ... }:\n  let\n    pkgs = nixpkgs.legacyPackages.x86_64-linux;\n  in {\n    devShells.x86_64-linux.default = pkgs.mkShell {\n      packages = with pkgs; [\n        # Python 科学计算（让 nix 管，不要 pip 装）\n        (python3.withPackages (ps: [\n          ps.numpy ps.matplotlib ps.scipy\n        ]))\n        uv   # 只用来管理纯 Python 包，不碰系统包\n      ];\n\n      shellHook = &#39;&#39;\n        echo &quot;Dev shell ready&quot;\n      &#39;&#39;;\n    };\n  };\n}</code></pre>\n<pre><code># 进入项目 dev shell\ncd my-project\nnix develop\n\n# 也可以用 direnv 自动激活（需要 programs.direnv.enable = true）\necho &quot;use flake&quot; &gt; .envrc\ndirenv allow</code></pre>\n<hr>\n<h2 id=\"section-19\">调试技巧</h2>\n<p>依赖追踪需要两个 store 路径，第二个路径必须对应当前系统中实际使用的包版本；registry 的 nixpkgs 未必等于系统锁定输入。<code>nix fmt</code> 还要求 Flake 定义相应 formatter。</p>\n<pre><code># 查看某个选项的文档\nnixos-option services.pipewire.enable\n\n# 查看某个包在哪里\nnix eval nixpkgs#git.outPath\n\n# 为什么某个包被引入（依赖追踪）\nnix why-depends /run/current-system &quot;$(nix eval --raw nixpkgs#gcc.outPath)&quot;\n\n# 检查 flake 结构\nnix flake show /etc/nixos\n\n# 格式化 nix 文件\nnix fmt</code></pre>\n<hr>\n<h2 id=\"section-20\">参考资源</h2>\n<ul>\n<li><a href=\"https://search.nixos.org/options\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 选项搜索</a></li>\n<li><a href=\"https://search.nixos.org/packages\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 包搜索</a></li>\n<li><a href=\"https://nix-community.github.io/home-manager/options.xhtml\" target=\"_blank\" rel=\"noopener noreferrer\">Home Manager 选项</a></li>\n<li><a href=\"https://nix.dev/tutorials/nix-language\" target=\"_blank\" rel=\"noopener noreferrer\">Nix 语言教程</a></li>\n<li><a href=\"https://wiki.nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Wiki</a></li>\n<li><a href=\"https://nixos-and-flakes.thiscute.world/\" target=\"_blank\" rel=\"noopener noreferrer\">Flakes 非官方指南</a>（中文友好）</li>\n</ul>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ],
+    [
+      "Home Manager 手册",
+      "https://nix-community.github.io/home-manager/"
+    ],
+    [
+      "Nix：flake update",
+      "https://nix.dev/manual/nix/stable/command-ref/new-cli/nix3-flake-update.html"
+    ],
+    [
+      "NixOS 与 Flakes 中文指南（原笔记引用）",
+      "https://nixos-and-flakes.thiscute.world/"
+    ],
+    [
+      "Home Manager Git 模块",
+      "https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

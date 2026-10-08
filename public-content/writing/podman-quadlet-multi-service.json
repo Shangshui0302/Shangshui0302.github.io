@@ -1,0 +1,52 @@
+{
+  "slug": "podman-quadlet-multi-service",
+  "number": "123",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Quadlet 的 Pod 与多服务配置",
+  "deck": "补充 Pod、数据库、API 和代理资源的完整依赖模板。",
+  "sections": [
+    [
+      "section-01",
+      "环境变量与敏感信息"
+    ],
+    [
+      "section-03",
+      ".pod 文件：Pod 声明式定义"
+    ],
+    [
+      "section-04",
+      "多容器应用：数据库、API 与代理"
+    ],
+    [
+      "section-12",
+      "模板的前置条件与边界"
+    ]
+  ],
+  "body": "<p>先阅读 <a href=\"/writing/quadlet-service-lifecycle/\">Quadlet 服务生命周期</a>，了解生成、加载、启动、日志、持久化与开机条件。本篇保留 Pod 和完整多服务配置的深入示例。</p>\n<h2 id=\"section-01\">环境变量与敏感信息</h2>\n<pre><code>[Container]\nImage=docker.io/library/mariadb:11\nContainerName=mariadb\n\nEnvironmentFile=%h/.config/private/mariadb.env\nEnvironment=MYSQL_DATABASE=myapp\nEnvironment=MYSQL_USER=user\n# 每行一个环境变量，等于 podman run -e KEY=VALUE\n\n# 安全做法：从文件加载敏感信息\n# 受限文件提供 MYSQL_ROOT_PASSWORD 与 MYSQL_PASSWORD，避免明文写进资源源文件\n# %h = 用户家目录</code></pre>\n<h3 id=\"section-02\">网络与端口</h3>\n<pre><code>[Container]\nImage=docker.io/library/nginx:alpine\n\n# 映射到宿主机指定 IP（只本机可访问）\nPublishPort=127.0.0.1:8080:80\n\n# 替代示例：省略宿主IP会发布所有接口，需要明确的访问与防火墙政策\n# PublishPort=8080:80\n\n# 加入自定义网络\nNetwork=mynet.network\n\n# 或加入 Pod\nPod=myapp.pod</code></pre>\n<hr>\n<h2 id=\"section-03\">.pod 文件：Pod 声明式定义</h2>\n<p><code>~/.config/containers/systemd/myapp.pod</code>：</p>\n<pre><code>[Pod]\nPodName=myapp\nPublishPort=127.0.0.1:8080:80\n# Pod 暴露的端口，里面所有容器共享</code></pre>\n<p><code>.container</code> 文件中引用 Pod：</p>\n<pre><code>[Container]\nImage=docker.io/library/nginx:alpine\nContainerName=web\nPod=myapp.pod\n# 这个容器加入 myapp Pod，共享网络</code></pre>\n<hr>\n<h2 id=\"section-04\">多容器应用：数据库、API 与代理</h2>\n<p>以 Nginx 反向代理 + Python API + PostgreSQL 为例。</p>\n<h3 id=\"section-05\">文件结构</h3>\n<pre><code>~/.config/containers/systemd/\n├── appnet.network       # 共享网络\n├── pgdata.volume        # PostgreSQL 数据卷\n├── app-pg.container     # PostgreSQL 容器\n├── app-api.container    # Python API 容器\n└── app-web.container    # Nginx 反向代理</code></pre>\n<h3 id=\"section-06\">appnet.network</h3>\n<pre><code>[Network]\nDriver=bridge</code></pre>\n<h3 id=\"section-07\">pgdata.volume</h3>\n<pre><code>[Volume]</code></pre>\n<h3 id=\"section-08\">app-pg.container</h3>\n<pre><code>[Unit]\nDescription=App PostgreSQL\n# After= 和 Requires= 是 systemd 依赖声明\n# After=   → 启动顺序（xx 先启动）\n# Requires= → 强依赖（xx 启动失败则本服务不会启动）\n\n[Container]\nContainerName=app-pg\nImage=docker.io/library/postgres:16-alpine\nNetwork=appnet.network\nVolume=pgdata.volume:/var/lib/postgresql/data:Z\n\nEnvironmentFile=%h/.config/private/postgres.env\nEnvironment=POSTGRES_DB=appdb\n\n# 健康检查：用 pg_isready 确认数据库就绪\nHealthCmd=pg_isready -U postgres || exit 1\nNotify=healthy\nHealthInterval=10s\nHealthStartPeriod=30s\n# HealthStartPeriod — 早期失败通常不计入重试阈值，不是完全停止检查\n\n[Service]\nRestart=on-failure\n# on-failure — 只在异常退出时重启（exit code ≠ 0 时）\n\n[Install]\nWantedBy=default.target</code></pre>\n<h3 id=\"section-09\">app-api.container</h3>\n<pre><code>[Unit]\nDescription=App API Server\nAfter=app-pg.service\nRequires=app-pg.service\n# After 只按 unit 状态排序；这里配合 PG 的 Notify=healthy 等待有效检查\n# Requires 与 After 组合拉起依赖并约束启动失败；不等于持续应用健康依赖\n\n[Container]\nContainerName=app-api\nImage=registry.example.com/demo/myapi:latest\nNetwork=appnet.network\nPublishPort=127.0.0.1:3000:3000\n\nEnvironmentFile=%h/.config/private/api.env\n# 文件中提供与数据库匹配的 DATABASE_URL；示例主机字段为 app-pg\n# 用容器名 app-pg 连接 PG，因为它们在同一个自定义网络中\n\nHealthCmd=curl -f http://localhost:3000/health || exit 1\nHealthInterval=15s\n\n[Service]\nRestart=on-failure\n\n[Install]\nWantedBy=default.target</code></pre>\n<h3 id=\"section-10\">app-web.container</h3>\n<pre><code>[Unit]\nDescription=App Nginx Proxy\nAfter=app-api.service\nRequires=app-api.service\n\n[Container]\nContainerName=app-web\nImage=docker.io/library/nginx:alpine\nNetwork=appnet.network\nPublishPort=127.0.0.1:8080:80\n\nVolume=%h/.config/nginx/app.conf:/etc/nginx/conf.d/default.conf:ro,Z\n# %h = 用户家目录，ro = 只读挂载\n\n[Service]\nRestart=on-failure\n\n[Install]\nWantedBy=default.target</code></pre>\n<h3 id=\"section-11\">部署</h3>\n<pre><code># 把所有文件放入目录\nls ~/.config/containers/systemd/\n\n# 一键加载并启动\nsystemctl --user daemon-reload\nsystemctl --user start app-web   # 启动最外层\n# systemd 自动按依赖顺序：先启动 PG → 再 API → 最后 Nginx\n\n# 各源文件通过 [Install] 声明目标关联；未登录启动另需管理员linger政策\n# 不 enable 生成 unit；各源文件 [Install] 的 WantedBy 由 generator 处理\n\n# 查看整体状态\nsystemctl --user status app-pg app-api app-web</code></pre>\n<hr>\n<h2 id=\"section-12\">模板的前置条件与边界</h2>\n<p>这些代码块分别表示独立文件；镜像 <code>registry.example.com/demo/myapi:latest</code> 是需替换的无效示例，API 镜像必须提供 curl、健康端点与数据库连接重试。Nginx 配置文件需要自行准备，将 upstream 指向 app-api:3000；示例没有把未定义的应用称为可直接部署成品。EnvironmentFile 需存在、权限受限，且只按应用格式存放变量，不进入 git/Nix store；环境变量本身也可被有权限的进程检查者读取。</p>\n<p><code>.volume</code> 引用提供独立数据生命周期，<code>.network</code> 提供名称解析；SELinux 的 Z 仅对专用目录使用。Pod 文件可用于需要共享 localhost 的容器，不应与已有 bridge 多服务方案机械混搭；同 Pod 端口共用且可能冲突。<code>HealthCmd</code> 在容器内执行，<code>Notify=healthy</code> 需要所安装版本支持；应用就绪与持续健康恢复需分别设计。</p>\n<p>自动更新、linger、generator 检查与撤销服务流程统一见生命周期文章；不要对生成的 service 执行 enable。</p>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "Quadlet 官方语法",
+      "https://docs.podman.io/en/stable/markdown/podman-systemd.unit.5.html"
+    ],
+    [
+      "Quadlet 容器健康与通知",
+      "https://docs.podman.io/en/stable/markdown/podman-container.unit.5.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers"
+  ]
+}

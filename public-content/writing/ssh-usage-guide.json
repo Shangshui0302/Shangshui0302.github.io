@@ -1,0 +1,56 @@
+{
+  "slug": "ssh-usage-guide",
+  "number": "047",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "SSH 使用指南：命令行操作",
+  "deck": "生成与管理密钥，解析客户端配置并调试认证过程。",
+  "sections": [
+    [
+      "section-01",
+      "ssh-keygen：生成与查看密钥"
+    ],
+    [
+      "section-02",
+      "ssh-add：操作 agent 里的密钥"
+    ],
+    [
+      "section-03",
+      "连接与调试"
+    ],
+    [
+      "section-04",
+      "客户端配置：GitHub 与通用开发机"
+    ],
+    [
+      "section-05",
+      "相关"
+    ]
+  ],
+  "body": "<blockquote>\n<p>本文针对 OpenSSH 的常见客户端接口；可用选项以所安装版本的手册为准。用户配置通常在 <code>~/.ssh/</code>。</p>\n</blockquote>\n<h2 id=\"section-01\">ssh-keygen：生成与查看密钥</h2>\n<pre><code># 生成 ed25519 密钥对（-t 类型 / -C 注释 / -f 输出路径）\nssh-keygen -t ed25519 -C &quot;user@workstation&quot; -f ~/.ssh/id_ed25519\n\n# 查看公钥指纹（-l 指纹 / -E sha256 指定哈希 / -lf 对文件）\nssh-keygen -lf ~/.ssh/id_ed25519.pub\n\n# 查看私钥对应的公钥（-y：读私钥输出公钥）\nssh-keygen -y -f ~/.ssh/id_ed25519\n\n# 加 / 改 passphrase（-p；会先问旧密码，改/加用这个）\nssh-keygen -p -f ~/.ssh/id_ed25519</code></pre>\n<blockquote>\n<p>生成时的 passphrase 提示\n生成新 key 时 <code>ssh-keygen</code> 会问 <code>Enter passphrase</code>——直接回车 = 无锁裸钥，输入 = 加锁。建议输入。</p>\n</blockquote>\n<h2 id=\"section-02\">ssh-add：操作 agent 里的密钥</h2>\n<pre><code>ssh-add -l                        # 列出 agent 已加载的 key（含指纹）\nssh-add ~/.ssh/id_ed25519         # 把某个私钥加进 agent\nssh-add -d ~/.ssh/id_ed25519      # 移除某把\nssh-add -D                        # 清空 agent（全部移除）</code></pre>\n<p>先确认 <code>SSH_AUTH_SOCK</code> 指向可用 agent，再用 <code>ssh-add -l</code> 检查已加载密钥。桌面可能提供 gcr 等集成；自动加载不是所有会话的保证。</p>\n<h2 id=\"section-03\">连接与调试</h2>\n<pre><code># 测试 GitHub 连接（-T 禁止分配伪终端；GitHub 不提供 shell；正常返回 &quot;Hi &lt;用户&gt;!&quot;）\nssh -T git@github.com\n\n# 试解析配置（-G：显示某个 Host 生效的配置项，验证 config 写没写对）\nssh -G github.com\n\n# 调试连接（-v 详细 / -vv 更详细，看认证过程）\nssh -v git@github.com\n\n# 指定私钥连接（-i）\nssh -i ~/.ssh/id_ed25519 user@server.example.com</code></pre>\n<blockquote>\n<p>判断「加没加锁」的实测方法\n<code>ssh-keygen -y -f ~/.ssh/id_ed25519</code> —— 能直接输出公钥 = 裸钥；卡住要输密码 = 已加锁。</p>\n</blockquote>\n<h2 id=\"section-04\">客户端配置：GitHub 与通用开发机</h2>\n<p><strong><code>~/.ssh/config</code></strong>：</p>\n<blockquote>\n<p>windows 的 config 在 $HOME.ssh/config</p>\n</blockquote>\n<pre><code>Host github.com\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/id_ed25519\n    IdentitiesOnly yes                # 限制为配置身份，而非 agent 中所有身份\n\nHost dev-server\n    HostName server.example.com       # 替换为已核对的服务器地址\n    User user                         # 替换为远端账户\n\nHost *\n    IdentityFile ~/.ssh/id_ed25519    # 默认私钥；多个 IdentityFile 会累积\n    AddKeysToAgent yes                # 已有 agent 时自动添加从文件加载的密钥\n    ServerAliveInterval 60            # 协议保活；不保证网络永不掉线\n    StrictHostKeyChecking ask         # 新主机先核对指纹再确认</code></pre>\n<p><strong>日常流程</strong>：</p>\n<pre><code># git push/pull（远端使用 GitHub SSH URL 时走相应 Host 配置）\ngit push origin main\n\n# 通用开发机（先配置实际地址与账户并核对主机指纹）\nssh dev-server</code></pre>\n<blockquote>\n<p>config 权限\n<code>chmod 600 ~/.ssh/config</code> 是常见保守设置，并非唯一允许值。用户配置必须遵守 OpenSSH 的所有者与写权限要求；不合规可能直接报错。对由声明式配置管理的文件，应在配置源中处理权限。</p>\n</blockquote>\n<h2 id=\"section-05\">相关</h2>\n<ul>\n<li>概念：<a href=\"/writing/ssh-authentication-model/\">SSH 认证体系</a></li>\n<li>agent 与 passphrase → <a href=\"/writing/ssh-agent-keyring/\">ssh-agent、passphrase 与 keyring</a></li>\n<li>参考：<a href=\"https://man.openbsd.org/ssh-keygen\" target=\"_blank\" rel=\"noopener noreferrer\">ssh-keygen man</a> | <a href=\"https://man.openbsd.org/ssh_config\" target=\"_blank\" rel=\"noopener noreferrer\">ssh config man</a></li>\n</ul>\n<p>具体 Host 块放在通用默认块之前，因为多数配置项采用首先取得的值；<code>IdentityFile</code> 等允许多值的项会累积。GitHub 认证成功时会提示不提供 shell，并通常退出码为 1，因此不能仅凭非零退出码判为认证失败。首次连接先与官方指纹或可信控制台核对；主机密钥发生变化时，先查明原因，不要直接禁用校验。</p>\n",
+  "refs": [
+    [
+      "OpenSSH ssh 手册",
+      "https://man.openbsd.org/ssh"
+    ],
+    [
+      "OpenSSH ssh_config 手册",
+      "https://man.openbsd.org/ssh_config"
+    ],
+    [
+      "OpenSSH ssh-keygen 手册",
+      "https://man.openbsd.org/ssh-keygen"
+    ],
+    [
+      "GitHub SSH 连接测试",
+      "https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "ssh"
+  ]
+}

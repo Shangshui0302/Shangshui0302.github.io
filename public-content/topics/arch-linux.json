@@ -1,0 +1,38 @@
+{
+  "slug": "arch-linux",
+  "title": "Arch Linux",
+  "deck": "从安装与引导到包管理、快照、安全和 GNOME 桌面的实践路线。",
+  "description": "Arch 的用户中心原则要求把系统选择变成自己理解的配置。本专题按系统基座、治理与存储、安全维护、桌面与应用逐层展开，保留手动安装和完整桌面流程，也说明 UKI、TPM、Btrfs 回滚及第三方来源的限制。",
+  "articles": [
+    "arch-philosophy-installation",
+    "arch-kernel-uki",
+    "arch-package-aur",
+    "arch-btrfs-snapper",
+    "arch-security-hardening",
+    "arch-performance-maintenance",
+    "arch-pacman-commands",
+    "arch-pacman-download",
+    "arch-informant-hook",
+    "arch-gnome-install",
+    "arch-gnome-desktop",
+    "arch-gnome-laptop-theme",
+    "arch-gnome-virtualization-games",
+    "arch-gnome-maintenance"
+  ],
+  "reading_guide": [
+    "先明确 Arch 的设计原则、UEFI 与存储选择，再决定手动安装或安装器路线。",
+    "理解 UKI 生成、引导发现和签名链，把实际启动验证与生成成功分开。",
+    "掌握 Hook 和 AUR 审核，区分 clean build、clean chroot 和安全沙盒。",
+    "在做快照前确定子卷边界、挂载方式与可用恢复路径。",
+    "按威胁模型组合加密、Secure Boot、TPM 与运行期访问控制。",
+    "建立更新、pacnew、缓存、日志和电源管理的例行检查。",
+    "先掌握 S/Q/R/U 的语法，再使用高级参数和孤儿查询。",
+    "先排查网络及镜像状态，再调整并行下载与 Reflector 参数。",
+    "了解 informant 何时阻止事务，并明确已读状态与完成新闻要求的区别。",
+    "从安装环境开始逐步检查分区、子卷、pacstrap、fstab 和 GRUB。",
+    "基础系统能启动后，按显卡和会话选择桌面、音频及输入法方案。",
+    "先验证显卡切换、休眠和电源策略，再调整主题与终端。",
+    "先建立普通虚拟机，再研究 IOMMU 直通；游戏方案按架构和兼容性选择。",
+    "需要换内核或删除系统时，先检查备用启动与备份，再处理交换和分区。"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "slug": "nix-attribute-merging",
+  "number": "023",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Nix 属性集：递归与合并",
+  "deck": "区分语言层浅合并和 NixOS 模块选项的合并规则。",
+  "sections": [
+    [
+      "section-01",
+      "递归属性集：rec { ... }"
+    ],
+    [
+      "section-02",
+      "属性合并的真相"
+    ],
+    [
+      "section-05",
+      "点符号路径 (Dotted Path)"
+    ],
+    [
+      "section-06",
+      "实战案例：动态属性名"
+    ]
+  ],
+  "body": "<blockquote>\n<p>&quot;Nix 配置的精髓：如何在复杂的层级中找到正确的合并点。&quot;</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">递归属性集：rec { ... }</h2>\n<p>普通属性集不会把自身属性加入词法作用域。要按属性名相互引用，可以使用 <code>rec</code>，也可以先在 <code>let</code> 中定义共同绑定；外层有同名变量时普通属性集引用的是外层变量。</p>\n<p><strong>错误：</strong></p>\n<pre><code>{\n  a = 1;\n  b = a + 1; # 报错：变量 a 找不到\n}</code></pre>\n<p><strong>正确：</strong></p>\n<pre><code>rec {\n  a = 1;\n  b = a + 1; # 结果为 b = 2\n}</code></pre>\n<hr>\n<h2 id=\"section-02\">属性合并的真相</h2>\n<h3 id=\"section-03\">1. 使用 // (Merge)</h3>\n<p>这是 Nix 语言层面的合并。</p>\n<pre><code>let\n  defaults = { user = &quot;guest&quot;; shell = &quot;/bin/sh&quot;; };\n  overrides = { shell = &quot;/bin/bash&quot;; };\nin defaults // overrides\n# 结果：{ user = &quot;guest&quot;; shell = &quot;/bin/bash&quot;; }</code></pre>\n<ul>\n<li><strong>注意</strong>：<code>//</code> 是<strong>浅合并</strong>。如果两个 Set 里都有同名的嵌套 Set，后者会直接覆盖前者。</li>\n</ul>\n<h3 id=\"section-04\">2. 使用 lib.mkMerge (NixOS 模块专用)</h3>\n<p>在 NixOS 配置文件中，我们很少直接用 <code>//</code>。NixOS 模块系统会自动帮你合并配置：</p>\n<pre><code>{\n  environment.systemPackages = [ pkgs.git ];\n}\n# 另一个模块中：\n{\n  environment.systemPackages = [ pkgs.vim ];\n}\n# 结果：[ pkgs.git pkgs.vim ] （列表选项默认按模块规则合并；顺序可用 mkBefore/mkAfter 调整）</code></pre>\n<hr>\n<h2 id=\"section-05\">点符号路径 (Dotted Path)</h2>\n<p>为了减少 nesting，可以使用点符号直接定义深层属性。</p>\n<p><strong>长写法：</strong></p>\n<pre><code>{\n  services = {\n    openssh = {\n      enable = true;\n    };\n  };\n}</code></pre>\n<p><strong>简洁写法：</strong></p>\n<pre><code>{\n  services.openssh.enable = true;\n}</code></pre>\n<hr>\n<h2 id=\"section-06\">实战案例：动态属性名</h2>\n<p>通过 <code>${...}</code> 可以动态生成属性名。</p>\n<pre><code>let\n  username = &quot;alice&quot;;\nin {\n  users.users.&quot;${username}&quot; = {\n    isNormalUser = true;\n  };\n}</code></pre>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "nix-language"
+  ]
+}

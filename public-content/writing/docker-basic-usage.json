@@ -1,0 +1,72 @@
+{
+  "slug": "docker-basic-usage",
+  "number": "111",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Docker 命令行：镜像、容器、卷与网络",
+  "deck": "逐项认识常用参数，并分清运行、停止和删除的影响。",
+  "sections": [
+    [
+      "section-01",
+      "安装 Docker"
+    ],
+    [
+      "section-04",
+      "镜像操作"
+    ],
+    [
+      "section-08",
+      "容器操作"
+    ],
+    [
+      "section-13",
+      "卷（Volume）"
+    ],
+    [
+      "section-16",
+      "网络（Network）"
+    ],
+    [
+      "section-17",
+      "日常维护"
+    ],
+    [
+      "section-18",
+      "Docker 命令 vs Podman 命令"
+    ],
+    [
+      "section-19",
+      "执行与数据边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>从零开始使用 Docker。每个命令都解释清楚参数含义，每一步都有预期结果。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">安装 Docker</h2>\n<h3 id=\"section-02\">Linux（发行版包示例）</h3>\n<p>以下保留发行版包管理命令，包名和来源随发行版版本变化，不保证提供 Docker 官方仓库的最新版本；安装前查对应发行版与 Docker Engine 安装文档。加入 rootful <code>docker</code> 组意味着授予近似 root 的控制权限。NixOS 不使用这些安装命令。</p>\n<pre><code># Ubuntu / Debian\nsudo apt update\nsudo apt install -y docker.io docker-compose-v2\nsudo systemctl enable --now docker\nsudo usermod -aG docker $USER\n# ↑ 把自己加入 docker 组（重新登录后生效），此后不用 sudo\n\n# Fedora\nsudo dnf install docker docker-compose\nsudo systemctl enable --now docker\nsudo usermod -aG docker $USER\n\n# Arch\nsudo pacman -S docker docker-compose\nsudo systemctl enable --now docker\nsudo usermod -aG docker $USER</code></pre>\n<p>安装后验证：</p>\n<pre><code>docker version        # 显示客户端和服务端版本\ndocker info           # 显示系统信息（存储驱动、内核版本等）\ndocker run hello-world # 跑一个测试容器</code></pre>\n<p><strong>NixOS 用户</strong>：见 <a href=\"/writing/docker-nixos-management/\">第七篇 NixOS 管理实践</a>。</p>\n<h3 id=\"section-03\">Docker Desktop（跨平台 GUI）</h3>\n<p>从 <a href=\"https://docker.com/\" target=\"_blank\" rel=\"noopener noreferrer\">docker.com</a> 下载安装。自带 GUI、K8s 集成、文件共享等。<strong>注意</strong>：许可不仅按员工数判断，年营收及使用场景也有关；按 Docker Desktop 当前条款核实。Linux Desktop 使用自己的 VM/context，不与宿主 Engine 自动共享镜像库。</p>\n<hr>\n<h2 id=\"section-04\">镜像操作</h2>\n<h3 id=\"section-05\">搜索与拉取</h3>\n<pre><code># 搜索 Docker Hub 上的镜像\ndocker search nginx\n# 输出：NAME（镜像名） DESCRIPTION STARS OFFICIAL\n# OFFICIAL = [OK] 表示 Docker Official Images 项目收录，非所有镜像均由 Docker 公司直接维护\n\n# 从 Docker Hub 拉取镜像\ndocker pull nginx:alpine\n#           │     └─ 标签（版本），alpine = 基于 Alpine Linux 的精简版\n#           └────── 镜像名，不写仓库默认从 docker.io 拉\n\n# 拉取指定版本\ndocker pull python:3.12-slim\ndocker pull node:20-bookworm\n\n# 一次性拉取 + 运行（本地没有时会自动拉）\ndocker run nginx:alpine</code></pre>\n<h3 id=\"section-06\">查看与管理镜像</h3>\n<pre><code># 列出本机所有镜像\ndocker images\n# 或 docker image ls\n# 输出列：REPOSITORY（来源） TAG IMAGE ID CREATED SIZE\n\n# 查看镜像各层信息\ndocker history nginx:alpine\n# 显示镜像历史元数据；不保证逐行还原原始 Dockerfile\n\n# 查看镜像详细 JSON（环境变量、入口命令、暴露端口等）\ndocker inspect nginx:alpine\n\n# 删除镜像\ndocker rmi nginx:alpine\n\n# 删除所有未使用镜像（释放空间）\ndocker image prune -a\n# -a 包括未使用的镜像；不加 -a 只删标签 &lt;none&gt; 的悬空镜像</code></pre>\n<h3 id=\"section-07\">给镜像打标签</h3>\n<pre><code># 为本地镜像添加标签\ndocker tag myapp:latest myapp:1.0\n# 两个标签指向同一镜像，不占额外空间\n\n# 为推送到私有仓库做准备\ndocker tag myapp:latest registry.example.com/myapp:1.0\ndocker push registry.example.com/myapp:1.0</code></pre>\n<hr>\n<h2 id=\"section-08\">容器操作</h2>\n<h3 id=\"section-09\">运行容器</h3>\n<pre><code># 最简运行（前台，Ctrl+C 停止）\ndocker run nginx:alpine\n\n# 后台运行 + 命名 + 端口\ndocker run -d --name myweb -p 8080:80 nginx:alpine\n#         └┘ └───────┘ └───────┘\n#    detach   容器名  宿主机:容器\n#    (后台)\n\n# 运行后自动删除（一次性任务，退出后删除容器；镜像、命名卷和日志/外部副作用仍可能存在）\ndocker run --rm alpine echo &quot;hello&quot;\n\n# 交互式（进入容器内 shell）\ndocker run -it ubuntu bash\n#         └┘└┘\n#   interactive  分配虚拟终端\n\n# 指定重启策略\ndocker run -d --restart=always --name web nginx:alpine\n# --restart=always   容器退出时总是自动重启\n# --restart=on-failure:3  只在异常退出时重启，最多 3 次\n# --restart=unless-stopped  除非手动 stop，否则一直重启</code></pre>\n<h3 id=\"section-10\">常用 run 参数速查</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">参数</th>\n<th scope=\"col\">作用</th>\n<th scope=\"col\">示例</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>-d</code></td>\n<td>后台运行</td>\n<td><code>docker run -d ...</code></td>\n</tr>\n<tr>\n<td><code>--name</code></td>\n<td>命名容器</td>\n<td><code>--name myweb</code></td>\n</tr>\n<tr>\n<td><code>-p</code></td>\n<td>端口映射</td>\n<td><code>-p 8080:80</code></td>\n</tr>\n<tr>\n<td><code>-v</code></td>\n<td>挂载卷/目录</td>\n<td><code>-v myvol:/data</code> 或 <code>-v /host/path:/container/path</code></td>\n</tr>\n<tr>\n<td><code>--rm</code></td>\n<td>退出自动删除</td>\n<td><code>--rm</code></td>\n</tr>\n<tr>\n<td><code>-e</code></td>\n<td>环境变量</td>\n<td><code>-e DB_URL=postgres://...</code></td>\n</tr>\n<tr>\n<td><code>--env-file</code></td>\n<td>从文件加载环境变量</td>\n<td><code>--env-file .env</code></td>\n</tr>\n<tr>\n<td><code>-it</code></td>\n<td>交互 + 终端</td>\n<td><code>-it</code></td>\n</tr>\n<tr>\n<td><code>--restart</code></td>\n<td>重启策略</td>\n<td><code>--restart=always</code></td>\n</tr>\n<tr>\n<td><code>--memory</code></td>\n<td>内存限制</td>\n<td><code>--memory=256m</code></td>\n</tr>\n<tr>\n<td><code>--cpus</code></td>\n<td>CPU 限制</td>\n<td><code>--cpus=1.5</code></td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-11\">查看容器状态</h3>\n<pre><code># 正在运行的容器\ndocker ps\n# CONTAINER ID  IMAGE          COMMAND       STATUS        PORTS\n# abc123def...  nginx:alpine   &quot;nginx -g...&quot; Up 2 minutes  0.0.0.0:8080-&gt;80/tcp\n\n# 所有容器（含已停止）\ndocker ps -a\n\n# 查看容器日志\ndocker logs myweb           # 全部日志\ndocker logs -f myweb        # 实时跟踪（Ctrl+C 退出）\ndocker logs --tail 50 myweb # 最近 50 行\n\n# 查看容器内进程\ndocker top myweb\n\n# 查看容器资源使用（实时，类似 top）\ndocker stats myweb\n# 输出 CPU%、内存使用/限制、网络 I/O、磁盘 I/O\n\n# 查看容器详细信息\ndocker inspect myweb</code></pre>\n<h3 id=\"section-12\">管理容器生命周期</h3>\n<pre><code># 停止（发送 SIGTERM，等 10s 后再强杀）\ndocker stop myweb\n\n# 立即强杀（发送 SIGKILL）\ndocker kill myweb\n\n# 启动已存在的容器（不是新建）\ndocker start myweb\n\n# 重启\ndocker restart myweb\n\n# 暂停/恢复（暂停期间不消耗 CPU，不释放内存）\ndocker pause myweb\ndocker unpause myweb\n\n# 进入正在运行的容器\ndocker exec -it myweb sh\n#         └┘└┘ └───┘ └──┘\n#   交互 终端 容器名  命令\n# 如果容器里没有 bash，试试 sh\n\n# 以不同用户身份进入\ndocker exec -it -u root myweb sh\n\n# 删除已停止的容器\ndocker rm myweb\n\n# 强制删除（即使正在运行）\ndocker rm -f myweb\n\n# 清理所有已停止的容器\ndocker container prune</code></pre>\n<hr>\n<h2 id=\"section-13\">卷（Volume）</h2>\n<h3 id=\"section-14\">为什么需要卷</h3>\n<p>删除容器会移除可写层；命名卷、绑定挂载等独立数据按自己的生命周期保留。卷把数据存在宿主机上，可以在容器间共享和持久化。</p>\n<pre><code># 创建命名卷\ndocker volume create mydata\n\n# 列出卷\ndocker volume ls\n\n# 带卷启动容器\ndocker run -d --name db \\\n  -e POSTGRES_PASSWORD_FILE=/run/secrets/db_password \\\n  --mount type=bind,src=/path/to/protected-password-file,dst=/run/secrets/db_password,readonly \\\n  -v mydata:/var/lib/postgresql/data \\\n  postgres:16-alpine\n# └─┬─┘ └──────────┬──────────┘\n# 宿主机卷名   容器内路径\n\n# 绑定挂载（直接挂宿主机路径，开发常用）\ndocker run -v /home/alice/project:/app nginx:alpine\n#           └──────┬──────┘ └─┘\n#          宿主机绝对路径  容器内\n\n# 卷详情（存在哪、哪个容器在用）\ndocker volume inspect mydata\n\n# 当前 API 默认清理未被任何容器引用的匿名卷；--all 扩至命名卷，删除前确认数据\ndocker volume prune</code></pre>\n<h3 id=\"section-15\">两种挂载对比</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\"></th>\n<th scope=\"col\">命名卷 (Volume)</th>\n<th scope=\"col\">绑定挂载 (Bind Mount)</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>管理方式</strong></td>\n<td>Docker 管理</td>\n<td>你自己管理</td>\n</tr>\n<tr>\n<td><strong>路径</strong></td>\n<td><code>/var/lib/docker/volumes/...</code></td>\n<td>你指定的宿主机任意路径</td>\n</tr>\n<tr>\n<td><strong>初始内容</strong></td>\n<td>如果卷是空的，容器内的数据会复制进去</td>\n<td>覆盖容器内目录</td>\n</tr>\n<tr>\n<td><strong>适用场景</strong></td>\n<td>数据库、持久化数据</td>\n<td>开发时代码同步</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-16\">网络（Network）</h2>\n<pre><code># 列出网络\ndocker network ls\n# bridge（默认）、host、none\n\n# 创建自定义网络（同一网络中的容器可用容器名互访）\ndocker network create mynet\n\n# 在指定网络中运行容器\ndocker run -d --name web --network mynet nginx:alpine\ndocker run -d --name db --network mynet \\\n  -e POSTGRES_PASSWORD_FILE=/run/secrets/db_password \\\n  --mount type=bind,src=/path/to/protected-password-file,dst=/run/secrets/db_password,readonly \\\n  postgres:16-alpine\n\n# 在 web 容器中 ping db（通过容器名）\ndocker exec web ping db   # 镜像需有 ping；此为预期用途，网络策略和工具决定实际结果\n\n# 查看网络和接入的容器\ndocker network inspect mynet\n\n# 删除网络\ndocker network rm mynet</code></pre>\n<hr>\n<h2 id=\"section-17\">日常维护</h2>\n<pre><code># 查看磁盘占用\ndocker system df\n# TYPE        TOTAL  ACTIVE  SIZE     RECLAIMABLE\n# Images      5      2       1.2GB    800MB (66%)\n# Containers  3      1       50MB     30MB (60%)\n# Volumes     2      1       200MB    100MB (50%)\n\n# 删除停止容器、未用网络、未用镜像和构建缓存；--volumes 另清未用匿名卷\ndocker system prune -a --volumes\n# 确认无需停止容器的可写层及匿名卷，已有备份后才执行；命名卷不是此参数全部删除对象\n\n# 查看 Docker 事件流\ndocker events\n# 实时输出：容器创建、启动、停止、删除等事件</code></pre>\n<hr>\n<h2 id=\"section-18\">Docker 命令 vs Podman 命令</h2>\n<p>两个引擎的常用 CLI 相似，但并非完全等价。详细对比见 <a href=\"/writing/container-engine-relationship/\">Docker 与 Podman 关系篇</a>。</p>\n<pre><code># 大部分命令可以直接互换\ndocker run -d --name web -p 8080:80 nginx:alpine\npodman run -d --name web -p 8080:80 nginx:alpine\n\n# 主要差异：\n# docker 默认 rootful，podman 默认 rootless\n# docker compose（原生） vs podman-compose（社区）\n# docker swarm（Docker 独有） vs podman pod + play kube</code></pre>\n<hr>\n<h2 id=\"section-19\">执行与数据边界</h2>\n<p>所有 prune、rm 与 rmi 示例都需要先确认对象及备份。卷目录因 daemon 的 data-root、rootless 或 Desktop VM 而变，不能固定理解为宿主机 <code>/var/lib/docker</code>。默认端口发布通常面向全部宿主接口；本机开发可显式 <code>-p 127.0.0.1:8080:80</code>。停止信号与超时可配置，重启策略的手动停止和 daemon 重启语义需按策略核对。环境变量可能被有管理权限的人 inspect，不能作为秘密保险箱。</p>\n",
+  "refs": [
+    [
+      "Docker 命令参考",
+      "https://docs.docker.com/reference/cli/docker/"
+    ],
+    [
+      "System prune",
+      "https://docs.docker.com/reference/cli/docker/system/prune/"
+    ],
+    [
+      "Volume prune",
+      "https://docs.docker.com/reference/cli/docker/volume/prune/"
+    ],
+    [
+      "Docker 存储卷",
+      "https://docs.docker.com/engine/storage/volumes/"
+    ],
+    [
+      "Docker 安装",
+      "https://docs.docker.com/engine/install/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "containers",
+    "docker"
+  ]
+}

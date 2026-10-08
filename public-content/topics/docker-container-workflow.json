@@ -1,0 +1,28 @@
+{
+  "slug": "docker-container-workflow",
+  "title": "Docker：从容器运行到应用编排",
+  "deck": "沿镜像、构建、Compose、网络存储与生产运维读到 Swarm 和引擎选择。",
+  "description": "从 Client-Server 和 OCI 运行链路开始，掌握镜像、容器与持久化参数；再以 Dockerfile 和 Compose 组织应用。网络、存储、安全及 NixOS 模块说明运行边界，Swarm 解释多节点服务，最后与 Podman 对照兼容与权限。",
+  "articles": [
+    "docker-fundamentals",
+    "docker-basic-usage",
+    "docker-build",
+    "docker-compose",
+    "docker-networking-storage",
+    "docker-production",
+    "docker-nixos-management",
+    "docker-swarm",
+    "container-engine-relationship"
+  ],
+  "reading_guide": [
+    "先辨认 CLI 与 daemon 权限，别把普通用户调用 Docker 当成 rootless。",
+    "按对象生命周期阅读命令，执行删除前确认可写层、卷和镜像。",
+    "从上下文、入口与阶段关系检查缓存和产物，不把凭据写进层。",
+    "区分插值、注入、就绪与持续健康，检查 Compose 版本和 profile 行为。",
+    "明确端口暴露、网络模式、卷位置和真实备份一致性。",
+    "把限制、日志、健康、更新和数据恢复转为实际验收。",
+    "核对锁定 Nix 模块的 daemon.settings、凭据文件和共存选项。",
+    "先审查 legacy v3 格式及多节点存储，再判断集群调度能恢复什么。",
+    "按权限、API、构建和编排逐项比较，Docker/Podman 可共存但并非完全替换。"
+  ]
+}

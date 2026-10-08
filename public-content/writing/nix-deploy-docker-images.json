@@ -1,0 +1,73 @@
+{
+  "slug": "nix-deploy-docker-images",
+  "number": "071",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "用 dockerTools 构建与运行容器镜像",
+  "deck": "把应用 derivation、运行时 closure 和容器数据状态分开管理。",
+  "sections": [
+    [
+      "section-01",
+      "为什么用 Nix 构建 Docker 镜像？"
+    ],
+    [
+      "section-02",
+      "基础配置"
+    ],
+    [
+      "section-03",
+      "构建镜像"
+    ],
+    [
+      "section-04",
+      "运行容器"
+    ],
+    [
+      "section-05",
+      "构建运行 Web 服务的镜像"
+    ],
+    [
+      "section-06",
+      "多阶段构建"
+    ],
+    [
+      "section-07",
+      "分层镜像优化"
+    ],
+    [
+      "section-08",
+      "镜像瘦身技巧"
+    ],
+    [
+      "section-09",
+      "推送镜像到仓库"
+    ],
+    [
+      "section-10",
+      "实际应用示例"
+    ]
+  ],
+  "body": "<blockquote>\n<p>翻译自 nix.dev: <a href=\"https://nix.dev/tutorials/nixos/building-and-running-docker-images\" target=\"_blank\" rel=\"noopener noreferrer\">Building and running Docker images</a></p>\n</blockquote>\n<p>Nix 的 dockerTools 可以从软件包 closure 构建 Docker 镜像。它不要求容器运行 NixOS；大小、缓存和构建时间取决于实际依赖与分层策略。构建环境需要 Nix，加载和运行示例需要 Docker。</p>\n<h2 id=\"section-01\">为什么用 Nix 构建 Docker 镜像？</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">特性</th>\n<th scope=\"col\">Nix dockerTools</th>\n<th scope=\"col\">Dockerfile</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>镜像内容</td>\n<td>根据声明与运行时 closure 组织内容</td>\n<td>根据基础镜像和各条指令组织内容</td>\n</tr>\n<tr>\n<td>可复现性</td>\n<td>固定 nixpkgs、源代码和依赖可提高可复现性；不是所有构建天然位级相同</td>\n<td>固定基础镜像 digest、依赖和构建过程也能提高可复现性</td>\n</tr>\n<tr>\n<td>层缓存</td>\n<td>buildLayeredImage 自动组织依赖层，可调层数</td>\n<td>层结构主要由指令与多阶段构建设计决定</td>\n</tr>\n<tr>\n<td>安全更新</td>\n<td>更新输入并重新构建、加载和部署镜像</td>\n<td>更新基础镜像/依赖并重新构建和部署</td>\n</tr>\n</tbody></table></div>\n<p>更新 Nix 输入不会自动修补已运行容器。构建好的镜像与运行实例、数据卷、网络权限是不同层。以下 <code>import &lt;nixpkgs&gt;</code> 示例依赖当前搜索路径；实际项目应使用锁定的 nixpkgs。</p>\n<h2 id=\"section-02\">基础配置</h2>\n<p>创建一个 <code>docker-image.nix</code>：</p>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\npkgs.dockerTools.buildImage {\n  name = &quot;my-nixos-app&quot;;\n  tag = &quot;latest&quot;;\n  \n  copyToRoot = pkgs.buildEnv {\n    name = &quot;image-root&quot;;\n    paths = [ \n      pkgs.bash\n      pkgs.coreutils\n      pkgs.cowsay\n    ];\n    pathsToLink = [ &quot;/bin&quot; ];\n  };\n  \n  config = {\n    Cmd = [ &quot;/bin/cowsay&quot; &quot;Hello from NixOS!&quot; ];\n  };\n}</code></pre>\n<h2 id=\"section-03\">构建镜像</h2>\n<pre><code>nix-build docker-image.nix\n\ndocker load &lt; result</code></pre>\n<h2 id=\"section-04\">运行容器</h2>\n<pre><code>docker run my-nixos-app:latest</code></pre>\n<h2 id=\"section-05\">构建运行 Web 服务的镜像</h2>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\npkgs.dockerTools.buildImage {\n  name = &quot;nixos-web-server&quot;;\n  tag = &quot;latest&quot;;\n  copyToRoot = pkgs.buildEnv {\n    name = &quot;image-root&quot;;\n    paths = [ pkgs.nginx ];\n    pathsToLink = [ &quot;/bin&quot; ];\n  };\n  extraCommands = &quot;mkdir -p tmp&quot;;\n  # 明确提供配置；包内二进制不会自动拥有可写 /var 和 /etc/nginx\n  config = {\n    Cmd = [ &quot;${pkgs.nginx}/bin/nginx&quot; &quot;-c&quot; &quot;${pkgs.writeText &quot;nginx.conf&quot; &#39;&#39;\n      daemon off;\n      pid /tmp/nginx.pid;\n      error_log /dev/stderr;\n      events {}\n      http {\n        access_log /dev/stdout;\n        client_body_temp_path /tmp/client_body;\n        proxy_temp_path /tmp/proxy;\n        fastcgi_temp_path /tmp/fastcgi;\n        uwsgi_temp_path /tmp/uwsgi;\n        scgi_temp_path /tmp/scgi;\n        server { listen 80; location / { return 200 &quot;Nix container\\n&quot;; } }\n      }\n    &#39;&#39;}&quot; ];\n    ExposedPorts.&quot;80/tcp&quot; = {};\n  };\n}</code></pre>\n<p><code>ExposedPorts</code> 只是镜像元数据，不会自动发布宿主机端口。可用 <code>docker run --rm -p 127.0.0.1:8080:80 nixos-web-server:latest</code> 做本地验证。</p>\n<h2 id=\"section-06\">多阶段构建</h2>\n<p>在 Nix 中先构建应用 derivation，再把运行时产物放入镜像；编译器不会仅因为参与构建就被包含在运行镜像里。此 Go 例子需准备源代码并替换 vendorHash，不能直接复制运行。</p>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\nlet\n  # 构建应用\n  myApp = pkgs.buildGoModule {\n    pname = &quot;my-app&quot;;\n    version = &quot;1.0.0&quot;;\n    src = ./.; # 含 go.mod、go.sum 及主程序\n    vendorHash = pkgs.lib.fakeHash; # 用实际依赖 hash 替换；无依赖时按 builder 合约设 null\n  };\nin\npkgs.dockerTools.buildLayeredImage {\n  name = &quot;my-go-app&quot;;\n  tag = &quot;latest&quot;;\n  \n  contents = [ myApp pkgs.cacert ];\n  \n  config = {\n    Cmd = [ &quot;/bin/my-app&quot; ];\n  };\n}</code></pre>\n<h2 id=\"section-07\">分层镜像优化</h2>\n<p>使用 <code>buildLayeredImage</code> 可以创建更好的层缓存：</p>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\npkgs.dockerTools.buildLayeredImage {\n  name = &quot;layered-app&quot;;\n  tag = &quot;latest&quot;;\n  \n  # 基础层\n  contents = with pkgs; [\n    bash\n    coreutils\n    curl\n  ];\n  \n  # 应用层\n  extraCommands = &#39;&#39;\n    mkdir -p /app\n    cp ${./my-app} /app/\n  &#39;&#39;;\n  \n  config = {\n    Cmd = [ &quot;/app/my-app&quot; ];\n    WorkingDir = &quot;/app&quot;;\n  };\n}</code></pre>\n<h2 id=\"section-08\">镜像瘦身技巧</h2>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\npkgs.dockerTools.buildImage {\n  name = &quot;minimal-app&quot;;\n  tag = &quot;latest&quot;;\n  \n  # 使用 pkgsStatic 静态链接\n  copyToRoot = pkgs.buildEnv {\n    name = &quot;image-root&quot;;\n    paths = [ pkgs.pkgsStatic.hello ];\n    pathsToLink = [ &quot;/bin&quot; ];\n  };\n  \n  # 移除不必要的包\n  runAsRoot = &#39;&#39;\n    #!${pkgs.runtimeShell}\n    rm -rf /share/doc /share/man\n  &#39;&#39;;\n  \n  config = {\n    Cmd = [ &quot;/bin/hello&quot; ];\n  };\n}</code></pre>\n<h2 id=\"section-09\">推送镜像到仓库</h2>\n<pre><code># 加载镜像\ndocker load &lt; result\n\n# 打标签\ndocker tag my-nixos-app:latest registry.example.com/my-app:v1.0\n\n# 推送\ndocker push registry.example.com/my-app:v1.0</code></pre>\n<h2 id=\"section-10\">实际应用示例</h2>\n<h3 id=\"section-11\">数据库镜像</h3>\n<p>此例保留 PostgreSQL 14 的历史版本范围。数据库不仅需要二进制，还需要用户、数据目录所有权和首次初始化；镜像不应内置真实数据库或密码。先初始化独立命名卷，再运行服务。</p>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\npkgs.dockerTools.buildLayeredImage {\n  name = &quot;nixos-postgres&quot;;\n  tag = &quot;14&quot;;\n  \n  contents = [ pkgs.postgresql_14 ];\n  \n  extraCommands = &#39;&#39;\n    mkdir -p etc var/lib/postgresql/data tmp\n    echo &#39;postgres:x:999:999:PostgreSQL:/var/lib/postgresql:/bin/false&#39; &gt; etc/passwd\n    echo &#39;postgres:x:999:&#39; &gt; etc/group\n  &#39;&#39;;\n  fakeRootCommands = &#39;&#39;\n    chown -R 999:999 var/lib/postgresql\n  &#39;&#39;;\n  \n  config = {\n    User = &quot;999:999&quot;;\n    Cmd = [ &quot;/bin/postgres&quot; &quot;-D&quot; &quot;/var/lib/postgresql/data&quot; ];\n    Volumes.&quot;/var/lib/postgresql/data&quot; = {};\n    ExposedPorts = {\n      &quot;5432/tcp&quot; = {};\n    };\n    Env = [ &quot;PGDATA=/var/lib/postgresql/data&quot; ];\n  };\n}</code></pre>\n<hr>\n<p>初始化与运行步骤（空卷、仅本地验证）：</p>\n<pre><code>docker load &lt; result\ndocker volume create pg-example-data\ndocker run --rm --mount source=pg-example-data,target=/var/lib/postgresql/data \\\n  nixos-postgres:14 /bin/initdb -D /var/lib/postgresql/data\ndocker run --rm --mount source=pg-example-data,target=/var/lib/postgresql/data \\\n  nixos-postgres:14</code></pre>\n<p>不同容器引擎对新卷初始化和所有权的行为可能不同；先检查 UID 999 对卷是否可写。上例未开放网络访问。启用 TCP、发布端口和设置认证前，需单独声明 <code>listen_addresses</code> 与 <code>pg_hba.conf</code>，并通过运行时 secret 注入凭据。数据库升级还需遵循对应版本的备份与迁移流程。</p>\n",
+  "refs": [
+    [
+      "nix.dev 容器镜像教程",
+      "https://nix.dev/tutorials/nixos/building-and-running-docker-images"
+    ],
+    [
+      "Nixpkgs dockerTools 手册",
+      "https://nixos.org/manual/nixpkgs/stable/#sec-pkgs-dockerTools"
+    ],
+    [
+      "PostgreSQL initdb",
+      "https://www.postgresql.org/docs/14/app-initdb.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "linux",
+    "nixos",
+    "deployment"
+  ]
+}

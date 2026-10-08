@@ -1,0 +1,22 @@
+{
+  "slug": "nix-gnome-desktop",
+  "title": "NixOS 上的 GNOME 声明式桌面",
+  "deck": "从模块启用到用户设置和会话生命周期，明确每项桌面配置的负责层。",
+  "description": "专题从 GNOME/GDM 入口和模块分组出发，查阅服务与包列表，再处理 GSettings 默认、dconf 用户状态、扩展安装及 specialisation。最后用 kmscon/uwsm 的会话链理解图形桌面启动与 autostart；模块源码快照和运行时行为分别核对。",
+  "articles": [
+    "nix-gnome-declarative-management",
+    "nix-gnome-module-options",
+    "nix-gnome-gsettings-dconf",
+    "nix-gnome-diff-export-extensions",
+    "nix-gnome-specialisation",
+    "nix-gnome-wayland-session"
+  ],
+  "reading_guide": [
+    "先确定桌面、登录管理器、主题和输入法分别由哪个模块负责。",
+    "遇到删包或关服务需求时查选项表，并对照锁定 revision 的真实默认值。",
+    "先理解三层优先级，再决定是设置默认值还是 activation 写回。",
+    "用前后 diff 找变化，转换 schema/path 格式，再声明扩展包与 UUID。",
+    "理解父模块继承、mkForce 与独立 toplevel；切换前准备 base 恢复入口。",
+    "分别查 DRM、用户 target 和 autostart；用日志确认具体故障，不把症状当唯一根因。"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "slug": "kde-plasma6-migration",
+  "number": "054",
+  "category": "LINUX / SYSTEMS",
+  "title": "Plasma 6：从 X11 习惯迁移到 Wayland",
+  "deck": "保留原文配置与工具线索，明确旧版本故障、会话差异和插件兼容范围。",
+  "sections": [
+    [
+      "section-01",
+      "Wayland"
+    ],
+    [
+      "section-02",
+      "Qt 6 以及主题变化"
+    ],
+    [
+      "section-03",
+      "文件选择器"
+    ],
+    [
+      "section-04",
+      "窗口圆角和毛玻璃"
+    ],
+    [
+      "section-05",
+      "重启桌面"
+    ],
+    [
+      "section-06",
+      "夜间模式"
+    ],
+    [
+      "section-07",
+      "触控板手势"
+    ],
+    [
+      "section-08",
+      "Dock 和小组件"
+    ],
+    [
+      "section-09",
+      "原作者的截图"
+    ]
+  ],
+  "body": "<p>这是一篇有明确版本边界的剪藏整理，来源为風雪城的技术文章。保留其中的配置思路和工具线索，历史故障与绕过方案仅用于理解当时环境，不作为现在的通用安装建议。以下第一人称经验均指原作者；本站没有复现这些故障。</p>\n<h2 id=\"section-01\">Wayland</h2>\n<p>KDE 6 的默认图形环境变为了 Wayland，Wayland 的底层设计逻辑和 X11 大为不同，并且其权限管控很严格。<br>在此我简略列出几点我想到的、需要手动进行更改的不同点：<br>🆎 Fcitx 5 输入法的启用方式发生了变化，现在不需要再设置繁多的环境变量，只需要设定一个 <code>XMODIFIERS</code> 即可。具体设置请参阅 <a href=\"https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland#KDE_Plasma\" target=\"_blank\" rel=\"noopener noreferrer\">Fcitx 5 Wiki</a>。<br>但需要注意的是：这里的设置方法对部分运行在 XWayland 下的 X11 专有软件（比如 WPS Office 和一些 Wine 软件）的输入法无效，需要给它们单独设置 <code>QT_IM_MODULE</code> 等环境变量。<br>🔧 Wayland 协议本身不负责读取 Shell 配置。<code>.xprofile</code> 是否被加载取决于会话启动链；<code>environment.d</code> 面向 systemd 用户服务，也不是对所有已启动进程立即生效。先核对变量由哪一层导入，再选择该会话支持的入口。<br>🔧 包括 <code>xprop</code>、<code>xdotool</code> 以及 <code>wmctrl</code> 在内的很多管理窗口的实用程序都已经不再可用，现在需要使用 KWin 自带的脚本功能。如果有需求的话，还可以在脚本内使用 DBus 与外部程序沟通。<br>关于 KWin 脚本，请参阅以下文档：<br>📹 截图和录屏方式发生了变化。不过主流的截图工具（如 Spectacle、火焰截图）以及录屏工具（如 OBS Studio）都已经支持了 Wayland。但是 KDE 自带的屏幕取色器 KColorChooser 截至目前版本仍然无法正常使用，可以使用截图工具的取色功能解决。</p>\n<h2 id=\"section-02\">Qt 6 以及主题变化</h2>\n<p>KDE 6 基于 Qt 6 框架编写，所以 Kvantum 之类的主题工具都需要更换为 Qt 6 版本。<br>Arch Linux 官方软件仓库中的 <code>kvantum</code> 软件包会吃掉所有的毛玻璃效果，原作者当时安装了 AUR 的 <code>kvantum-git</code> 和 <code>kvantum-qt5-git</code> 两个软件包，这两个包安装后，Qt 6 和 Qt 5 软件的主题就都会正常生效。<br>另外，KDE 6 中对第三方图标主题的处理方式也发生了较大变化，比如 Plasma Shell 不再从 Plasma 主题中读取图标（你可能会发现任务栏托盘区的图标各种抽风）。如果图标主题的开发者没有及时适配，那你只能参考<a href=\"https://pointieststick.com/2023/08/12/how-all-this-icon-stuff-is-going-to-work-in-plasma-6/\" target=\"_blank\" rel=\"noopener noreferrer\">这篇 KDE 开发者的博客</a>自行适配解决了。</p>\n<h2 id=\"section-03\">文件选择器</h2>\n<p><strong>✳️ Qt6 和 XDG Desktop Portal</strong><br>如果遇到了 Qt 6 软件的文件选择器奇卡无比的问题，可以通过设置如下配置文件解决：<br>~/.config/systemd/user/plasma-xdg-desktop-portal-kde.service.d/override.conf</p>\n<pre><code>[Service]\nEnvironment=&quot;QT_QPA_PLATFORMTHEME=KDE&quot;</code></pre>\n<p>这是原文针对 Plasma 6.0.4 的 service override 示例，使用前确认实际 unit 名称与当前环境；先保存相关工作，再按用户服务管理流程加载配置。不要把历史 workaround 无条件加到所有环境。</p>\n<p>🪃 请注意：如果你之前参照过我 KDE 5 的那篇文章设置过<code>QT_QPA_PLATFORMTHEME</code> 变量和 <code>/usr/bin/killall xdg-desktop-portal-kde</code> 开机自启脚本，那么真的很抱歉，到了 KDE 6，这个配置踩了一个大坑。你需要把这两个配置全部删除。<br><strong>👣 GNOME / GTK</strong><br>在 Wayland 下，仍然可以使用 <code>GTK_USE_PORTAL</code> 来让 GTK 跟随 XDG Desktop Portal 文件选择器，但是一旦这样设置了，你的鼠标指针就会变成默认主题并且奇大无比。目前除了 Firefox 提供了<a href=\"https://blog.chyk.ink/2022/10/24/my-kde-tricks-and-optimizations/#%F0%9F%93%82-%E6%96%87%E4%BB%B6%E9%80%89%E6%8B%A9%E5%99%A8\" target=\"_blank\" rel=\"noopener noreferrer\">配置选项</a>之外，其它的大部分 GTK / Electron 软件都只能用 GTK 文件选择器了。</p>\n<h2 id=\"section-04\">窗口圆角和毛玻璃</h2>\n<p>窗口圆角插件 <a href=\"https://github.com/a-parhom/LightlyShaders\" target=\"_blank\" rel=\"noopener noreferrer\">LightlyShaders</a> 在 KDE 6 下仍然可用，编译安装 <code>plasma6</code> 分支即可。<br>为了给 Alacritty 之类本身并不支持 KDE 毛玻璃效果的窗口应用毛玻璃，在 KDE 5 时需要使用 Force Blur 脚本。这类基于 <code>xprop</code> 的脚本不能控制原生 Wayland 窗口。不过可以安装 <a href=\"https://github.com/taj-ny/kwin-effects-forceblur\" target=\"_blank\" rel=\"noopener noreferrer\">kwin-effects-forceblur</a> 解决，它直接魔改了 KDE 自带的<strong>窗口背景虚化</strong>特效，加入了给指定窗口强行应用毛玻璃的功能。<br>安装 kwin-effects-forceblur 后你必须 <strong>禁用</strong> KDE 自带的 <strong>窗口背景虚化</strong> 和 LightlyShaders 的 <strong>窗口背景虚化 (LightlyShaders)</strong> 。</p>\n<h2 id=\"section-05\">重启桌面</h2>\n<p>KDE 6 中可能仍然有什么东西在漏内存，用久了可能会发生严重卡顿，但 Wayland 下的窗口管理器和混成器是一体的，并且在重启窗口管理器后，非 Qt 6 的软件都会被杀掉。<br>原文转述称，各大框架已经在积极适配，但目前只有 Qt 6 适配良好，不会被杀掉。<br>原文记录 <code>qdbus org.kde.KWin /KWin replace</code>。Wayland 下合成器退出可能导致客户端断连和未保存内容丢失，不能保证 Qt6 应用全部幸存；日常恢复优先保存工作后正常注销。此处保留命令作为历史接口线索，不作为安全无损的快捷操作。</p>\n<h2 id=\"section-06\">夜间模式</h2>\n<p>如果使用自带的微风主题，那么 KDE 6 下的夜间模式体验特别良好。<br>如果使用第三方主题，可以使用<a href=\"https://github.com/oskarsh/Yin-Yang\" target=\"_blank\" rel=\"noopener noreferrer\">阴阳</a>切换夜间模式，或者参考<a href=\"https://github.com/chiyuki0325/KDEQuickSwitches/blob/main/switches/dark.py\" target=\"_blank\" rel=\"noopener noreferrer\">原作者的实现</a>自行编写脚本。</p>\n<h2 id=\"section-07\">触控板手势</h2>\n<p>KDE 6 中硬编码了几个触控板手势，正常无法修改。<br>可以打上原作者的 <a href=\"https://github.com/chiyuki0325/arch-packages/tree/main/kwin-without-gestures\" target=\"_blank\" rel=\"noopener noreferrer\">kwin-without-gestures</a> 补丁编译安装 KWin 以禁用掉 KDE 原本的手势，之后使用 libinput-gestures，touchegg 等工具设置自己的手势。至于使用哪款工具就看个人习惯的手感了。<br>touchegg 在 X11 下支持给不同软件设置不同的手势，但在 Wayland 下不支持。可以自己编写程序，比如参考原作者的实现。</p>\n<h2 id=\"section-08\">Dock 和小组件</h2>\n<p>Latte Dock 不能在 KDE 6 上使用。不过，KDE 6 的面板经过一番配置也能达到类似 Latte Dock 的效果。<br>可以安装这款小组件实现对面板的自定义配置。<br>在本文编写时，KDE 6 的小组件生态并不丰富，很多老牌的小组件都没有移植到 KDE 6 上。所以为了保持原本的桌面布局和使用习惯，原作者当时自己学习并编写了几个小组件。<br>原作者期待 KDE 6 日后发展起来的，像 KDE 5 一样欣欣向荣的小组件生态。</p>\n<h2 id=\"section-09\">原作者的截图</h2>\n",
+  "refs": [
+    [
+      "風雪城：原文与作者经验",
+      "https://blog.chyk.ink/2024/05/03/plasma-6-tricks-and-optimizations/"
+    ],
+    [
+      "KWin 脚本开发文档",
+      "https://develop.kde.org/docs/plasma/kwin/"
+    ],
+    [
+      "Fcitx5 的 Plasma / Wayland 配置",
+      "https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland#KDE_Plasma"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "desktop",
+    "kde",
+    "wayland"
+  ]
+}

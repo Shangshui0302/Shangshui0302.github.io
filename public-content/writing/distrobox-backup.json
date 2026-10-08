@@ -1,0 +1,61 @@
+{
+  "slug": "distrobox-backup",
+  "number": "133",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Distrobox 备份：镜像、包清单与共享数据",
+  "deck": "用三种互补方式保存 guest 环境，并明确共享目录和应用数据的独立恢复责任。",
+  "sections": [
+    [
+      "section-01",
+      "1. 快照备份：podman commit"
+    ],
+    [
+      "section-02",
+      "2. 包列表导出与重放（轻量级）"
+    ],
+    [
+      "section-03",
+      "3. 声明式构建（最推荐，最 NixOS）"
+    ],
+    [
+      "section-06",
+      "总结建议"
+    ],
+    [
+      "section-07",
+      "4. 共享数据与恢复演练"
+    ]
+  ],
+  "body": "<p>本文的命令接口按 Distrobox 1.8.2.5 官方脚本核对；镜像标签与发行版包名是示例，使用前确认镜像仍受支持、仓库可用及本机实际版本。示例未做运行验证。</p>\n<p>Distrobox 的 guest 包管理通常是命令式的，但镜像备份、包清单和构建声明可以互相补充。需要分开保存容器文件系统、运行配置、共享目录、数据卷与应用数据，才能判断恢复覆盖了哪些资产。</p>\n<p>以下三种方案分别解决镜像状态、包意图和创建流程；没有任何一种单独等于完整备份。</p>\n<hr>\n<h2 id=\"section-01\">1. 快照备份：podman commit</h2>\n<p><code>podman commit</code> 把容器可写层固化为镜像，默认在提交期间暂停容器。它不是内存/进程快照，也不能保证数据库一致性；应先停写、停止服务或进行应用级 dump。默认不包含 bind mount 和 volume 的内容。</p>\n<p><strong>备份</strong>：</p>\n<pre><code># 将当前容器状态固化为新镜像\npodman commit arch my-custom-arch:latest\n# 将镜像导出为压缩包存到宿主机\npodman save my-custom-arch:latest | bzip2 &gt; my-custom-arch.tar.bz</code></pre>\n<p><strong>恢复</strong>：</p>\n<pre><code># 从压缩包恢复镜像\nbunzip2 -c my-custom-arch.tar.bz | podman load\n# 用这个自定义镜像创建新的 distrobox\ndistrobox create --name arch-restored --image my-custom-arch:latest</code></pre>\n<p>如果用的是 Docker 后端：</p>\n<pre><code>docker container commit -p distrobox_name image_name_you_choose\ndocker save image_name_you_choose:latest | gzip &gt; image_name_you_choose.tar.gz</code></pre>\n<ul>\n<li><strong>优点</strong>：保存 guest 可写层内的软件和配置，不必逐个重装。共享 HOME、额外挂载、卷、容器运行配置和进程内状态需要另行恢复。</li>\n<li><strong>缺点</strong>：黑盒状态，你不知道镜像里到底装了什么，不够&quot;优雅&quot;。镜像文件会比较大。</li>\n</ul>\n<hr>\n<h2 id=\"section-02\">2. 包列表导出与重放（轻量级）</h2>\n<p>不备份整个系统，只记录你装了哪些包，重装时按列表复原。</p>\n<p><strong>备份（在 Arch 容器内）</strong>：</p>\n<pre><code># 导出所有显式安装的包\npacman -Qqen &gt; ~/arch-repo-pkglist.txt\n# 外来包（包括 AUR），另存列表\npacman -Qqem &gt; ~/arch-foreign-pkglist.txt</code></pre>\n<p>由于共享了 HOME，这个文件直接保存在 NixOS 宿主机上。</p>\n<p><strong>恢复（新的 Arch 容器内）</strong>：</p>\n<pre><code>sudo pacman -Syu\nsudo pacman -S --needed - &lt; ~/arch-repo-pkglist.txt</code></pre>\n<ul>\n<li><strong>优点</strong>：文件极小，纯文本，可以放进 Git。</li>\n<li><strong>缺点</strong>：AUR 软件包无法直接通过 <code>pacman</code> 重放，外来包需要检查来源并由 AUR helper 或自定义包构建流程单独处理。名称列表不能固定包版本、PKGBUILD 或已删除的仓库包。</li>\n</ul>\n<hr>\n<h2 id=\"section-03\">3. 声明式构建（最推荐，最 NixOS）</h2>\n<p>这是真正契合 NixOS 哲学的方法。用 <code>distrobox.ini</code> 的 <code>additional_packages</code> 和适时执行的 hooks，或直接写一个 <code>Dockerfile</code>，把容器内的软件包也变成代码。</p>\n<h3 id=\"section-04\">3.1 使用 distrobox.ini 钩子（适合少量包）</h3>\n<p>直接把包列表写在宿主机 NixOS 配置里：</p>\n<pre><code>xdg.configFile.&quot;distrobox/distrobox.ini&quot;.text = &#39;&#39;\n  [arch]\n  image=quay.io/toolbx/arch-toolbox:latest\n  additional_packages=fish eza zoxide starship base-devel cmake\n  additional_packages=rustup nodejs\n&#39;&#39;;</code></pre>\n<p>清单让安装意图可追踪；latest 镜像和滚动仓库不会保证结果逐字节一致。AUR helper 通常在首次 guest 初始化后，以普通用户审查并构建，不能在基础包尚未配置的 pre-init hook 里假定 paru 已存在。</p>\n<h3 id=\"section-05\">3.2 自定义 Dockerfile（适合复杂环境，可追踪构建）</h3>\n<p>如果你的容器环境极其复杂，写一个 Dockerfile 并用 Git 管理：</p>\n<pre><code>FROM quay.io/toolbx/arch-toolbox:latest\nRUN pacman -Syu --noconfirm &amp;&amp; \\\n    pacman -S --noconfirm base-devel fish eza zoxide starship cmake rustup</code></pre>\n<p>然后在宿主机构建镜像：</p>\n<pre><code>podman build -t my-arch-dev:latest -f &quot;$HOME/.config/distrobox/arch.dockerfile&quot; .</code></pre>\n<p>在 <code>distrobox.ini</code> 里引用：</p>\n<pre><code>[arch]\nimage=my-arch-dev:latest</code></pre>\n<ul>\n<li><strong>优点</strong>：便于重建和审查。要进一步固定结果，应固定基础镜像 digest、包仓库快照和下载校验。Dockerfile 和 <code>distrobox.ini</code> 可以用 Git 追踪，和 <code>configuration.nix</code> 放在同一个仓库里。</li>\n<li><strong>缺点</strong>：包列表变动时需要重新 <code>podman build</code>。</li>\n</ul>\n<hr>\n<h2 id=\"section-06\">总结建议</h2>\n<p>对于绝大多数 NixOS + Distrobox 用户，<strong>方案二（导出包列表）结合方案三 A（<code>distrobox.ini</code> 的 <code>additional_packages</code>）</strong> 是性价比最高的：</p>\n<ol>\n<li>系统核心工具写在 <code>distrobox.ini</code> 里。</li>\n<li>开发环境包列表导出成 txt 存 Git 仓库里。</li>\n<li>配置文件（如 <code>~/.config/fish</code>、<code>paru.conf</code>）也用 Git 管理。</li>\n</ol>\n<p>这样即使重装整个 NixOS，拉取 Git 仓库 → <code>distrobox-assemble create</code> → 重放包列表，可以重建容器包环境；随后还需恢复数据与导出入口。</p>\n<hr>\n<hr>\n<h2 id=\"section-07\">4. 共享数据与恢复演练</h2>\n<p>默认 HOME 是宿主目录，不在 commit/save 镜像中。自定义 <code>--home</code> 也通常是宿主 bind mount。备份应覆盖：</p>\n<ul>\n<li>共享或自定义 home 中实际需要恢复的配置、项目与数据；避免把凭据未经保护放进公开 Git。</li>\n<li><code>podman inspect</code> 记录的挂载、端口、设备、init/root 模式和清单；不能只备份镜像名。</li>\n<li>named/anonymous volumes 与额外 bind mounts 的数据，以及数据库的一致性 dump。</li>\n<li><code>distrobox.ini</code>、构建文件、镜像 digest、包列表与必要的上游版本/校验记录。</li>\n</ul>\n<p>恢复时先在新容器名和新数据目录演练：load 镜像 → 用记录的参数创建 → 首次进入初始化 → 恢复应用数据 → 检查权限、数据库和工具版本 → 重新导出 app/bin 并验证启动。确认后再替换旧环境；不要让演练容器直接写唯一的生产数据。</p>\n<p><code>distrobox rm</code> 删除 guest 文件系统；<code>--rm-home</code> 还可能删除自定义 home。清理和备份是不同操作，执行任何删除之前先核对真实路径与恢复证据。</p>\n",
+  "refs": [
+    [
+      "Distrobox security implications",
+      "https://distrobox.it/#security-implications"
+    ],
+    [
+      "Distrobox create",
+      "https://distrobox.it/usage/distrobox-create/"
+    ],
+    [
+      "Distrobox enter",
+      "https://distrobox.it/usage/distrobox-enter/"
+    ],
+    [
+      "Podman commit",
+      "https://docs.podman.io/en/latest/markdown/podman-commit.1.html"
+    ],
+    [
+      "Distrobox assemble",
+      "https://distrobox.it/usage/distrobox-assemble/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "linux",
+    "containers",
+    "distrobox"
+  ]
+}

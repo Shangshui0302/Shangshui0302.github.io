@@ -1,0 +1,56 @@
+{
+  "slug": "git-branching",
+  "number": "094",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Git 分支：合并、冲突与现场保存",
+  "deck": "理解快进和三方合并，并用 stash 管理尚未完成的工作。",
+  "sections": [
+    [
+      "section-01",
+      "1. 分支基本操作"
+    ],
+    [
+      "section-04",
+      "2. 合并的两种模式：Merge"
+    ],
+    [
+      "section-08",
+      "3. 冲突处理：当 Git 无法抉择"
+    ],
+    [
+      "section-11",
+      "4. 现场保存：git stash"
+    ],
+    [
+      "section-12",
+      "5. 分支策略：Merge vs. Rebase"
+    ],
+    [
+      "section-13",
+      "6. 功能分支工作流 (Feature Branching)"
+    ]
+  ],
+  "body": "<blockquote>\n<p>&quot;分支是 Git 的杀手级特性。它极其轻量，鼓励你为每一个小想法都开一个分支。&quot;</p>\n</blockquote>\n<h2 id=\"section-01\">1. 分支基本操作</h2>\n<p>基于 <code>Git 00</code> 的理解，分支只是一个“指针”。</p>\n<h3 id=\"section-02\">创建与切换</h3>\n<pre><code># 现代方式 (推荐，Git 2.23+)\ngit switch -c feature/example    # 创建并切换到新分支\ngit switch master          # 切换回 master\n\n# 传统方式 (依然有效)\ngit checkout -b feature/example\ngit checkout master</code></pre>\n<h3 id=\"section-03\">查看与删除</h3>\n<pre><code>git branch                 # 列出本地所有分支 (* 号表示当前所在)\ngit branch -v              # 查看每个分支的最后一次提交\ngit branch -d feature/example    # 删除已合并的分支\ngit branch -D feature/example    # 强制删除未合并的分支 (慎用)</code></pre>\n<h2 id=\"section-04\">2. 合并的两种模式：Merge</h2>\n<p>当你把 <code>feature</code> 分支合并回 <code>master</code> 时，Git 会根据提交历史的拓扑结构采取不同的策略。</p>\n<h3 id=\"section-05\">A. Fast-forward (快进合并)</h3>\n<p>如果 <code>master</code> 在分叉后没有新提交，Git 会直接挪动指针。</p>\n<ul>\n<li><strong>特点</strong>：没有新的合并提交，历史呈完美直线。</li>\n</ul>\n<h3 id=\"section-06\">B. Three-way Merge（三方合并）</h3>\n<p>双方已经分叉时，Git 基于共同祖先和两端内容进行三方合并，正常完成后生成合并提交。当前常用两头合并策略为 ort；历史资料中的 recursive 不等于三方合并的通用名称。</p>\n<h3 id=\"section-07\">进阶：强制产生合并提交 (--no-ff)</h3>\n<p><strong>为什么需要？</strong>：Fast-forward 会丢失“这里曾经有一个功能分支”的信息。在工程中，我们常使用 <code>git merge --no-ff feature/example</code> 来强制保留分支存在的痕迹，方便后续代码审计。</p>\n<h2 id=\"section-08\">3. 冲突处理：当 Git 无法抉择</h2>\n<p>重叠内容无法自动合并时会停下要求解决；修改/删除、重命名等也可能冲突，并不限于同一行。</p>\n<h3 id=\"section-09\">冲突标识符</h3>\n<p>Git 会在冲突文件中插入标记：</p>\n<pre><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD\n这是你在当前分支 (master) 修改的内容\n=======\n这是你要合并进来的分支 (feature) 修改的内容\n&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/example</code></pre>\n<h3 id=\"section-10\">解决步骤</h3>\n<ol>\n<li><strong>手动编辑</strong>：删除标记，保留你想要的代码。</li>\n<li><strong>标记解决</strong>：执行 <code>git add &lt;file&gt;</code>，告诉 Git 冲突已搞定。</li>\n<li><strong>完成合并</strong>：执行 <code>git commit</code>。</li>\n</ol>\n<h2 id=\"section-11\">4. 现场保存：git stash</h2>\n<p><strong>场景</strong>：正在写功能，突发 Bug 需切换分支，但当前代码还没写完。</p>\n<pre><code>git stash                  # 保存已追踪文件的改动\ngit stash -u               # 【重要】包含未追踪的新文件 (include-untracked)\ngit stash list             # 查看所有存档\ngit stash pop              # 应用最顶层存档；成功后删除，冲突时通常保留存档</code></pre>\n<h2 id=\"section-12\">5. 分支策略：Merge vs. Rebase</h2>\n<p>这是 Git 中最持久的争论。虽然 Rebase 的具体用法在 <code>Git 04</code> 详述，但这里必须理解其哲学差异。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th align=\"left\">特性</th>\n<th align=\"left\">Merge (合并)</th>\n<th align=\"left\">Rebase (变基/衍合)</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><strong>底层逻辑</strong></td>\n<td align=\"left\">快进时仅移动引用，否则可创建合并点。</td>\n<td align=\"left\">把当前分支的修改在目标分支顶部“重演”。</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>历史感</strong></td>\n<td align=\"left\"><strong>真实性</strong>：记录了分支交汇的确切时刻。</td>\n<td align=\"left\"><strong>整洁性</strong>：历史是一条直线，看起来没分过叉。</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>冲突处理</strong></td>\n<td align=\"left\">一次性处理所有冲突。</td>\n<td align=\"left\">每一层重演都可能需要处理冲突。</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>适用场景</strong></td>\n<td align=\"left\">团队协作、公共分支。</td>\n<td align=\"left\">个人分支、清理提交历史、保持 upstream 最新。</td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-13\">6. 功能分支工作流 (Feature Branching)</h2>\n<p><strong>核心原则</strong>：</p>\n<ol>\n<li><strong>以保持 master/main 可用为团队目标</strong>：不要直接在上面写代码。</li>\n<li><strong>每个功能一个分支</strong>：<code>feature/login</code>, <code>fix/issue-101</code>。</li>\n<li><strong>合并前进行 Review</strong>：在 master 保持领先时，通过合并确保功能分支在合并回主干前是健康的。</li>\n</ol>\n<hr>\n<h3 id=\"section-14\">保留现场的边界</h3>\n<p>普通 stash 保存已追踪的工作区和暂存修改；<code>-u</code> 也纳入未追踪文件，忽略文件仍需另行考虑。可先 <code>git stash apply</code> 检查恢复结果，再明确 <code>git stash drop</code>；需要恢复原暂存状态时检查 <code>--index</code> 的适用条件。合并、切换和删除分支前先检查状态；<code>branch -D</code> 会删除恢复引用，但不是删除所有旧对象。</p>\n",
+  "refs": [
+    [
+      "Git 合并",
+      "https://git-scm.com/docs/git-merge"
+    ],
+    [
+      "Git stash",
+      "https://git-scm.com/docs/git-stash"
+    ],
+    [
+      "Git 分支",
+      "https://git-scm.com/docs/git-branch"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "git",
+    "version-control"
+  ]
+}

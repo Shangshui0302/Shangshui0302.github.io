@@ -1,0 +1,20 @@
+{
+  "slug": "nix-language-foundations",
+  "title": "Nix 语言与构建模型",
+  "deck": "沿属性集、函数作用域、模块合并与 derivation 理解配置如何工作。",
+  "description": "Nix 是函数式表达式语言。先从 NixOS 工作模型辨认输入与输出，再通过基本类型、作用域、递归属性集和合并理解代码，最后追踪表达式如何产生构建描述与 store 产物。",
+  "articles": [
+    "nix-system-model",
+    "nix-syntax",
+    "nix-functions-scopes",
+    "nix-attribute-merging",
+    "nix-derivations"
+  ],
+  "reading_guide": [
+    "理解构建结果、源配置和可写数据为何是三个不同的历史。",
+    "从空格列表、分号与属性访问读懂最小表达式。",
+    "给每个变量标出 let、函数参数或 with 的来源。",
+    "分别判断 // 的覆盖与模块选项的类型合并。",
+    "把求值、缓存替代和本地构建分开，不把 store 哈希都称为内容寻址。"
+  ]
+}

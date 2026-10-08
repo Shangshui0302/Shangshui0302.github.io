@@ -1,0 +1,64 @@
+{
+  "slug": "nixos-installation",
+  "number": "014",
+  "category": "LINUX / SYSTEMS",
+  "title": "安装 NixOS：介质、分区与初始配置",
+  "deck": "按图形安装与手动安装两条路径理解安装前提和操作步骤。",
+  "sections": [
+    [
+      "section-01",
+      "安装方式概述"
+    ],
+    [
+      "section-02",
+      "1. 下载安装镜像"
+    ],
+    [
+      "section-03",
+      "2. 制作启动盘"
+    ],
+    [
+      "section-06",
+      "3. 启动安装程序"
+    ],
+    [
+      "section-07",
+      "4. 图形安装（推荐新手）"
+    ],
+    [
+      "section-09",
+      "5. 命令行安装（高级）"
+    ],
+    [
+      "section-15",
+      "6. 常见问题"
+    ],
+    [
+      "section-20",
+      "安装后的首次配置"
+    ],
+    [
+      "section-24",
+      "参考资源"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">安装方式概述</h2>\n<p>NixOS 提供多种安装方式：</p>\n<ol>\n<li><strong>图形界面安装</strong>（推荐新手）</li>\n<li><strong>最小化安装</strong>（推荐高级用户）</li>\n<li><strong>虚拟机安装</strong>（测试用途）</li>\n<li><strong>服务器远程安装</strong>（无显示器场景）</li>\n</ol>\n<h2 id=\"section-02\">1. 下载安装镜像</h2>\n<p>访问 <a href=\"https://nixos.org/download.html\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 下载页面</a>：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">版本类型</th>\n<th scope=\"col\">推荐场景</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>GNOME ( graphical )</strong></td>\n<td>桌面用户</td>\n</tr>\n<tr>\n<td><strong>Plasma Desktop</strong></td>\n<td>KDE 桌面用户</td>\n</tr>\n<tr>\n<td><strong>Minimal (64-bit Intel/AMD)</strong></td>\n<td>服务器/高级用户</td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-03\">2. 制作启动盘</h2>\n<p>写入会覆盖目标设备。先核对容量、型号和挂载状态，并卸载目标 U 盘分区；<code>/dev/sdX</code> 是占位符，必须替换为 U 盘整盘，不能选择系统盘。</p>\n<h3 id=\"section-04\">Linux（macOS 的磁盘标识和参数需按平台调整）</h3>\n<pre><code># 查找 U 盘设备名（如 /dev/sdb）\nlsblk\n\n# 写入镜像（替换 /dev/sdX 为你的设备）\nsudo dd if=nixos-graphical.iso of=/dev/sdX bs=4M status=progress conv=fsync</code></pre>\n<h3 id=\"section-05\">Windows</h3>\n<p>使用 <a href=\"https://rufus.ie/\" target=\"_blank\" rel=\"noopener noreferrer\">Rufus</a> 或 <a href=\"https://www.ventoy.net/\" target=\"_blank\" rel=\"noopener noreferrer\">Ventoy</a>。</p>\n<h2 id=\"section-06\">3. 启动安装程序</h2>\n<ol>\n<li>插入 U 盘，从 U 盘启动</li>\n<li>选择 <strong>NixOS Installer</strong> 进入 Live 环境</li>\n<li>等待系统加载完成</li>\n</ol>\n<h2 id=\"section-07\">4. 图形安装（推荐新手）</h2>\n<p>这是最简单的安装方式：</p>\n<ol>\n<li>启动后选择 <strong>Install NixOS</strong></li>\n<li>选择语言（中文支持良好）</li>\n<li>按照向导完成：<ul>\n<li>分区设置</li>\n<li>用户创建</li>\n<li>系统配置</li>\n</ul>\n</li>\n</ol>\n<h3 id=\"section-08\">分区建议</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">分区</th>\n<th scope=\"col\">大小</th>\n<th scope=\"col\">文件系统</th>\n<th scope=\"col\">挂载点</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>EFI 分区</td>\n<td>512MB</td>\n<td>FAT32</td>\n<td>/boot（本例采用 systemd-boot）</td>\n</tr>\n<tr>\n<td>根分区</td>\n<td>50GB+</td>\n<td>ext4/btrfs</td>\n<td>/</td>\n</tr>\n<tr>\n<td>交换分区</td>\n<td>按休眠需求及内存负载确定</td>\n<td>swap</td>\n<td>-</td>\n</tr>\n<tr>\n<td>家目录</td>\n<td>剩余空间</td>\n<td>ext4/btrfs</td>\n<td>/home</td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-09\">5. 命令行安装（高级）</h2>\n<h3 id=\"section-10\">5.1 分区与格式化</h3>\n<p>以下仅为已备份、确认允许清空的测试磁盘示例。设备编号因机器而异，NVMe 名称也不同；不要直接复制到有数据的磁盘。UEFI 下创建 GPT、EFI System Partition 和根分区，确保格式化和挂载对象对应。</p>\n<pre><code># 查看磁盘\nlsblk\n\n# 分区（以 /dev/sda 为例）\nsudo fdisk /dev/sda\n# 创建 EFI 分区 (512MB)\n# 创建根分区\n\n# 格式化\nsudo mkfs.fat -F 32 /dev/sda1  # EFI\nsudo mkfs.ext4 /dev/sda2       # 根分区\n\n# 挂载\nsudo mount /dev/sda2 /mnt\nsudo mkdir -p /mnt/boot\nsudo mount /dev/sda1 /mnt/boot</code></pre>\n<h3 id=\"section-11\">5.2 生成初始配置</h3>\n<pre><code># 生成配置\nsudo nixos-generate-config --root /mnt\n\n# 查看生成的配置\nls /mnt/etc/nixos/\n# 应该包含：configuration.nix 和 hardware-configuration.nix</code></pre>\n<h3 id=\"section-12\">5.3 编辑配置</h3>\n<pre><code>sudo nano /mnt/etc/nixos/configuration.nix</code></pre>\n<p>关键配置项：</p>\n<pre><code>{ config, pkgs, ... }:\n{\n  imports = [\n    ./hardware-configuration.nix\n  ];\n\n  # 引导配置\n  boot.loader.systemd-boot.enable = true;\n  boot.loader.efi.canTouchEfiVariables = true;\n\n  # 网络配置\n  networking.hostName = &quot;workstation&quot;;\n  networking.networkmanager.enable = true;\n\n  # 时区和本地化\n  time.timeZone = &quot;Asia/Shanghai&quot;;\n  i18n.defaultLocale = &quot;zh_CN.UTF-8&quot;;\n\n  # 桌面环境（可选）\n  services.xserver.enable = true;\n  services.displayManager.gdm.enable = true;\n  services.desktopManager.gnome.enable = true;\n\n  # 创建用户\n  users.users.alice = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; &quot;networkmanager&quot; ];\n    # 安装时交互设置密码；不要将明文密码写入公开配置。\n  };\n\n  # 允许普通用户使用 sudo\n  security.sudo.wheelNeedsPassword = true;\n\n  # 新安装使用生成配置中的值；后续升级不要跟着发行版随意改。\n  system.stateVersion = &quot;26.05&quot;;\n}</code></pre>\n<h3 id=\"section-13\">5.4 执行安装</h3>\n<pre><code>sudo nixos-install</code></pre>\n<p><code>nixos-install</code> 通常会要求设置目标系统的 root 密码（除非禁用该步骤）。Live 环境里的普通 <code>passwd</code> 会修改 Live 环境而不是已安装系统。需要设置目标用户密码时，挂载后进入目标系统：</p>\n<pre><code>sudo nixos-enter --root /mnt\npasswd alice\nexit</code></pre>\n<h3 id=\"section-14\">5.5 重启</h3>\n<pre><code>sudo reboot</code></pre>\n<h2 id=\"section-15\">6. 常见问题</h2>\n<p>网卡名称、网络工具和驱动依安装介质而定；示例中的 <code>eth0</code> 需替换，先确认接口和已运行的网络管理服务，避免同时启动多个 DHCP 客户端。</p>\n<h3 id=\"section-16\">无法启动安装介质</h3>\n<ul>\n<li>检查 BIOS/UEFI 设置，确保启用了 UEFI 模式</li>\n<li>关闭 Secure Boot</li>\n</ul>\n<h3 id=\"section-17\">网络连接问题</h3>\n<pre><code># 查看网络接口\nip link\n\n# 启用网络\nsudo ip link set eth0 up\nsudo dhcpcd</code></pre>\n<h3 id=\"section-18\">磁盘识别问题</h3>\n<pre><code># 加载更多磁盘驱动\nsudo modprobe nvme\nsudo modprobe sd_mod</code></pre>\n<h3 id=\"section-19\">如何修改配置后重新安装</h3>\n<pre><code># 挂载分区（如之前步骤）\nsudo mount /dev/sda2 /mnt\nsudo mount /dev/sda1 /mnt/boot\n\n# 切换到已挂载的目标系统\nsudo nixos-enter --root /mnt\n\n# 修改配置\nnano /etc/nixos/configuration.nix\n\n# 重新构建\nnixos-rebuild switch</code></pre>\n<h2 id=\"section-20\">安装后的首次配置</h2>\n<p>以下 <code>switch</code> 示例会激活系统；需要仅验证构建时使用 <code>nixos-rebuild build</code>。channels 使用 <code>--upgrade</code> 更新，Flake 配置先更新并审阅 <code>flake.lock</code>，再按锁文件重建。</p>\n<h3 id=\"section-21\">1. 更新系统</h3>\n<pre><code>sudo nixos-rebuild switch --upgrade</code></pre>\n<h3 id=\"section-22\">2. 安装常用软件</h3>\n<p>编辑 <code>/etc/nixos/configuration.nix</code>：</p>\n<pre><code>environment.systemPackages = with pkgs; [\n  vim\n  git\n  firefox\n  htop\n  wget\n  curl\n];</code></pre>\n<p>然后重建：</p>\n<pre><code>sudo nixos-rebuild switch</code></pre>\n<h3 id=\"section-23\">3. 启用 Flakes（推荐）</h3>\n<pre><code>nix.settings.experimental-features = [ &quot;nix-command&quot; &quot;flakes&quot; ];</code></pre>\n<hr>\n<h2 id=\"section-24\">参考资源</h2>\n<ul>\n<li><a href=\"https://nixos.org/manual/nixos/stable/#sec-installation\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 安装手册</a></li>\n<li><a href=\"https://nixos-cn.org/guides/installation/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 中文社区安装指南</a></li>\n</ul>\n<hr>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

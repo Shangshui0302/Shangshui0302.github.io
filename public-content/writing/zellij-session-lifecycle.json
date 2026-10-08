@@ -1,0 +1,45 @@
+{
+  "slug": "zellij-session-lifecycle",
+  "number": "050",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Zellij：窗口关了，会话还在吗？",
+  "deck": "从 pane、tab 到 session，区分重新连接、布局恢复和进程状态。",
+  "sections": [
+    [
+      "section-01",
+      "多开管理"
+    ],
+    [
+      "section-02",
+      "Session 管理"
+    ],
+    [
+      "section-03",
+      "Session 的五大核心价值"
+    ],
+    [
+      "section-09",
+      "退出、分离与恢复之前"
+    ]
+  ],
+  "body": "<p>Zellij 用 session、tab 与 pane 组织终端工作。它采用模式化快捷键；是否比其他复用器更顺手、性能是否更好，需要结合实际负载判断。这里重点是会话的生命周期，而不是未经测试的性能比较。</p>\n<pre><code>zellij --help\n# 以下是部分命令名称示意，以安装版本的帮助输出为准：\naction                     convert-layout             delete-session\nattach                     convert-theme              edit\n-c                         -d                         -h\n--config                   --data-dir                 --help\n--config-dir               --debug                    help\nconvert-config             delete-all-sessions        kill-all-sessions</code></pre>\n<h2 id=\"section-01\">多开管理</h2>\n<p>Zellij 主要通过 pane 和 tab 两个概念进行管理。pane 是分区，通过分不同的区块进行并行显示终端。tab 是标签页，和浏览器的一样，只显示当前 tab。每个 tab 可以开很多不同布局的 pane。</p>\n<h2 id=\"section-02\">Session 管理</h2>\n<p>是主要的功能。配合 Hyprland 使用时，tab 和 pane 不一定好使——Hyprland 直接 <code>$SUPER</code> + 方向键切换窗口。但 session 的核心价值不可替代：</p>\n<pre><code># 新建 session\nzellij --session project-demo\n\n# attach session\nzellij attach project-demo\n\n# 列出会话\nzellij list-sessions</code></pre>\n<hr>\n<h2 id=\"section-03\">Session 的五大核心价值</h2>\n<h3 id=\"section-04\">1. 活跃会话保留滚动历史</h3>\n<ul>\n<li>Scrollback 被 session 绑定：detach 再 attach，会话仍在运行时可以继续查看已有输出；缓冲区有容量限制，重要日志应另存文件。</li>\n<li>对调试、长时间运行命令非常有用。</li>\n</ul>\n<h3 id=\"section-05\">2. 状态保持（Resurrect）</h3>\n<ul>\n<li>每个 session 记录当前的 pane / tab 状态。</li>\n<li>终端窗口关闭与会话进程结束不是同一回事。会话仍活着时可重新连接；进程已结束或系统重启后，resurrection 重建布局并可能重新运行命令，不恢复进程内存。</li>\n<li>是否保存 pane 的输出由配置决定，也受历史保留范围限制。重新运行有副作用的命令前应确认；恢复布局不等于恢复未保存的编辑器内容或任意程序状态。</li>\n</ul>\n<h3 id=\"section-06\">3. 多终端共享同一工作空间</h3>\n<ul>\n<li>可以在不同 Foot 窗口 attach 同一个 session。</li>\n<li>场景：一个窗口用 vim，一个窗口看日志，共同查看和操作同一会话；各 pane 仍是独立进程，环境变量不会因此自动全局同步。</li>\n</ul>\n<h3 id=\"section-07\">4. 项目/任务级管理</h3>\n<ul>\n<li>每个项目一个 session。</li>\n<li>开新项目时新建 session，切回旧项目 attach 对应 session。</li>\n</ul>\n<h3 id=\"section-08\">5. 简化 Hyprland + Foot 配合</h3>\n<ul>\n<li>Hyprland 管窗口和布局 → 快速切换</li>\n<li>Zellij 管会话、布局与可配置的历史保留</li>\n<li>是否把分屏交给合成器，取决于希望跨窗口切换还是在同一终端中组织 pane。</li>\n</ul>\n<hr>\n<h2 id=\"section-09\">退出、分离与恢复之前</h2>\n<p>离开一个窗口之前，先区分关闭客户端、detach 和终止 session。需要继续运行任务时使用当前键位帮助提供的 detach 动作；需要结束任务时则检查 pane 内进程并正常退出。不要把 <code>kill-all-sessions</code> 与 detach 混为一谈。</p>\n<p>Zellij 不替代程序自己的保存、日志落盘或系统备份。重要状态先保存到文件，再决定是否依赖 session resurrection；跨机器访问仍需要受控的连接与认证。</p>\n",
+  "refs": [
+    [
+      "Zellij 会话恢复",
+      "https://zellij.dev/documentation/session-resurrection.html"
+    ],
+    [
+      "Zellij 用户指南",
+      "https://zellij.dev/documentation/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "terminal",
+    "zellij"
+  ]
+}

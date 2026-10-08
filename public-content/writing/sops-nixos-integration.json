@@ -1,0 +1,81 @@
+{
+  "slug": "sops-nixos-integration",
+  "number": "099",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "sops-nix 集成：运行时、时序与 SSH host key",
+  "deck": "把加密源文件、运行时秘密文件与服务依赖连接起来。",
+  "sections": [
+    [
+      "section-01",
+      "三个角色：secrets 怎么变成进程环境变量"
+    ],
+    [
+      "section-02",
+      "解密输出：一个键一个文件"
+    ],
+    [
+      "section-03",
+      "useSystemdActivation：两条常规 secret 部署路径"
+    ],
+    [
+      "section-04",
+      "挂载时序：为什么有时序问题"
+    ],
+    [
+      "section-05",
+      "故障链条示例：密钥路径不可用"
+    ],
+    [
+      "section-06",
+      "为什么 sops-nix 可复用 SSH host key"
+    ],
+    [
+      "section-07",
+      "配置示例：从独立 age key 过渡到 host key"
+    ],
+    [
+      "section-08",
+      "相关"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">三个角色：secrets 怎么变成进程环境变量</h2>\n<pre><code>sops-install-secrets.service        example-app.service\n        │                                │\n        │ ① 解密写入                      │ ② 读取环境变量\n        ▼                                ▼\n   /run/secrets/app_env   ──▶   example-app 进程 + 它的 envsubst</code></pre>\n<p><strong>① sops 写文件</strong>：<code>sops-install-secrets</code> 解开 <code>secrets.yaml</code> 后，把 <code>app_env</code> 内容写进 <code>/run/secrets/app_env</code>。通常配置为 <code>root:root</code>、<code>0400</code>；具体以 secret 的 owner/group/mode 为准。Linux sops-nix 默认将秘密放在 ramfs 的 <code>/run/secrets.d</code> 并通过 <code>/run/secrets</code> 链接暴露，<code>useTmpfs</code> 会改变存储方式；它们是运行时产物，重启后重新生成。</p>\n<p><strong>② systemd 注入环境变量</strong>（关键）：</p>\n<pre><code>serviceConfig.EnvironmentFile = &quot;/run/secrets/app_env&quot;;</code></pre>\n<p><code>EnvironmentFile</code> 是 <strong>systemd 特性</strong>，不是 example-app 的：systemd 启动 service 前读取文件，把 <code>KEY=value</code> 注入进程环境。<strong>动作发生在进程诞生之前</strong>——example-app 自己不知道有 sops。</p>\n<p><strong>③ 进程内消费</strong>：example-app 的 <code>ExecStartPre</code> 用 envsubst 从环境变量渲染 <code>config.yaml</code>（<code>${APP_SECRET}</code>、<code>${APP_ENDPOINT}</code>），<code>ExecStart</code> 再读渲染好的配置启动。</p>\n<h2 id=\"section-02\">解密输出：一个键一个文件</h2>\n<p><strong>sops-nix 解密后，每个 secret 生成一个独立文件</strong>，不合成。源码 <code>path</code> 默认值 = <code>/run/secrets/&lt;secret名&gt;</code>（<code>neededForUsers</code> 时 <code>/run/secrets-for-users/</code>）。每个 secret 独立声明其输出路径和权限。</p>\n<p>定义三个 secret 就得到三个文件：</p>\n<pre><code>sops.secrets = {\n  app_env = { };                    # → /run/secrets/app_env\n  another = { sopsFile = ./secrets/another.env; format = &quot;dotenv&quot;; key = &quot;TOKEN&quot;; }; # → /run/secrets/another\n  blob = { sopsFile = ./secrets/blob.enc; format = &quot;binary&quot;; }; # → /run/secrets/blob\n};</code></pre>\n<p><strong>format 可以按 secret 设置</strong>（<code>yaml/json/dotenv/ini/binary</code>），但它声明的是来源 <code>sopsFile</code> 的解析格式，不是键值内容的格式。同一 YAML 源的 secret 应按 YAML 读取；需要 dotenv 或 binary 源时，指向相应格式的独立加密文件。默认 format 继承 <code>defaultSopsFormat</code>，不是按扩展名自动推断。</p>\n<blockquote>\n<p>存储结构 vs 运行时组织的区别\n加密时所有键收进<strong>一个</strong> secrets.yaml（存储层）；解密时按 secret 名拆成<strong>多个</strong>独立文件（运行时层）。<code>format</code> 选择加密源的解析方式，<code>key</code> 选择要导出的值；YAML 字符串值可以本身包含多行环境文件或配置文本。<code>key = &quot;&quot;</code> 表示导出整个解密文件，binary 忽略 key。</p>\n</blockquote>\n<h2 id=\"section-03\">useSystemdActivation：两条常规 secret 部署路径</h2>\n<p>sops-nix 可通过 NixOS activation script 或 systemd unit 部署普通 secrets：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\"></th>\n<th scope=\"col\">activation script</th>\n<th scope=\"col\"><code>useSystemdActivation = true</code></th>\n</tr>\n</thead>\n<tbody><tr>\n<td>执行入口</td>\n<td>NixOS 激活过程中的 <code>setupSecrets</code></td>\n<td><code>sops-install-secrets.service</code></td>\n</tr>\n<tr>\n<td>运行条件</td>\n<td>受启动与 switch 激活过程、用户创建及挂载可用性影响</td>\n<td>通过 unit 依赖控制顺序</td>\n</tr>\n<tr>\n<td>常见选择</td>\n<td>默认值取决于 user 管理方式和模块版本</td>\n<td>需要挂载依赖或使用 sysusers/userborn 时有用</td>\n</tr>\n<tr>\n<td>检查重点</td>\n<td>激活时密钥、用户及目录是否可用</td>\n<td><code>After</code>、<code>RequiresMountsFor</code> 与消费服务依赖</td>\n</tr>\n</tbody></table></div>\n<p>不能将所有 NixOS activation script 一概称为 initrd 脚本。启动与激活路径需要依据配置版本和日志核对，不能仅从秘密文件缺失判断发生阶段。当前上游模块为 systemd 路径设置 <code>local-fs.target</code> 等顺序，并根据密钥路径设置 <code>RequiresMountsFor</code>；实际部署以项目锁定 revision 的代码和生成 unit 为准。<code>neededForUsers</code> 使用更早的用户创建前路径，需单独检查，不能依靠普通服务的等待机制补救。</p>\n<h2 id=\"section-04\">挂载时序：为什么有时序问题</h2>\n<p>解密时，运行该阶段的进程必须能够读取密钥。挂载是否可用由启动配置决定，不能仅根据目录名或 Btrfs subvolume 名推断：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">示例路径</th>\n<th scope=\"col\">可能承载的内容</th>\n<th scope=\"col\">要检查的条件</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>/</code>、<code>/etc/ssh/</code></td>\n<td>根文件系统与 host key</td>\n<td>根是否持久、host key 是否已经生成或恢复</td>\n</tr>\n<tr>\n<td><code>/nix</code></td>\n<td>Nix store</td>\n<td>启动所需挂载是否已可用</td>\n</tr>\n<tr>\n<td><code>/home</code></td>\n<td>用户身份与配置</td>\n<td>用户分区是否已挂载，服务是否有访问权限</td>\n</tr>\n<tr>\n<td><code>/persist</code></td>\n<td>持久化密钥与机器状态</td>\n<td>挂载时序、恢复绑定、解密阶段依赖</td>\n</tr>\n</tbody></table></div>\n<p>密钥位于单独挂载点时，先核对生成的 unit 与挂载依赖。需要用户创建前秘密时，要让恢复密钥在该早期阶段可用；普通服务秘密可以使用适当的 systemd 挂载依赖。选择部署路径之后，再决定密钥保存位置。</p>\n<h2 id=\"section-05\">故障链条示例：密钥路径不可用</h2>\n<pre><code>部署 secrets → 尝试读取 /persist/secrets/age-key.txt\n  → 文件缺失、挂载未就绪或权限不允许\n  → 解密失败，/run/secrets/app_env 未生成\n  → 消费服务的 EnvironmentFile 加载失败</code></pre>\n<p>代表性错误形式（示意，不是此处运行日志）：</p>\n<pre><code>cannot read keyfile &#39;/persist/secrets/age-key.txt&#39;: no such file or directory\nActivation script snippet &#39;setupSecrets&#39; failed</code></pre>\n<p>先检查存在性、权限和时序，避免打印私钥或解密内容。若使用 systemd 解密路径，消费服务应指向实际的 <code>sops-install-secrets.service</code>，并配置合适的 <code>After</code> 与依赖关系；<code>After</code> 只规定顺序，不主动拉起 unit。<code>Requires</code> 可表达解密服务失败时不启动消费服务的要求。</p>\n<h2 id=\"section-06\">为什么 sops-nix 可复用 SSH host key</h2>\n<p>当前上游模块在启用了 OpenSSH 或 host key 生成时，会默认从 <code>services.openssh.hostKeys</code> 中导入 Ed25519 key（age）或 RSA key（GnuPG），并避开 <code>/run/secrets</code> 中的 key 以防循环依赖。未启用相应功能时，默认列表可以为空；并不是每台 NixOS 机器都有 host key。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\"></th>\n<th scope=\"col\">SSH host key</th>\n<th scope=\"col\">用户 id_ed25519</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>常见保存位置</td>\n<td><code>/etc/ssh/</code>，也可由系统配置改动</td>\n<td>用户的 <code>~/.ssh/</code></td>\n</tr>\n<tr>\n<td>归属</td>\n<td>通常为 root 管理的机器身份</td>\n<td>用户身份</td>\n</tr>\n<tr>\n<td>解密前提</td>\n<td>已生成/恢复、文件与挂载可用、可读取</td>\n<td>用户密钥存在、权限与口令条件满足</td>\n</tr>\n</tbody></table></div>\n<p>复用 host key 的理由包括机器服务与机器身份生命周期接近、减少独立密钥数量、root 权限可读。但这些是运维选择，不能推出必须使用 host key，也不能保证它跨重装自动保留。复用会扩大密钥泄露的影响范围，专用 age key 则能将 SSH 身份与 secrets 解密能力分离。</p>\n<h2 id=\"section-07\">配置示例：从独立 age key 过渡到 host key</h2>\n<pre><code>sops = {\n  age.sshKeyPaths = [ &quot;/etc/ssh/ssh_host_ed25519_key&quot; ];\n  useSystemdActivation = true;\n};</code></pre>\n<p>这里的标准 host key 路径只是通用示例，不包含实际密钥。先把新 recipient 加入密文并验证独立解密，再调整部署来源；旧来源应保留到新链路验证完成。SSH host key 也需要备份和恢复计划，不能因为复用它就省略迁移。</p>\n<p>密钥可保存在适合系统设计的持久化目录，前提是该解密阶段可读且依赖正确。不要把 <code>/persist</code> 或 <code>/home</code> 一律判为禁止目录；也不要只因 <code>/etc</code> 位于根路径就认定它一定早期可用。</p>\n<h2 id=\"section-08\">相关</h2>\n<ul>\n<li>原理 → <a href=\"/writing/sops-principles/\">sops 原理</a></li>\n<li>命令行操作 → <a href=\"/writing/sops-cli-workflow/\">sops 使用指南</a></li>\n<li>host key 的角色 → <a href=\"/writing/ssh-authentication-model/\">SSH 认证体系</a></li>\n<li>换密钥/迁移操作指南 → <a href=\"/writing/sops-key-migration-rotation/\">sops 迁移指南</a></li>\n<li>参考：<a href=\"https://discourse.nixos.org/t/dealting-with-configurations-that-are-set-in-a-database/64483/15\" target=\"_blank\" rel=\"noopener noreferrer\">sops-nix 与 systemd activation 的取舍</a></li>\n</ul>\n<hr>\n<p>服务环境变量是方便的接口，但不适合所有秘密：能检查进程环境或受信任服务运行上下文的人可能读到它。应用支持凭据文件时可优先传路径；明文不得通过 Nix 求值、store 或构建日志暴露。</p>\n",
+  "refs": [
+    [
+      "SOPS 官方文档",
+      "https://getsops.io/docs/"
+    ],
+    [
+      "SOPS CLI 源码",
+      "https://github.com/getsops/sops/blob/main/cmd/sops/main.go"
+    ],
+    [
+      "SOPS 配置源码",
+      "https://github.com/getsops/sops/blob/main/config/config.go"
+    ],
+    [
+      "sops-nix 官方说明",
+      "https://github.com/Mic92/sops-nix"
+    ],
+    [
+      "sops-nix 模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/default.nix"
+    ],
+    [
+      "sops-nix 模板模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/templates/default.nix"
+    ],
+    [
+      "ssh-to-age 官方说明",
+      "https://github.com/Mic92/ssh-to-age"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "security",
+    "sops",
+    "nixos"
+  ]
+}

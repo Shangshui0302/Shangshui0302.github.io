@@ -1,0 +1,57 @@
+{
+  "slug": "arch-gnome-laptop-theme",
+  "number": "066",
+  "category": "LINUX / SYSTEMS",
+  "title": "GNOME 笔记本管理与桌面美化",
+  "deck": "配置混合显卡、电源和休眠，再调整 GNOME、Zsh 与终端外观。",
+  "sections": [
+    [
+      "section-01",
+      "显卡与休眠的前提"
+    ],
+    [
+      "section-02",
+      "笔记本"
+    ],
+    [
+      "section-15",
+      "美化"
+    ],
+    [
+      "section-26",
+      "官方核对入口"
+    ]
+  ],
+  "body": "<p>本文整理自 <a href=\"https://github.com/shorinkiwata/archlinuxinstall\" target=\"_blank\" rel=\"noopener noreferrer\">shorinkiwata/archlinuxinstall</a>，保留原教程的操作深度并进行匿名化与风险校正。安装包名、扩展、驱动和界面可能随滚动更新变化，以下命令均为阅读示例，没有在此任务中执行或验证。</p>\n<h2 id=\"section-01\">显卡与休眠的前提</h2>\n<p>切换显卡可能中断图形会话，先保存工作并确认有可用 TTY/恢复入口。GPU 管理工具的模式依赖硬件和固件，不能只凭品牌套用。</p>\n<p>休眠配置不止添加 hook：还需交换目标、initramfs 恢复机制及可用的恢复位置。现代 UEFI + systemd 环境可使用 <code>HibernateLocation</code> 自动记录位置；手动配置 swapfile 时应指定文件所在设备与 <code>resume_offset</code>。Btrfs 的 offset 用以下命令取得，不能照抄其他机器的数值：</p>\n<pre><code>sudo btrfs inspect-internal map-swapfile -r /swap/swapfile</code></pre>\n<p>若需要手动设置内核参数：</p>\n<pre><code>resume=UUID=&lt;SWAP_BACKING_FILESYSTEM_UUID&gt; resume_offset=&lt;BTRFS_SWAPFILE_OFFSET&gt;</code></pre>\n<p>改动后重建当前使用的 initramfs/UKI 和引导配置，再重启验证。使用加密交换、Secure Boot lockdown 或特殊内核时另行核对支持条件。</p>\n<h2 id=\"section-02\">笔记本</h2>\n<h3 id=\"section-03\">显卡切换</h3>\n<h3 id=\"section-04\">切换为集显模式</h3>\n<h3 id=\"section-05\">asus 华硕用户可以用 supergfxctl</h3>\n<p><a href=\"https://asus-linux.org/\" target=\"_blank\" rel=\"noopener noreferrer\">Linux for ROG Notebooks</a></p>\n<pre><code>yay -S supergfxctl\n</code></pre>\n<pre><code>sudo systemctl enable --now supergfxd.service\n</code></pre>\n<pre><code>扩展下载GPU supergfxctl switch\n</code></pre>\n<pre><code>使用方法：\nIntegrated supergfxctl --mode Integrated\nHybrid supergfxctl --mode Hybrid\nVFIO supergfxctl --mode Vfio\nAsusEgpu supergfxctl --mode AsusEgpu\nAsusMuxDgpu supergfxctl --mode AsusMuxDgpu\n</code></pre>\n<h3 id=\"section-06\">envycontrol</h3>\n<p><a href=\"https://github.com/bayasdev/envycontrol\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub - bayasdev/envycontrol: Easy GPU switching for Nvidia Optimus laptops under Linux</a></p>\n<ul>\n<li>笔记本 BIOS 内切换为混合模式</li>\n</ul>\n<pre><code>yay -S envycontrol\n</code></pre>\n<ul>\n<li>安装 gnome 插件,GPU Profile Selector</li>\n</ul>\n<pre><code>https://extensions.gnome.org/extension/5009/gpu-profile-selector/\n</code></pre>\n<ul>\n<li>在右上角切换显卡至 integrated</li>\n</ul>\n<h3 id=\"section-07\">混合模式下用独显运行程序</h3>\n<h3 id=\"section-08\">PRIME</h3>\n<pre><code>sudo pacman -S nvidia-prime\n</code></pre>\n<ul>\n<li>命令行内使用 prime-run 命令使用独显运行软件</li>\n</ul>\n<pre><code>prime-run firefox\n</code></pre>\n<ul>\n<li>使用 pinapp 修改.desktop 文件，在 command 的最前面加上 prime-run</li>\n</ul>\n<h3 id=\"section-09\">在 gnome 桌面环境下右键快捷方式选择使用独显运行</h3>\n<pre><code>sudo pacman -S switcheroo-control\n</code></pre>\n<pre><code>sudo systemctl enable --now switcheroo-control\n</code></pre>\n<h3 id=\"section-10\">电源管理</h3>\n<p><a href=\"https://wiki.archlinux.org/title/Power_management/Suspend_and_hibernate\" target=\"_blank\" rel=\"noopener noreferrer\">Power management/Suspend and hibernate - ArchWiki</a></p>\n<h3 id=\"section-11\">休眠到硬盘</h3>\n<p>硬盘上必须有交换空间才能休眠到硬盘</p>\n<ul>\n<li>添加 hook</li>\n</ul>\n<pre><code>sudo vim /etc/mkinitcpio.conf\n</code></pre>\n<pre><code>BusyBox-based initramfs 使用 resume hook，必须放在 udev 和必要的存储解锁钩子之后；systemd-based initramfs 已有恢复机制，不额外加入 resume。\n</code></pre>\n<ul>\n<li>重新生成 initramfs</li>\n</ul>\n<pre><code>sudo mkinitcpio -P\n</code></pre>\n<ul>\n<li>reboot</li>\n</ul>\n<pre><code>reboot\n</code></pre>\n<ul>\n<li>使用命令进行休眠</li>\n</ul>\n<pre><code>systemctl hibernate\n</code></pre>\n<h3 id=\"section-12\">内核参数</h3>\n<p><a href=\"https://forum.manjaro.org/t/howto-disable-watchdogs-and-silence-watchdog-did-not-stop/148561/4\" target=\"_blank\" rel=\"noopener noreferrer\">[HowTo] Disable watchdogs (and silence &quot;watchdog did not stop!&quot;) - Contributions / Tutorials - Manjaro Linux Forum</a></p>\n<pre><code>sudo vim /etc/default/grub\n</code></pre>\n<p>在 <code>GRUB_CMDLINE_LINUX_DEFAULT</code> 中只加入经排障确认需要的参数。<code>nowatchdog</code> 和 watchdog 驱动黑名单会关闭相关故障检测，不应默认添加；模块名须按实际硬件确认。 <code>pcie_aspm=force</code> 可能在不兼容设备上造成锁死或数据风险，不作为通用节电参数。只有定位具体问题、确认支持并准备回退后才试验。</p>\n<h3 id=\"section-13\">power-profiles-daemon</h3>\n<p>性能模式切换，有三个档位，performance 性能、balanced 平衡、power-saver 节电 power-profiles-daemon 与 TLP 等工具各有适用条件；避免同时启用冲突的管理器。</p>\n<pre><code>sudo pacman -S power-profiles-daemon\n</code></pre>\n<pre><code>sudo systemctl enable --now power-profiles-daemon\n</code></pre>\n<h3 id=\"section-14\">实用插件扩展</h3>\n<pre><code>power tracker #显示电池充放电\nauto power profile #配合powerProfilesDaemon使用，可以自动切换模式\npower profile indicator # 配合powerProfilesDaemon使用，顶栏显示当前模式\n</code></pre>\n<h2 id=\"section-15\">美化</h2>\n<h3 id=\"section-16\">更换壁纸</h3>\n<pre><code>右键桌面选择更换背景\n</code></pre>\n<h3 id=\"section-17\">扩展美化</h3>\n<p><a href=\"https://www.bilibili.com/video/BV1ym4y1G76s/\" target=\"_blank\" rel=\"noopener noreferrer\">arch + gnome美化教程_哔哩哔哩_bilibili</a></p>\n<pre><code># 安装扩展\nlock screen background #更换锁屏背景\nblur my shell #透明度美化\nhide top bar #隐藏顶栏\nburn my windows #应用开启和打开的动画\nuser themes #主题，浏览器搜索gnome shell theme下载主题\nlogo menu # top bar的左上角显示一个logo,好玩\n</code></pre>\n<h3 id=\"section-18\">主题美化</h3>\n<ul>\n<li>去掉标题栏用来关闭窗口的 x</li>\n</ul>\n<pre><code>gsettings set org.gnome.desktop.wm.preferences button-layout &#39;appmenu:&#39;\n</code></pre>\n<h3 id=\"section-19\">光标主题</h3>\n<p>主题下载网站 [<a href=\"https://www.gnome-look.org/browse?cat=107&amp;ord=latest%5D%28https%3A%2F%2Fwww.gnome-look.org%2Fbrowse%3Fcat%3D107&amp;ord=latest\" target=\"_blank\" rel=\"noopener noreferrer\">https://www.gnome-look.org/browse?cat=107&amp;ord=latest%5D%28https%3A%2F%2Fwww.gnome-look.org%2Fbrowse%3Fcat%3D107&amp;ord=latest</a>) 将下载的.tar.gz 文件里面的文件夹放到~/.local/share/icons/目录下，没有 icons 文件夹的话自己创建一个</p>\n<h3 id=\"section-20\">gnome 主题</h3>\n<p>[<a href=\"https://www.gnome-look.org/browse?cat=134&amp;ord=latest%5D%28https%3A%2F%2Fwww.gnome-look.org%2Fbrowse%3Fcat%3D134&amp;ord=latest\" target=\"_blank\" rel=\"noopener noreferrer\">https://www.gnome-look.org/browse?cat=134&amp;ord=latest%5D%28https%3A%2F%2Fwww.gnome-look.org%2Fbrowse%3Fcat%3D134&amp;ord=latest</a>) 通常下载页面都有指引，文件路径是~/.themes/，放进去之后在 user themes 扩展的设置里面改可以改</p>\n<h3 id=\"section-21\">终端美化</h3>\n<ul>\n<li>安装字体</li>\n</ul>\n<pre><code>sudo pacman -S ttf-jetbrains-mono-nerd\n</code></pre>\n<ul>\n<li>安装 zsh</li>\n</ul>\n<pre><code>sudo pacman -S zsh\n</code></pre>\n<ul>\n<li>修改 shell 为 zsh</li>\n</ul>\n<pre><code>chsh -s /usr/bin/zsh\n</code></pre>\n<pre><code># 登出\n</code></pre>\n<pre><code># 启动终端按0生成默认的配置文件\n</code></pre>\n<h3 id=\"section-22\">starship</h3>\n<p><a href=\"https://starship.rs/\" target=\"_blank\" rel=\"noopener noreferrer\">Starship</a></p>\n<pre><code>sudo pacman -S starship\n</code></pre>\n<pre><code>vim ~/.zshrc\n</code></pre>\n<pre><code>eval &quot;$(starship init zsh)&quot;\n</code></pre>\n<h3 id=\"section-23\">preset 主题</h3>\n<p><a href=\"https://starship.rs/presets/\" target=\"_blank\" rel=\"noopener noreferrer\">https://starship.rs/presets/</a> 挑一个自己喜欢的，下载后改名为 starship.toml，移动到~/.config 目录</p>\n<h3 id=\"section-24\">语法高亮和自动补全</h3>\n<p>Zsh 高亮插件一般放在其他会修改 ZLE 的插件之后；以下仍保留原配置项，可按当前插件说明调整加载顺序。</p>\n<ul>\n<li>语法检查、补全、tab</li>\n</ul>\n<pre><code>sudo pacman -S zsh-syntax-highlighting zsh-autosuggestions zsh-completions\n</code></pre>\n<pre><code>vim ~/.zshrc\n</code></pre>\n<p>写入</p>\n<pre><code># 语法检查和高亮\nsource /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh\n# 开启tab上下左右选择补全\nzstyle &#39;:completion:*&#39; menu select\nautoload -Uz compinit\ncompinit\n</code></pre>\n<pre><code>source ~/.zshrc\n</code></pre>\n<h3 id=\"section-25\">ghostty 美化</h3>\n<ul>\n<li>下载 catppuccin 颜色配置，粘贴到~/.config/ghostty/themes/</li>\n</ul>\n<pre><code>https://github.com/catppuccin/ghostty?tab=readme-ov-file\n</code></pre>\n<ul>\n<li>修改~/.config/ghostty/config 配置文件，例如下载的是 frappe 的话：</li>\n</ul>\n<pre><code>theme = Catppuccin Frappe # 按已安装主题名称选择，可用 ghostty +list-themes 查看\n</code></pre>\n<ul>\n<li>隐藏标题栏</li>\n</ul>\n<pre><code>window-decoration = none\n</code></pre>\n<ul>\n<li>设置透明度</li>\n</ul>\n<pre><code>background-opacity=0.8\n</code></pre>\n<ul>\n<li>设置字体和字体大小</li>\n</ul>\n<pre><code>font-family = &quot;Adwaita Mono&quot;\nfont-size = 15\n</code></pre>\n<h2 id=\"section-26\">官方核对入口</h2>\n<p><a href=\"https://wiki.archlinux.org/title/PRIME\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：PRIME</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/Power_management/Suspend_and_hibernate\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Power management/Suspend and hibernate</a>。</p>\n<p><a href=\"https://ghostty.org/docs/config/reference\" target=\"_blank\" rel=\"noopener noreferrer\">Ghostty 配置参考</a>。</p>\n<p><a href=\"https://linrunner.de/tlp/installation/arch.html\" target=\"_blank\" rel=\"noopener noreferrer\">TLP 官方文档</a>。</p>\n",
+  "refs": [
+    [
+      "原教程：shorinkiwata/archlinuxinstall",
+      "https://github.com/shorinkiwata/archlinuxinstall"
+    ],
+    [
+      "ArchWiki：PRIME",
+      "https://wiki.archlinux.org/title/PRIME"
+    ],
+    [
+      "ArchWiki：Power management/Suspend and hibernate",
+      "https://wiki.archlinux.org/title/Power_management/Suspend_and_hibernate"
+    ],
+    [
+      "Ghostty 配置参考",
+      "https://ghostty.org/docs/config/reference"
+    ],
+    [
+      "TLP 官方文档",
+      "https://linrunner.de/tlp/installation/arch.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "gnome"
+  ]
+}

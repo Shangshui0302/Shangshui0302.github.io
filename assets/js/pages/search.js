@@ -2,13 +2,17 @@ export function initSearch(root, scope, {updateUrl}) {
   const form = root.querySelector('#search');
   if (!form) return () => {};
   const input = root.querySelector('#search-input'), kind = root.querySelector('#kind');
-  const rows = [...root.querySelectorAll('#search-results .result-row')];
+  // Normalize full article text once per mount, not on every keystroke.
+  const rows = [...root.querySelectorAll('#search-results .result-row')].map(row => ({
+    row, kind: row.dataset.kind, text: row.dataset.search.toLocaleLowerCase(),
+  }));
   const apply = () => {
     const terms = input.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
     let visible = 0;
-    rows.forEach(row => {
-      row.hidden = kind.value !== 'all' && row.dataset.kind !== kind.value || !terms.every(term => row.dataset.search.toLocaleLowerCase().includes(term));
-      if (!row.hidden) visible++;
+    rows.forEach(item => {
+      const hidden = kind.value !== 'all' && item.kind !== kind.value || !terms.every(term => item.text.includes(term));
+      if (item.row.hidden !== hidden) item.row.hidden = hidden;
+      if (!hidden) visible++;
     });
     root.querySelector('.count').textContent = `${visible} 项内容`;
     root.querySelector('#search-empty').hidden = visible > 0;

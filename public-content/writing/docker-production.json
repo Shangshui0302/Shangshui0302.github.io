@@ -1,0 +1,76 @@
+{
+  "slug": "docker-production",
+  "number": "115",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Docker 生产实践：资源、安全与恢复",
+  "deck": "围绕限制、日志、更新、凭据与备份检查容器运行条件。",
+  "sections": [
+    [
+      "section-01",
+      "镜像安全"
+    ],
+    [
+      "section-05",
+      "资源限制"
+    ],
+    [
+      "section-07",
+      "日志管理"
+    ],
+    [
+      "section-11",
+      "健康检查与自愈"
+    ],
+    [
+      "section-14",
+      "Updates：滚动更新与停机边界"
+    ],
+    [
+      "section-17",
+      "Secrets 管理"
+    ],
+    [
+      "section-18",
+      "备份与恢复"
+    ],
+    [
+      "section-20",
+      "定期清理"
+    ],
+    [
+      "section-21",
+      "安全检查清单"
+    ]
+  ],
+  "body": "<blockquote>\n<p>开发环境跑通容器只是第一步。生产环境要关心安全、资源、日志、更新和监控。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">镜像安全</h2>\n<h3 id=\"section-02\">用非 root 用户运行</h3>\n<pre><code># 错误的做法（容器内以 root 运行）\nFROM node:20-alpine\nCOPY . /app\nCMD [&quot;node&quot;, &quot;/app/server.js&quot;]\n# 容器内进程 = root，万一被攻破有更高权限\n\n# 正确的做法\nFROM node:20-alpine\nRUN addgroup -S appgroup &amp;&amp; adduser -S appuser -G appgroup\nUSER appuser\nCOPY --chown=appuser:appgroup . /app\nCMD [&quot;node&quot;, &quot;/app/server.js&quot;]</code></pre>\n<h3 id=\"section-03\">固定版本，不追 latest</h3>\n<pre><code># ❌ 坏：今天和明天拉到的可能是不同镜像\nFROM node:latest\n\n# ✅ 好：锁定具体版本\nFROM node:20.11.1-alpine3.19\n\n# ✅ 更好：锁定 digest（固定内容标识；仍需验证来源、支持周期和安全更新）\nFROM node:&lt;受支持版本&gt;@sha256:&lt;核验过的完整digest&gt;</code></pre>\n<h3 id=\"section-04\">Docker Scout 漏洞扫描</h3>\n<pre><code># 扫描镜像的已知漏洞\ndocker scout quickview myapp:latest\ndocker scout cves myapp:latest\n\n# 查看策略合规状态\ndocker scout policy myapp:latest</code></pre>\n<hr>\n<h2 id=\"section-05\">资源限制</h2>\n<pre><code># Compose 方式（推荐）\nservices:\n  api:\n    image: myapp:latest\n    deploy:\n      resources:\n        limits:\n          memory: 512M       # 硬上限\n          cpus: &quot;1.0&quot;        # 最多 1 核\n        reservations:\n          memory: 256M       # reservation 不等于物理内存的绝对保证，执行/调度语义按环境判断</code></pre>\n<pre><code># 命令行方式\ndocker run -d \\\n  --memory=512m \\\n  --memory-swap=1g \\\n  --cpus=1.5 \\\n  --cpuset-cpus=0-2 \\\n  --name api myapp:latest</code></pre>\n<h3 id=\"section-06\">如果不设限制会怎样？</h3>\n<p>一个容器可能吃光所有内存，导致 OOM Killer 开始杀进程（包括宿主机进程）。<strong>生产环境必须设置上限。</strong></p>\n<hr>\n<h2 id=\"section-07\">日志管理</h2>\n<h3 id=\"section-08\">配置日志驱动</h3>\n<p>一般 Linux Engine 可通过 daemon 配置文件表达以下设置；NixOS 用 <code>virtualisation.docker.daemon.settings</code> 声明，不手工覆盖受管理文件。默认设置主要作用于新建容器，既有容器需按计划重建：</p>\n<pre><code>{\n  &quot;log-driver&quot;: &quot;json-file&quot;,\n  &quot;log-opts&quot;: {\n    &quot;max-size&quot;: &quot;10m&quot;,\n    &quot;max-file&quot;: &quot;3&quot;\n  }\n}</code></pre>\n<p>不改这个，某个容器日志疯狂输出可能<strong>撑爆磁盘</strong>。</p>\n<h3 id=\"section-09\">查看日志</h3>\n<pre><code>docker logs --tail 100 myweb\ndocker logs --since 30m myweb\ndocker logs -f myweb   # 实时跟踪</code></pre>\n<h3 id=\"section-10\">集中日志收集</h3>\n<p>生产环境建议将日志发送到集中系统：</p>\n<pre><code>services:\n  api:\n    logging:\n      driver: syslog\n      options:\n        syslog-address: &quot;tcp://logserver:514&quot;</code></pre>\n<hr>\n<h2 id=\"section-11\">健康检查与自愈</h2>\n<h3 id=\"section-12\">内置健康检查</h3>\n<pre><code>services:\n  api:\n    healthcheck:\n      test: [&quot;CMD&quot;, &quot;curl&quot;, &quot;-f&quot;, &quot;http://localhost:3000/health&quot;]\n      interval: 30s\n      timeout: 5s\n      retries: 3\n      start_period: 60s</code></pre>\n<pre><code># 查看健康状态\ndocker ps --format &quot;table {{.Names}}\\t{{.Status}}&quot;\n# api   Up 10 minutes (healthy)</code></pre>\n<h3 id=\"section-13\">自动重启不健康容器</h3>\n<p>普通 Engine 的 restart policy 根据进程退出动作，不因 unhealthy 自动重启；Swarm 服务调度和第三方监控有不同机制。示例健康命令要求镜像内实际提供 curl：</p>\n<pre><code># 方案 1：Docker Swarm（内置自愈）\ndocker stack deploy -c compose.yaml myapp\n\n# 方案 2：第三方 autoheal 示例（将授予 rootful daemon 管理能力，先审查镜像及配置）\ndocker run -d --name autoheal \\\n  -v /var/run/docker.sock:/var/run/docker.sock \\\n  willfarrell/autoheal</code></pre>\n<hr>\n<h2 id=\"section-14\">Updates：滚动更新与停机边界</h2>\n<h3 id=\"section-15\">Rolling update（Swarm）</h3>\n<pre><code>services:\n  api:\n    image: myapp:latest\n    deploy:\n      replicas: 3\n      update_config:\n        parallelism: 1       # 每次更新 1 个副本\n        delay: 10s           # 间隔 10 秒\n        order: start-first   # 先启新再停旧</code></pre>\n<pre><code>docker service update --image myapp:v2 myapp_api</code></pre>\n<h3 id=\"section-16\">Compose 单机更新</h3>\n<pre><code># 拉新镜像 + 重建容器\ndocker compose pull\ndocker compose up -d --remove-orphans\n# 注意：单机 Compose 有短暂中断</code></pre>\n<hr>\n<h2 id=\"section-17\">Secrets 管理</h2>\n<pre><code># Swarm secrets：先安全生成并保护来源文件，勿在命令行硬编码凭据\ndocker secret create db_password /path/to/protected-password-file</code></pre>\n<pre><code># swarm compose 文件\nsecrets:\n  db_password:\n    external: true\n\nservices:\n  db:\n    secrets:\n      - db_password\n    environment:\n      POSTGRES_PASSWORD_FILE: /run/secrets/db_password</code></pre>\n<pre><code># 非 Swarm 方式：用 .env\n# .env（加入 .gitignore）\nDB_PASSWORD=&lt;从受控凭据来源提供&gt;</code></pre>\n<p><strong>绝对不要</strong>：</p>\n<ul>\n<li>把密码 hardcode 在 Dockerfile 里（<code>ENV DB_PASSWORD=123</code>）——密码进了镜像层，<code>docker history</code> 可见</li>\n<li>把 <code>.env</code> 提交到 git</li>\n</ul>\n<hr>\n<h2 id=\"section-18\">备份与恢复</h2>\n<h3 id=\"section-19\">卷备份</h3>\n<p>先停止写入或使用数据库原生一致性备份。恢复应在停服务、空的新卷或已备份目标上验证；tar 解压会覆盖同名文件，且不会自动清理目标多余文件。下面命令只演示文件归档，不保证数据库一致性。</p>\n<pre><code># 备份\ndocker run --rm -v mydata:/data -v &quot;$(pwd)&quot;:/backup alpine \\\n  tar czf /backup/mydata-$(date +%Y%m%d).tar.gz -C /data .\n\n# 恢复\ndocker run --rm -v mydata:/data -v &quot;$(pwd)&quot;:/backup alpine \\\n  tar xzf /backup/mydata-20260620.tar.gz -C /data</code></pre>\n<hr>\n<h2 id=\"section-20\">定期清理</h2>\n<pre><code># crontab 或 systemd timer\n# 每天凌晨 3 点清理 72 小时前的未使用镜像\n0 3 * * * docker image prune -af --filter &quot;until=72h&quot;</code></pre>\n<hr>\n<h2 id=\"section-21\">安全检查清单</h2>\n<ul>\n<li><input disabled=\"\" type=\"checkbox\"> Docker daemon 是否暴露了 TCP socket？（检查 Unix socket 权限；TCP 使用认证和加密，Unix socket 也不是自动安全）</li>\n<li><input disabled=\"\" type=\"checkbox\"> 容器是不是都设了 <code>--memory</code> 和 <code>--cpus</code> 限制？</li>\n<li><input disabled=\"\" type=\"checkbox\"> 日志大小上限设了没？（<code>daemon.json</code> 的 <code>max-size</code>）</li>\n<li><input disabled=\"\" type=\"checkbox\"> 有没有容器在挂载 <code>/var/run/docker.sock</code>？（极度危险）</li>\n<li><input disabled=\"\" type=\"checkbox\"> <code>.env</code> 是否在 <code>.gitignore</code> 里？</li>\n<li><input disabled=\"\" type=\"checkbox\"> 有没有用 <code>:latest</code> 标签？</li>\n<li><input disabled=\"\" type=\"checkbox\"> 有没有跑 <code>docker scout</code> 扫过镜像？</li>\n</ul>\n<hr>\n<h3 id=\"section-22\">生产验收的补充边界</h3>\n<p><code>start-first</code> 与副本数不保证零停机：应用就绪、连接排空、端口冲突、迁移和集群容量都要验证。非 root 用户、rootless、capabilities/seccomp、只读挂载和最小权限分别解决不同问题，挂载 Docker socket 会扩大控制权限，即使绑定挂载标成只读也不限制 API 操作。</p>\n<p>普通 Compose 同样支持 file secrets；它保护注入方式，但不自动加密源文件。扫描结果有时效与覆盖范围，锁定旧 digest 也不会自动获得安全更新。自动 prune 需保留回滚镜像和维护窗口，镜像创建时间过滤不等于最后使用时间。</p>\n",
+  "refs": [
+    [
+      "Docker Engine 安全",
+      "https://docs.docker.com/engine/security/"
+    ],
+    [
+      "Swarm secrets",
+      "https://docs.docker.com/engine/swarm/secrets/"
+    ],
+    [
+      "Compose secrets",
+      "https://docs.docker.com/compose/how-tos/use-secrets/"
+    ],
+    [
+      "卷与备份",
+      "https://docs.docker.com/engine/storage/volumes/"
+    ],
+    [
+      "重启策略",
+      "https://docs.docker.com/engine/containers/start-containers-automatically/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "containers",
+    "docker"
+  ]
+}

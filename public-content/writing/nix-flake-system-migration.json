@@ -1,0 +1,56 @@
+{
+  "slug": "nix-flake-system-migration",
+  "number": "029",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "将 NixOS 配置迁移到 Flakes",
+  "deck": "从已有配置建立 Flake 入口，分别完成检查、构建和激活。",
+  "sections": [
+    [
+      "section-01",
+      "第一步：创建项目目录"
+    ],
+    [
+      "section-02",
+      "第二步：编写 flake.nix"
+    ],
+    [
+      "section-03",
+      "第三步：调整 configuration.nix"
+    ],
+    [
+      "section-04",
+      "第四步：构建并应用"
+    ],
+    [
+      "section-05",
+      "迁移后的好处"
+    ],
+    [
+      "section-06",
+      "激活后的确认"
+    ]
+  ],
+  "body": "<blockquote>\n<p>&quot;让你的配置‘现代且可移植’。&quot; 手把手带你完成从传统的 <code>/etc/nixos/configuration.nix</code> 到 Flakes 的迁移。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">第一步：创建项目目录</h2>\n<p>创建一个专门存放配置的目录（比如 <code>~/nixos-config</code>），<strong>千万不要</strong>直接在 <code>/etc/nixos</code> 目录下乱搞。</p>\n<pre><code>mkdir ~/nixos-config\ncd ~/nixos-config\n# 复制原有的硬件配置\ncp /etc/nixos/hardware-configuration.nix .\n# 复制原有的系统配置\ncp /etc/nixos/configuration.nix .</code></pre>\n<hr>\n<h2 id=\"section-02\">第二步：编写 flake.nix</h2>\n<p>在项目根目录创建 <code>flake.nix</code>。</p>\n<pre><code>{\n  description = &quot;我的 2026 版 NixOS 配置&quot;;\n\n  inputs = {\n    nixpkgs.url = &quot;github:nixos/nixpkgs/nixos-unstable&quot;;\n  };\n\n  outputs = { self, nixpkgs, ... }@inputs: {\n    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {\n      system = &quot;x86_64-linux&quot;;\n      # 传递参数给子模块\n      specialArgs = { inherit inputs; };\n      modules = [\n        ./configuration.nix\n      ];\n    };\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-03\">第三步：调整 configuration.nix</h2>\n<p>由于我们在 Flake 里使用了 <code>nixpkgs.lib.nixosSystem</code>，原本 <code>configuration.nix</code> 顶层的参数可能需要调整：</p>\n<pre><code># 修改前：\n# { config, pkgs, ... }:\n\n# 修改后：\n{ config, pkgs, inputs, ... }: {\n  imports = [\n    ./hardware-configuration.nix\n  ];\n\n  # 启用 Flakes 和新的 Nix CLI\n  nix.settings.experimental-features = [ &quot;nix-command&quot; &quot;flakes&quot; ];\n\n  # 其他配置项...\n  system.stateVersion = &quot;24.11&quot;; # 示例初装版本；迁移时保留原值\n}</code></pre>\n<hr>\n<h2 id=\"section-04\">第四步：构建并应用</h2>\n<p><strong>注意</strong>：在 Flake 模式下，当 Flake 通过本地 Git 工作树读取时，所引用的文件需要纳入 Git 跟踪（新文件可先 <code>git add</code>）；显式 <code>path:</code> 来源的行为不同。先检查暂存内容，避免加入私钥和无关文件。</p>\n<pre><code>git init\ngit add flake.nix configuration.nix hardware-configuration.nix\nnix flake check --no-build\nnixos-rebuild dry-build --flake .#my-host\nnixos-rebuild build --flake .#my-host\n# 检查构建结果、恢复路径与变更后，手动激活：\nsudo nixos-rebuild switch --flake .#my-host</code></pre>\n<ul>\n<li><strong><code>.</code></strong>：表示当前目录。</li>\n<li><strong><code>#my-host</code></strong>：匹配 <code>outputs.nixosConfigurations</code> 中定义的名称。</li>\n</ul>\n<hr>\n<h2 id=\"section-05\">迁移后的好处</h2>\n<ul>\n<li><strong>不再依赖全局 Channel</strong>：系统版本完全由 <code>flake.lock</code> 决定。</li>\n<li><strong>易于备份</strong>：只需要把这个目录推送到 GitHub。</li>\n<li><strong>模块化</strong>：可以轻松拆分出 <code>desktop.nix</code>, <code>user.nix</code> 等子文件并在 <code>configuration.nix</code> 的 <code>imports</code> 里引用。</li>\n</ul>\n<hr>\n<h2 id=\"section-06\">激活后的确认</h2>\n<p>构建成功只能证明构建层。激活后仍需检查当前系统代际、服务状态与桌面行为，再继续集成 Home Manager。</p>\n",
+  "refs": [
+    [
+      "Nix Flake 手册",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake"
+    ],
+    [
+      "Nix flake update",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-update"
+    ],
+    [
+      "Nix flake check",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-check"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nix-flakes"
+  ]
+}

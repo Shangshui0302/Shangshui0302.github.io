@@ -1,0 +1,45 @@
+{
+  "slug": "nix-syntax",
+  "number": "021",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Nix 语法：属性集、列表与内置函数",
+  "deck": "掌握常见数据类型、属性访问和配置表达式的基本写法。",
+  "sections": [
+    [
+      "section-01",
+      "基础数据类型"
+    ],
+    [
+      "section-05",
+      "常用操作符"
+    ],
+    [
+      "section-06",
+      "内置函数 (Builtins)"
+    ],
+    [
+      "section-07",
+      "避坑指南：分号 ;"
+    ]
+  ],
+  "body": "<p>Nix 是惰性求值的函数式表达式语言。属性集和列表是配置中常见的数据结构，但函数、条件、递归与求值同样构成语言本身。</p>\n<hr>\n<h2 id=\"section-01\">基础数据类型</h2>\n<h3 id=\"section-02\">1. 属性集 (Attribute Sets)</h3>\n<p>这是 Nix 中最重要的数据结构。</p>\n<pre><code>{\n  name = &quot;nixos&quot;;\n  version = &quot;24.11&quot;; # 版本号通常用字符串，24.11 是浮点数\n  isGood = true;\n}</code></pre>\n<ul>\n<li>访问属性：<code>mySet.name</code>。</li>\n<li>合并属性：使用 <code>//</code> 运算符。</li>\n</ul>\n<h3 id=\"section-03\">2. 列表 (Lists)</h3>\n<p>用空格分隔，<strong>不是逗号</strong>！</p>\n<pre><code>[ &quot;git&quot; &quot;vim&quot; &quot;htop&quot; ]</code></pre>\n<h3 id=\"section-04\">3. 字符串 (Strings)</h3>\n<p>双引号用于单行，两个单引号用于多行（Indented Strings）。</p>\n<pre><code>&quot;single line string&quot;\n&#39;&#39;\n  multi\n  line\n  string\n&#39;&#39;</code></pre>\n<ul>\n<li><strong>字符串插值</strong>：使用 <code>${variable}</code>。</li>\n</ul>\n<hr>\n<h2 id=\"section-05\">常用操作符</h2>\n<ul>\n<li><strong><code>//</code> (Merge)</strong>：将两个属性集合并。\n<code>{ a = 1; } // { b = 2; }</code> 结果为 <code>{ a = 1; b = 2; }</code>。</li>\n<li><strong><code>.</code> (Access)</strong>：访问层级属性。\n<code>pkgs.lib.mkIf</code>。</li>\n<li><strong><code>?</code> (Has Property)</strong>：检查属性是否存在。\n<code>set ? name</code> 返回 true/false。</li>\n</ul>\n<hr>\n<h2 id=\"section-06\">内置函数 (Builtins)</h2>\n<p>Nix 提供了许多内置函数，在配置中极其常用：</p>\n<ol>\n<li><strong><code>import ./path.nix</code></strong>：加载另一个文件。</li>\n<li><strong><code>builtins.elem x list</code></strong>：检查 x 是否在列表中。</li>\n<li><strong><code>builtins.attrNames set</code></strong>：获取所有键名。</li>\n<li><strong><code>pkgs.lib</code></strong>：虽然不是内置，但它是 NixOS 的核心函数库。<ul>\n<li><code>lib.mkIf condition config</code>：条件性开启配置。</li>\n<li><code>lib.mkMerge [ ... ]</code>：合并多个配置片段。</li>\n</ul>\n</li>\n</ol>\n<hr>\n<h2 id=\"section-07\">避坑指南：分号 ;</h2>\n<p>在 Nix 中，<strong>属性定义的末尾必须有分号</strong>。</p>\n<pre><code># 错误\n{ a = 1 }\n\n# 正确\n{ a = 1; }</code></pre>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "nix-language"
+  ]
+}

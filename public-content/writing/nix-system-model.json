@@ -1,0 +1,109 @@
+{
+  "slug": "nix-system-model",
+  "number": "020",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Nix 与 NixOS：存储、回滚和声明式思维",
+  "deck": "从 store、profile 与命令式工具理解 NixOS 的系统模型。",
+  "sections": [
+    [
+      "section-01",
+      "NixOS 的工作原理"
+    ],
+    [
+      "section-02",
+      "声明式系统配置模型"
+    ],
+    [
+      "section-03",
+      "可靠的升级"
+    ],
+    [
+      "section-04",
+      "原子升级"
+    ],
+    [
+      "section-05",
+      "回滚"
+    ],
+    [
+      "section-06",
+      "可复现的系统配置"
+    ],
+    [
+      "section-07",
+      "可以安全地测试更改"
+    ],
+    [
+      "section-08",
+      "系统回滚≠配置回滚"
+    ],
+    [
+      "section-10",
+      "Arch (命令式) vs NixOS (声明式)"
+    ],
+    [
+      "section-11",
+      "核心差异对照表"
+    ],
+    [
+      "section-12",
+      "NixOS 的“纯净”本质"
+    ],
+    [
+      "section-15",
+      "实战练习：从 Arch 逻辑转换"
+    ],
+    [
+      "section-16",
+      "给 Arch 用户的建议"
+    ],
+    [
+      "section-17",
+      "关于Nix这个工具本身"
+    ],
+    [
+      "section-18",
+      "nix-env 的设计背景"
+    ],
+    [
+      "section-19",
+      "设计目的"
+    ],
+    [
+      "section-20",
+      "它解决了什么真实问题"
+    ],
+    [
+      "section-21",
+      "声明式管理与命令式入口的权衡"
+    ],
+    [
+      "section-22",
+      "管理入口的选择"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">NixOS 的工作原理</h2>\n<p>NixOS 基于 <a href=\"https://nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">Nix</a> ，一个纯函数式软件包管理系统。Nix 将所有软件包彼此隔离地存储在 <code>/nix/store</code> 下。</p>\n<pre><code>/nix/store/5rnfzla9kcx4mj5zdc7nlnv8na1najvg-firefox-3.5.4/</code></pre>\n<p>示例路径的哈希部分标识 store 对象；常见 derivation 的输出路径由构建描述等输入决定，不能直接当作输出文件内容哈希。软件包构建完成后不会被覆盖；相反，如果您更改软件包的构建描述（即其“Nix 表达式”），它会被重新构建并安装到 <code>/nix/store</code> 中的不同路径，以避免与旧版本冲突。NixOS 对此进行了扩展，不仅使用 Nix 构建软件包，还使用 ​​Nix 构建配置文件等。例如，SSH 守护进程的配置也是根据 Nix 表达式构建的，并存储在类似这样的路径下。</p>\n<pre><code>/nix/store/s2sjbl85xnrc18rl4fhn56irkxqxyk4p-sshd_config</code></pre>\n<p>NixOS 通过从 Nix 表达式构建整个系统配置，确保这些配置不会相互覆盖，可以回滚等等。</p>\n<p>Nix/NixOS 存储软件包的方式带来的一个重要影响是，它不把软件按传统发行版方式统一安装到 <code>/bin</code> 、 <code>/sbin</code> 、 <code>/lib</code> 、 <code>/usr</code> 等目录。所有软件包都保存在 <code>/nix/store</code> 目录中。（保留 <code>/bin/sh</code> 等兼容入口；具体布局随系统模块而异。）正是由于不使用 <code>/bin</code> 等“全局”目录，才使得软件包的多个版本可以共存。Nix 确实有一个 <code>/etc</code> 用于存放系统级配置文件，但该目录中的大多数文件都是指向 <code>/nix/store</code> 中生成文件的符号链接。\n不采用传统 FHS 软件布局，会让依赖固定 <code>/usr/lib</code> 或动态加载器路径的第三方预编译程序需要包装、修补或兼容环境；不是 Nix 管理的依赖本身普遍失效。</p>\n<h2 id=\"section-02\">声明式系统配置模型</h2>\n<p>在 NixOS 中，整个操作系统——包括内核、应用程序、系统软件包、配置文件等等——都是由 <a href=\"https://nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">Nix 包管理器</a>根据纯函数式构建语言的描述构建的。纯函数式的特性意味着构建新的配置不会覆盖之前的配置。其他大部分特性都源于此。</p>\n<p>您可以通过在 <code>/etc/nixos/configuration.nix</code> 文件中编写规范来配置 NixOS 系统，该规范定义了您希望在机器上实现的功能。例如，以下是 BIOS/GRUB 系统的历史配置片段，实际安装还须生成完整硬件配置并确认磁盘目标；不可直接用于新机器：</p>\n<pre><code>{\n  boot.loader.grub.device = &quot;/dev/sda&quot;;\n  fileSystems.&quot;/&quot;.device = &quot;/dev/sda1&quot;;\n  services.openssh.enable = true;\n}</code></pre>\n<p>修改 <code>/etc/nixos/configuration.nix</code> 文件后，运行以下命令即可生效：</p>\n<pre><code>nixos-rebuild switch</code></pre>\n<p>该命令执行配置所需的一切操作，包括下载和编译 OpenSSH、生成 SSH 服务器的配置文件等等。</p>\n<h2 id=\"section-03\">可靠的升级</h2>\n<p>固定构建输入能减少原系统安装历史对构建结果的影响；升级仍需检查配置兼容、激活脚本和可写数据迁移。</p>\n<h2 id=\"section-04\">原子升级</h2>\n<p>NixOS 采用_事务性_配置管理方式：配置更改（例如升级）是_原子性的_ 。这意味着，新旧 store 产物分离、profile 原子切换减少了升级中途覆盖文件的风险；启动加载器写入、服务激活和可写数据仍有独立故障边界。</p>\n<h2 id=\"section-05\">回滚</h2>\n<p>由于新配置的文件不会覆盖旧文件，因此您可以（原子地）回滚到之前的配置。例如，如果在 <code>nixos-rebuild switch</code> 后，您发现不喜欢新配置，您可以直接回滚：</p>\n<pre><code>nixos-rebuild switch --rollback</code></pre>\n<p>事实上，尚未删除且在启动菜单保留范围内的旧配置可显示在启动菜单中。因此，如果新配置崩溃或无法正常启动，您只需在启动菜单中选择旧配置即可回滚。回滚过程非常快捷：无需从备份中恢复大量文件。</p>\n<h2 id=\"section-06\">可复现的系统配置</h2>\n<p>NixOS 的声明式配置模型使得在另一台机器上重现系统配置变得轻而易举（例如，在生产服务器上进行更改之前，先在测试环境中进行测试）。固定依赖并为目标机器配置硬件、磁盘和引导后，可将声明配置带到目标 NixOS 机器，然后运行 <code>nixos-rebuild switch</code> 即可。这将使您获得相同的配置（内核、应用程序、系统服务等），但可变状态（例如 <code>/var</code> 目录中的内容）除外。</p>\n<h2 id=\"section-07\">可以安全地测试更改</h2>\n<p>回滚可以帮助恢复声明环境，但不能撤销任意服务副作用或数据迁移。例如，无论更改是像启用系统服务这样简单，还是像使用新版本的 Glibc 重建整个系统这样复杂，您都可以通过以下方式进行测试：</p>\n<pre><code>nixos-rebuild test</code></pre>\n<p>此操作会构建并激活新配置，但不会将其设置为默认启动配置。因此，重启系统后，系统将采用已有启动默认配置，前提是该配置仍可用。</p>\n<p>对适合虚拟机验证的模块，可采用以下方案：</p>\n<pre><code>nixos-rebuild build-vm\n./result/bin/run-*-vm</code></pre>\n<p>此命令会构建并启动一个包含新系统配置的虚拟机（即主机配置的克隆，并包含您对 configuration.nix 文件所做的所有更改）。该机制可以共享宿主机的 Nix store，VM 的可写根文件系统与主机系统激活分开；也可能通过配置额外挂载目录，不能把 VM 视为绝对无数据共享。按当前构建产物脚本和 virtualisation 选项核实磁盘、网络及共享目录。</p>\n<h2 id=\"section-08\">系统回滚≠配置回滚</h2>\n<p><strong>Generation 回滚</strong> 和 <strong>配置文件本身</strong> 是两回事。</p>\n<pre><code>回滚的是：  Nix store 里构建好的系统（二进制结果）\n不回滚的是：/etc/nixos/configuration.nix 这个文本文件</code></pre>\n<h3 id=\"section-09\">具体发生了什么</h3>\n<pre><code>你的操作流程：\n\nconfiguration.nix (v2)\n       ↓ nixos-rebuild switch\n   Generation 42  ← 当前启动\n   Generation 41  ← 上一个\n\nnixos-rebuild switch --rollback\n       ↓\n   Generation 41  ← 当前启动\n   Generation 42  ← 还在 nix store 里\n\n但是 /etc/nixos/configuration.nix 还是 v2 的内容！</code></pre>\n<p>也就是说，你回滚之后如果再 <code>nixos-rebuild switch</code>，会<strong>重新部署 v2</strong>，又回到出问题的状态。\n所以正确的工作流是配置文件用 Git 管理，这样两个维度都有历史记录：</p>\n<pre><code>cd /etc/nixos\ngit init\ngit add .\ngit commit -m &quot;working config baseline&quot;\n\n# 改了配置\ngit add configuration.nix\ngit commit -m &quot;try enabling some service&quot;\nnixos-rebuild switch\n\n# 出问题了\nnixos-rebuild switch --rollback   # 系统恢复\ngit revert HEAD                   # 配置文件也恢复</code></pre>\n<p>Generation 负责系统状态的回滚，Git 负责配置意图的回滚，两者配合才完整。\n<code>build-vm</code> 更干净，VM 里的系统跟宿主机的 generation 完全隔离，宿主机的 generation 列表根本不会变，所以这个问题在 build-vm 场景下不存在。适合 VM 的服务和模块可以先这样验证；真实硬件、图形及驱动效果仍需要对应环境验证。</p>\n<h2 id=\"section-10\">Arch (命令式) vs NixOS (声明式)</h2>\n<blockquote>\n<p>&quot;作为 Arch 用户，你习惯了‘改变系统状态’。在 NixOS，你优先通过声明‘描述系统状态’，可写运行时状态仍存在。&quot;</p>\n</blockquote>\n<hr>\n<h2 id=\"section-11\">核心差异对照表</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th align=\"left\">维度</th>\n<th align=\"left\">Arch Linux (命令式)</th>\n<th align=\"left\">NixOS (声明式)</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><strong>安装软件</strong></td>\n<td align=\"left\"><code>sudo pacman -S git</code></td>\n<td align=\"left\">在 <code>environment.systemPackages</code> 中添加 <code>git</code></td>\n</tr>\n<tr>\n<td align=\"left\"><strong>文件修改</strong></td>\n<td align=\"left\">手动修改 <code>/etc/fstab</code></td>\n<td align=\"left\">在 <code>fileSystems</code> 中定义挂载点</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>系统状态</strong></td>\n<td align=\"left\">当前状态是过去所有命令的累加</td>\n<td align=\"left\">当前状态是配置文件的计算结果</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>回滚</strong></td>\n<td align=\"left\">依赖包历史、备份或文件系统快照等额外机制</td>\n<td align=\"left\">保留系统代际时可切换旧闭包；数据另行恢复</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>副作用</strong></td>\n<td align=\"left\">修改文件是即时的、有副作用的</td>\n<td align=\"left\">修改配置不会生效，除非运行 <code>nixos-rebuild</code></td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-12\">NixOS 的“纯净”本质</h2>\n<h3 id=\"section-13\">1. /nix/store：只读的世外桃源</h3>\n<p>在 Arch 中，<code>/bin/git</code> 就是那个二进制文件。在 NixOS，系统环境中的 Git 通常通过 <code>/run/current-system/sw/bin/git</code> 等 profile 链接访问，它指向一个类似这样的路径：\n<code>/nix/store/h3l9...-git-2.43.0/bin/git</code></p>\n<ul>\n<li><strong>哈希前缀</strong>：代表了构建该软件的所有依赖和配置。如果依赖变了，哈希就变了。</li>\n<li><strong>不可变性</strong>：你不能修改 <code>/nix/store</code> 里的任何东西。这减少了覆盖包文件的风险，但不能避免激活错误、数据损坏或管理员强制改动。</li>\n</ul>\n<h3 id=\"section-14\">2. /etc 的真相</h3>\n<p>NixOS 中的 <code>/etc</code> 绝大部分文件都是只读软链接。</p>\n<ul>\n<li><strong>命令式思维</strong>：想改 SSH 配置？打开 <code>/etc/ssh/sshd_config</code> 修改。</li>\n<li><strong>声明式思维</strong>：在 <code>configuration.nix</code> 中写 <code>services.openssh.settings.PermitRootLogin = &quot;no&quot;;</code>，Nix 会自动帮你生成软链接到正确的配置文件。</li>\n</ul>\n<hr>\n<h2 id=\"section-15\">实战练习：从 Arch 逻辑转换</h2>\n<p><strong>Arch 命令：</strong></p>\n<pre><code>sudo pacman -S hello\nsudo systemctl enable --now docker</code></pre>\n<p><strong>NixOS 声明：</strong>\n在 <code>configuration.nix</code> 中：</p>\n<pre><code>{ pkgs, ... }: {\n  environment.systemPackages = [ pkgs.hello ];\n  virtualisation.docker.enable = true;\n}</code></pre>\n<p>运行生效：<code>sudo nixos-rebuild switch</code></p>\n<hr>\n<h2 id=\"section-16\">给 Arch 用户的建议</h2>\n<p>优先修改负责生成该文件的 Nix 模块，避免编辑生成文件导致配置与意图脱节。<code>/etc/nixos</code> 的源文件和其他可写、未托管文件另当别论。</p>\n<hr>\n<h2 id=\"section-17\">关于Nix这个工具本身</h2>\n<h2 id=\"section-18\">nix-env 的设计背景</h2>\n<p><code>nix-env</code> 是 Nix <strong>最早期</strong>的用户界面，2003年左右随 Nix 本身一起诞生。</p>\n<hr>\n<h2 id=\"section-19\">设计目的</h2>\n<p>Nix 最初不是为 NixOS 设计的，而是作为一个<strong>可以装在任何 Linux/macOS 上的包管理器</strong>。</p>\n<p>设想的场景是：</p>\n<pre><code>你用的是 Ubuntu / macOS\n但你想要：\n  - 多版本共存（python2 和 python3 同时装）\n  - 不需要 root 权限装包\n  - 可以回滚\n  - 不污染系统的 /usr/lib</code></pre>\n<p><code>nix-env</code> 就是为这个场景设计的，对标的是 <code>apt install</code> / <code>brew install</code>，给 Nix 用户提供 profile 管理，NixOS 上也能使用。</p>\n<pre><code>nix-env -iA nixpkgs.firefox    # 传统 channel/profile 的用户安装示例\nnix-env -e firefox    # 从该用户 profile 移除\nnix-env --rollback    # 回滚该用户 profile</code></pre>\n<hr>\n<h2 id=\"section-20\">它解决了什么真实问题</h2>\n<p><strong>多版本共存：</strong></p>\n<pre><code># 同时装两个版本，互不干扰（不同版本的 store 路径可共存；同一 profile 的同名程序还可能冲突）\nnix-env -iA nixpkgs.python2 # 历史版本示例，不保证当前 nixpkgs 提供\nnix-env -iA nixpkgs.python3</code></pre>\n<p><strong>无 root 安装：</strong></p>\n<pre><code># 普通用户在服务器上装自己的工具，不需要找管理员\nnix-env -iA nixpkgs.ripgrep</code></pre>\n<p><strong>Nix 的早期设计已经围绕隔离包路径和 profile 回滚展开。</strong></p>\n<hr>\n<h2 id=\"section-21\">声明式管理与命令式入口的权衡</h2>\n<p>时代变了，更好的替代品出现了：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\"><code>nix-env</code> 的问题</th>\n<th scope=\"col\">替代方案</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>命令式，状态不在文件里</td>\n<td><code>home.nix</code> 声明式管理</td>\n</tr>\n<tr>\n<td>多版本 nixpkgs 混用，难以追踪</td>\n<td>Flakes 锁版本</td>\n</tr>\n<tr>\n<td>临时试用不必修改长期 profile</td>\n<td><code>nix-shell -p</code> 或 <code>nix shell</code> 不改长期 profile；产物仍可能留在 store</td>\n</tr>\n</tbody></table></div>\n<p><code>nix-env</code> 面向传统用户 profile，<code>nix profile</code> 面向新 CLI 的 profile；两种格式不能任意混用。在 Home Manager 已管理稳定软件集合时，可以减少额外命令式安装入口。</p>\n<hr>\n<h2 id=\"section-22\">管理入口的选择</h2>\n<blockquote>\n<p><code>nix-env</code> 是&quot;在非 NixOS 系统上用 Nix 管包&quot;的早期解法，稳定用户环境可由 Home Manager 管理，传统 profile 和 channels 工作流仍有用途。</p>\n</blockquote>\n<hr>\n<hr>\n<p>前半部分依据 <a href=\"https://nixos.org/guides/how-nix-works/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 官方工作原理说明</a> 整理，历史示例仅用于解释机制。</p>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ],
+    [
+      "NixOS 工作原理（原笔记出处）",
+      "https://nixos.org/guides/how-nix-works/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "nix-language"
+  ]
+}

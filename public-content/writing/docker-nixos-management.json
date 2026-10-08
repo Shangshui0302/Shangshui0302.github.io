@@ -1,0 +1,56 @@
+{
+  "slug": "docker-nixos-management",
+  "number": "116",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "NixOS 上声明 Docker 与容器",
+  "deck": "用系统模块组织引擎设置、容器定义和凭据输入。",
+  "sections": [
+    [
+      "section-01",
+      "基础配置"
+    ],
+    [
+      "section-04",
+      "声明式容器：oci-containers 模块"
+    ],
+    [
+      "section-05",
+      "Home Manager"
+    ],
+    [
+      "section-06",
+      "NixOS 上 Docker vs Podman 选择"
+    ],
+    [
+      "section-07",
+      "构建、激活与运行验证"
+    ]
+  ],
+  "body": "<blockquote>\n<p>NixOS 上 Docker 的声明式配置。和 Podman 的路径不同，两者有不同 NixOS 配置接口，需按版本核对。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">基础配置</h2>\n<h3 id=\"section-02\">最小启用</h3>\n<pre><code># configuration.nix\n{\n  virtualisation.docker.enable = true;\n\n  # 将自己的用户加入 docker 组\n  users.users.alice = {\n    extraGroups = [ &quot;docker&quot; ];\n  };\n}</code></pre>\n<pre><code>sudo nixos-rebuild switch\n# 重新登录后生效\ndocker run hello-world</code></pre>\n<h3 id=\"section-03\">完整配置</h3>\n<pre><code>{\n  virtualisation.docker = {\n    enable = true;\n    # 自动清理旧镜像（每天一次）\n    autoPrune = {\n      enable = true;\n      dates = &quot;03:00&quot;;         # 每天凌晨 3 点\n      flags = [ &quot;--all&quot; &quot;--filter&quot; &quot;until=168h&quot; ]; # 按创建时间过滤的示例，非最后使用时间；先确定回滚策略\n    };\n    # 存储驱动\n    # storageDriver = &quot;overlay2&quot;; # 经典引擎示例，先确认当前后端，切换会使旧产物不可见\n    # daemon JSON 配置（mirror 不等于自动可信）\n    daemon.settings = {\n      # 镜像加速地址（根据需要替换）\n      registry-mirrors = [ &quot;https://mirror.gcr.io&quot; ];\n      # 日志大小限制\n      log-driver = &quot;json-file&quot;;\n      log-opts = {\n        max-size = &quot;10m&quot;;\n        max-file = &quot;3&quot;;\n      };\n    };\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-04\">声明式容器：oci-containers 模块</h2>\n<p>NixOS 有一个内置模块可以直接声明容器（类似简化版 Compose）：</p>\n<pre><code>{\n  virtualisation.oci-containers = {\n    backend = &quot;docker&quot;;    # 或 &quot;podman&quot;\n    containers = {\n      nginx = {\n        image = &quot;nginx:alpine&quot;;\n        autoStart = true;\n        ports = [ &quot;127.0.0.1:8080:80&quot; ];\n        volumes = [\n          &quot;nginx_data:/usr/share/nginx/html&quot;\n        ];\n      };\n\n      postgres = {\n        image = &quot;postgres:16-alpine&quot;;\n        autoStart = true;\n        ports = [ &quot;127.0.0.1:5432:5432&quot; ];\n        volumes = [\n          &quot;pgdata:/var/lib/postgresql/data&quot;\n        ];\n        # 文件由外部凭据流程提供；不把秘密内容放入 Nix store\n        environmentFiles = [ &quot;/run/secrets/postgres.env&quot; ];\n        environment = {\n          POSTGRES_DB = &quot;myapp&quot;;\n        };\n      };\n    };\n  };\n}</code></pre>\n<p><strong>局限</strong>：该模块不是 Compose 的完整模型；支持自己的 <code>dependsOn</code> 生成 systemd After/Requires，健康/运行参数可通过相应接口或 extraOptions 定义，但不自动拥有 Compose 的 profiles 和 service_healthy 依赖语义。复杂应用建议仍用 <code>docker compose</code> + 把 compose 文件纳入 Git 管理。</p>\n<hr>\n<h2 id=\"section-05\">Home Manager</h2>\n<pre><code># home.nix\n{\n  # 不需要额外配置 Docker，系统级 virtualisation.docker 已足够\n  # 如果需要在用户级管理 Docker，用：\n  # home.file.&quot;.docker/config.json&quot; = { ... };\n}</code></pre>\n<p>Docker 主要通过系统级配置管理。凭据配置不能简单把含 auth/token 的 config.json 作为公开 home.file 文本写入 store；用户级 rootless daemon、socket 与 context 应另行确认对应系统或用户模块支持。</p>\n<hr>\n<h2 id=\"section-06\">NixOS 上 Docker vs Podman 选择</h2>\n<p>引擎可以共存，但 CLI 与 socket 兼容选项可能冲突；同时启用真正 Docker 时不要再让 Podman 接管 <code>docker</code> 命令：</p>\n<pre><code>{\n  # 同时启用\n  virtualisation.docker.enable = true;\n  virtualisation.podman.enable = true;\n  virtualisation.podman.dockerCompat = false;  # 保留真实 docker 命令\n  virtualisation.podman.dockerSocket.enable = false; # 不接管 Docker socket\n}</code></pre>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">使用场景</th>\n<th scope=\"col\">推荐</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>跑他人的 <code>docker-compose.yml</code></td>\n<td>Docker（原生 Compose v2）</td>\n</tr>\n<tr>\n<td>自己写新服务</td>\n<td>Podman + Quadlet（声明式 + systemd）</td>\n</tr>\n<tr>\n<td>学习容器</td>\n<td>Podman（免 root、免后台进程）</td>\n</tr>\n<tr>\n<td>公司项目</td>\n<td>Docker（团队标准）</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-07\">构建、激活与运行验证</h2>\n<p><code>nixos-rebuild build</code> 只验证构建产物；示例 <code>switch</code> 会激活系统并可能重启服务，需要按部署流程执行。加入 docker 组后重新登录仅改变权限生效时机，不降低组的安全风险。受控的 <code>/run/secrets/postgres.env</code> 必须存在并限制读取权限，文件应包含所需数据库凭据；它不会由此配置自动生成。rootless 模式是另一个 daemon/socket，不能把普通用户运行 CLI 自动称为 rootless。</p>\n",
+  "refs": [
+    [
+      "NixOS 26.05 Docker 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-26.05/nixos/modules/virtualisation/docker.nix"
+    ],
+    [
+      "NixOS 26.05 OCI 容器模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-26.05/nixos/modules/virtualisation/oci-containers.nix"
+    ],
+    [
+      "Docker rootless",
+      "https://docs.docker.com/engine/security/rootless/"
+    ],
+    [
+      "NixOS 26.05 Podman 共存选项",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-26.05/nixos/modules/virtualisation/podman/default.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "containers",
+    "docker"
+  ]
+}

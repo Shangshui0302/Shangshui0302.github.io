@@ -1,0 +1,48 @@
+{
+  "slug": "nix-flake-utils-templates",
+  "number": "027",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Flake Utils 与项目模板",
+  "deck": "为多个平台生成输出，并把开发环境整理成可复用模板。",
+  "sections": [
+    [
+      "section-01",
+      "什么是 flake-utils？"
+    ],
+    [
+      "section-04",
+      "Flake 模板化 (Templates)"
+    ],
+    [
+      "section-08",
+      "为什么你要在意这个？"
+    ]
+  ],
+  "body": "<hr>\n<h2 id=\"section-01\">什么是 flake-utils？</h2>\n<p>由于 Flake 的 <code>outputs</code> 通常需要为不同的架构（如 <code>x86_64-linux</code>, <code>aarch64-linux</code>）重复定义相同的属性集，代码会变得非常冗长。\n<code>flake-utils</code> 提供了一个简单的辅助函数来消除这种重复。</p>\n<h3 id=\"section-02\">1. 传统写法</h3>\n<p>你需要手动循环所有架构。</p>\n<pre><code>{\n  outputs = { self, nixpkgs }: {\n    packages.x86_64-linux.default = ...;\n    packages.aarch64-linux.default = ...;\n  };\n}</code></pre>\n<h3 id=\"section-03\">2. 使用 flake-utils 的简洁写法</h3>\n<pre><code>{\n  inputs.flake-utils.url = &quot;github:numtide/flake-utils&quot;;\n\n  inputs.nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-unstable&quot;;\n\n  outputs = { self, nixpkgs, flake-utils }:\n    flake-utils.lib.eachDefaultSystem (system:\n      let pkgs = nixpkgs.legacyPackages.${system}; in\n      {\n        packages.default = pkgs.hello;\n        devShells.default = pkgs.mkShell { buildInputs = [ pkgs.git ]; };\n      }\n    );\n}</code></pre>\n<ul>\n<li><strong><code>eachDefaultSystem</code></strong>：为库定义的默认系统列表生成输出；可用 <code>eachSystem</code> 指定自己的平台集合。</li>\n</ul>\n<hr>\n<h2 id=\"section-04\">Flake 模板化 (Templates)</h2>\n<p>Flake 允许你创建“模板”，别人可以通过一个命令快速初始化项目。</p>\n<h3 id=\"section-05\">1. 查看官方模板</h3>\n<pre><code>nix flake show templates</code></pre>\n<h3 id=\"section-06\">2. 使用模板初始化</h3>\n<pre><code># 初始化一个简单的 python 环境\nnix flake init -t templates#simple</code></pre>\n<h3 id=\"section-07\">3. 在自己的 Flake 里定义模板</h3>\n<p>你可以把自己的配置做成模板分享给别人：</p>\n<pre><code>{\n  outputs = { self }: {\n    templates.my-rust-app = {\n      path = ./templates/rust;\n      description = &quot;一个基础的 Rust 项目模板&quot;;\n    };\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-08\">为什么你要在意这个？</h2>\n<p>在 NixOS，通过定义自己的 Flake 模板，你可以极速搭建不同语言的开发环境，再也不用手动配置 <code>PATH</code>。</p>\n",
+  "refs": [
+    [
+      "Nix Flake 手册",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake"
+    ],
+    [
+      "Nix flake update",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-update"
+    ],
+    [
+      "Nix flake check",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-check"
+    ],
+    [
+      "flake-utils 上游",
+      "https://github.com/numtide/flake-utils"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nix-flakes"
+  ]
+}

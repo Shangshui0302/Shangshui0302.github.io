@@ -1,0 +1,18 @@
+{
+  "slug": "linux-desktop-workflows",
+  "title": "Linux 桌面：协议、窗口与定制",
+  "deck": "输入法通信、Hyprland 工作区与 Plasma 的版本迁移。",
+  "description": "先区分应用、工具包和合成器，再阅读窗口编排与历史桌面配置。Plasma 5/6 的剪藏经验保留原始出处和适用版本，避免把旧 workaround 当成当前默认方案。",
+  "articles": [
+    "linux-gui-input-stack",
+    "hyprland-special-workspaces",
+    "kde-plasma5-notes",
+    "kde-plasma6-migration"
+  ],
+  "reading_guide": [
+    "先读架构：通信路径与候选面板的责任。",
+    "配置窗口抽屉：切换、启动、匹配分别验证。",
+    "回看 Plasma 5：辨认 X11 与旧插件方案的边界。",
+    "迁移到 Plasma 6：重查 Portal、输入法与 KWin 接口。"
+  ]
+}

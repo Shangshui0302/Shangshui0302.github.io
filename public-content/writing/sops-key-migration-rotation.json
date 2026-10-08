@@ -1,0 +1,81 @@
+{
+  "slug": "sops-key-migration-rotation",
+  "number": "102",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "sops 密钥迁移与轮换",
+  "deck": "以双接收者过渡完成密钥迁移，并区分授权更新与凭据撤销。",
+  "sections": [
+    [
+      "section-01",
+      "一、为什么切换"
+    ],
+    [
+      "section-02",
+      "二、核心概念：双 recipient"
+    ],
+    [
+      "section-03",
+      "三、前置准备"
+    ],
+    [
+      "section-04",
+      "四、迁移步骤"
+    ],
+    [
+      "section-10",
+      "五、rebuild 后验证"
+    ],
+    [
+      "section-11",
+      "六、回滚与清理"
+    ],
+    [
+      "section-12",
+      "七、踩过的坑（经验教训）"
+    ],
+    [
+      "section-13",
+      "相关"
+    ]
+  ],
+  "body": "<p>本文以从独立 age key 迁移到 SSH host key 的通用流程说明：给 secrets 换解密密钥、迁移机器或新增解密身份。示例路径与接收者均为占位，不代表实际系统。</p>\n<hr>\n<h2 id=\"section-01\">一、为什么切换</h2>\n<p>原方案用独立 age key（<code>/persist/secrets/age-key.txt</code>）作为 sops 解密私钥：</p>\n<pre><code>secrets.yaml（git 内，密文）\n    │ 解密\n    ▼\n/persist/secrets/age-key.txt   ← 独立管理的私钥，要手动备份/迁移</code></pre>\n<p>问题：</p>\n<ul>\n<li>多一把要保管的密钥</li>\n<li>迁移机器时容易忘记带，导致 secrets 解不开</li>\n<li>若没有其他有效接收者或备份，私钥丢失可能无法恢复密文</li>\n</ul>\n<p>新方案复用系统已有的 SSH host key：</p>\n<pre><code>secrets.yaml（git 内，密文）\n    │ 解密\n    ▼\n/etc/ssh/ssh_host_ed25519_key   ← 由系统生成或恢复；迁移需明确备份与恢复</code></pre>\n<p>收益是少维护一把独立密钥，但 host key 依然需要备份与恢复；重装或重新生成会改变机器身份，不能认为迁移问题自然消失。</p>\n<blockquote>\n<p>代价\nSSH host key 泄露的影响范围从「仅 secrets」扩大到「SSH + secrets」。是否接受取决于威胁模型、备份和权限管理；独立解密 key 可将两类能力分开。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-02\">二、核心概念：双 recipient</h2>\n<p>sops 支持<strong>一个文件登记多个 recipient</strong>（多个解密者）。这是迁移的关键技巧——<strong>先加新 key，保留旧 key，验证通过后再移除旧 key</strong>，全程有兜底：</p>\n<pre><code>sops:\n  age:\n    - enc: &lt;AES 密钥用旧 key 加密的块&gt;\n      recipient: AGE_RECIPIENT_PLACEHOLDER_NOT_VALID        # 旧独立 age key（保留兜底）\n    - enc: &lt;同一把 AES 密钥用新 key 加密的块&gt;\n      recipient: AGE_RECIPIENT_PLACEHOLDER_NOT_VALID      # 新 SSH host key</code></pre>\n<p>每把私钥只能解开&quot;属于自己那一份&quot;的加密块，但拿到的是<strong>同一把 AES 数据密钥</strong>。</p>\n<hr>\n<h2 id=\"section-03\">三、前置准备</h2>\n<ol>\n<li><strong>工具与权限</strong>：通过项目的声明式工具配置准备 <code>sops</code>、<code>age</code> 与 <code>ssh-to-age</code>，确认版本及管理员权限边界。</li>\n<li><strong>恢复材料</strong>：备份旧密钥和密文；确认新 host key 公钥属于目标机器，私钥不需要传出机器。一次性 Nix 工具环境示例为 <code>nix-shell -p ssh-to-age age sops</code>。</li>\n<li><strong>拿到新 key 的 age 公钥</strong>：</li>\n</ol>\n<pre><code>ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub\n# → AGE_RECIPIENT_PLACEHOLDER_NOT_VALID（本例 SSH host key 的 age 公钥）</code></pre>\n<ol start=\"4\">\n<li><strong>确认旧 key 能解密</strong>（迁移前基线）：</li>\n</ol>\n<pre><code>SOPS_AGE_KEY_FILE=/persist/secrets/age-key.txt sops decrypt host/secrets/secrets.yaml &gt; /dev/null</code></pre>\n<blockquote>\n<p>权限与验证\n私钥应仅对授权读取者开放。若需 root，在已有授权的受控管理员 shell 内执行，不依赖无密码工具包装规避权限设计。基线解密检查退出码，不打印秘密；记录工具版本和恢复位置。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-04\">四、迁移步骤</h2>\n<h3 id=\"section-05\">第 1 步：更新 .sops.yaml（声明新 recipient）</h3>\n<p><code>.sops.yaml</code> 是 sops 的 creation rules，用 YAML anchor 定义 key：</p>\n<pre><code>keys:\n  - &amp;admin-key AGE_RECIPIENT_PLACEHOLDER_NOT_VALID        # 旧独立 age key\n  - &amp;server-key AGE_RECIPIENT_PLACEHOLDER_NOT_VALID     # 新 SSH host key\ncreation_rules:\n  - path_regex: host/secrets/secrets\\.yaml$\n    key_groups:\n      - age:\n        - *admin-key\n        - *server-key</code></pre>\n<h3 id=\"section-06\">第 2 步：sops updatekeys 同步 recipient 到 secrets.yaml</h3>\n<pre><code>cd /path/to/config-repo  # 替换为目标配置仓库\nSOPS_AGE_KEY_FILE=/persist/secrets/age-key.txt \\\n  sops updatekeys host/secrets/secrets.yaml</code></pre>\n<p>输出会显示 <code>+++ AGE_RECIPIENT_PLACEHOLDER_NOT_VALID</code>（新增）和保留的旧 key。<strong>updatekeys 更新数据密钥的接收者封装，不是数据密钥轮换</strong>，需要旧 key 权限。</p>\n<h3 id=\"section-07\">第 3 步：改 host/sops.nix 切换解密来源</h3>\n<pre><code># 改之前\nsops = {\n  age.keyFile = &quot;/persist/secrets/age-key.txt&quot;;\n};\n\n# 过渡后（原 keyFile 仍可保留到验证完成）\nsops = {\n  age.sshKeyPaths = [ &quot;/etc/ssh/ssh_host_ed25519_key&quot; ];\n};</code></pre>\n<blockquote>\n<p>双保险\n此时 secrets.yaml 仍是双 recipient（旧 + 新），即使新方案有问题，旧 key 还能解。<strong>等 rebuild 验证通过后再考虑清理旧 key。</strong></p>\n</blockquote>\n<h3 id=\"section-08\">第 4 步：验证新 key 能解密</h3>\n<pre><code># 在目标机器已有授权的管理员 shell 内；工具已准备\numask 077\ntask_key_dir=$(mktemp -d /run/sops-migrate.XXXXXXXX)\ntrap &#39;rm -rf -- &quot;$task_key_dir&quot;&#39; EXIT\nssh-to-age -private-key -i /etc/ssh/ssh_host_ed25519_key &gt; &quot;$task_key_dir/new-identity.txt&quot; &amp;&amp;\n  SOPS_AGE_KEY_FILE=&quot;$task_key_dir/new-identity.txt&quot; \\\n    sops decrypt host/secrets/secrets.yaml &gt; /dev/null</code></pre>\n<p>解密退出码成功只证明 CLI 可读密文；要证明新 key，需使用只包含新身份的受控环境，禁用额外默认 key/KMS 等来源。之后仍需验证 sops-nix 的实际部署链路。</p>\n<h3 id=\"section-09\">第 5 步：分层验证与经授权应用</h3>\n<pre><code># 在已准备好恢复方案的配置仓库内，用实际 flake target 替换 workstation\nnix flake check --no-build\nnixos-rebuild dry-build --flake .#workstation\n# 经明确授权后，由管理员应用；这会修改运行系统\nsudo nixos-rebuild switch --flake .#workstation</code></pre>\n<hr>\n<h2 id=\"section-10\">五、rebuild 后验证</h2>\n<pre><code>systemctl status sops-install-secrets.service # 仅适用于 systemd 解密路径\nsystemctl status example-app.service # 检查消费方，不显示 secret 内容\nls -la /run/secrets/app_env # 仅证明产物存在；结合解密日志和应用行为检查</code></pre>\n<hr>\n<h2 id=\"section-11\">六、回滚与清理</h2>\n<ul>\n<li><strong>回滚</strong>：<code>sops.nix</code> 改回 <code>age.keyFile</code>，rebuild。旧 key 一直在 <code>/persist/secrets/age-key.txt</code>，且 secrets.yaml 双 recipient 保留，回退前还需确认旧身份仍有效、旧密文存在、配置版本和系统恢复路径可用。</li>\n<li><strong>清理</strong>：确认新链路稳定后：<ol>\n<li><code>.sops.yaml</code> 移除旧 anchor + <code>sops updatekeys</code> 删除旧 recipient；按需 <code>sops rotate --in-place</code> 轮换数据密钥</li>\n<li>删除 <code>/persist/secrets/age-key.txt</code></li>\n<li>更新项目文档、恢复记录和密钥保管记录</li>\n</ol>\n</li>\n</ul>\n<blockquote>\n<p>清理不可逆\n移除 recipient 不能撤销旧 key 对 git 历史、备份或先前获取数据密钥的访问。先验证新身份和运行链路，按政策轮换数据密钥；若旧身份不再可信，还需轮换秘密值及相关凭据。删除旧私钥前确认历史恢复需求，不能以删除文件代替真正的撤销。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-12\">七、踩过的坑（经验教训）</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">坑</th>\n<th scope=\"col\">现象</th>\n<th scope=\"col\">解法</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>管理员权限</td>\n<td>系统私钥无法由普通用户读取</td>\n<td>通过明确授权的管理员环境操作，或使用专用编辑身份</td>\n</tr>\n<tr>\n<td>权限不足</td>\n<td><code>SOPS_AGE_KEY_FILE</code> 读不到</td>\n<td>key 文件 root 所有，需 root 执行</td>\n</tr>\n<tr>\n<td>path_regex 不匹配</td>\n<td><code>no matching creation rules found</code></td>\n<td>核对当前目录/--config、配置相对路径与 filename override</td>\n</tr>\n<tr>\n<td>临时明文残留</td>\n<td>解密中间文件落盘</td>\n<td>随机私有目录、umask 077、退出清理；不输出秘密，也不留编辑器备份</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-13\">相关</h2>\n<ul>\n<li><a href=\"/writing/nix-flake-update-mechanics/\">NixOS 更新机制笔记</a></li>\n<li>配置仓库：<code>/path/to/config-repo/host/sops.nix</code>、<code>.sops.yaml</code>、<code>host/secrets/secrets.yaml</code></li>\n</ul>\n<hr>\n",
+  "refs": [
+    [
+      "SOPS 官方文档",
+      "https://getsops.io/docs/"
+    ],
+    [
+      "SOPS CLI 源码",
+      "https://github.com/getsops/sops/blob/main/cmd/sops/main.go"
+    ],
+    [
+      "SOPS 配置源码",
+      "https://github.com/getsops/sops/blob/main/config/config.go"
+    ],
+    [
+      "sops-nix 官方说明",
+      "https://github.com/Mic92/sops-nix"
+    ],
+    [
+      "sops-nix 模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/default.nix"
+    ],
+    [
+      "sops-nix 模板模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/templates/default.nix"
+    ],
+    [
+      "ssh-to-age 官方说明",
+      "https://github.com/Mic92/ssh-to-age"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "security",
+    "sops",
+    "nixos"
+  ]
+}

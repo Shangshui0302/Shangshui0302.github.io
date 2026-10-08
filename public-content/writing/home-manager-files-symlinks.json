@@ -1,0 +1,52 @@
+{
+  "slug": "home-manager-files-symlinks",
+  "number": "036",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Home Manager 文件与符号链接",
+  "deck": "用 home.file 和 XDG 文件选项管理只读配置及目录链接。",
+  "sections": [
+    [
+      "section-01",
+      "什么是 home.file？"
+    ],
+    [
+      "section-04",
+      "XDG Base Directory (现代方案)"
+    ],
+    [
+      "section-05",
+      "executable 与 recursive 选项"
+    ],
+    [
+      "section-06",
+      "为什么我的配置文件变“只读”了？"
+    ],
+    [
+      "section-07",
+      "实战技巧：过渡方案"
+    ]
+  ],
+  "body": "<hr>\n<h2 id=\"section-01\">什么是 home.file？</h2>\n<p>有时候你会遇到一些冷门的软件，Home Manager 的 <code>programs</code> 并没有为它提供专门的选项。此时，你可以利用 <code>home.file</code> 属性，声明一个文件链接到家目录的特定位置。</p>\n<h3 id=\"section-02\">1. 基础用法</h3>\n<pre><code>{\n  home.file.&quot;.config/my-app/config.txt&quot;.text = &#39;&#39;\n    setting1=true\n    setting2=false\n  &#39;&#39;;\n}</code></pre>\n<ul>\n<li><strong>效果</strong>：Home Manager 会在你的 <code>~/.config/my-app/</code> 下生成一个软链接，指向 <code>/nix/store</code> 里的只读文件。</li>\n</ul>\n<h3 id=\"section-03\">2. 引用项目中的本地文件</h3>\n<p>如果你已经有一堆写好的 <code>.conf</code> 文件，不想在 Nix 里重写：</p>\n<pre><code>{\n  home.file.&quot;.bashrc&quot;.source = ./dotfiles/bashrc;\n}</code></pre>\n<hr>\n<h2 id=\"section-04\">XDG Base Directory (现代方案)</h2>\n<p>对于现代 Linux 应用，建议使用 <code>xdg.configFile</code> 而非直接操作家目录根。</p>\n<pre><code>{\n  xdg.configFile.&quot;kitty/kitty.conf&quot;.text = &quot;font_size 12.0&quot;;\n}</code></pre>\n<p>这会自动把文件放到 <code>~/.config/kitty/kitty.conf</code>。</p>\n<hr>\n<h2 id=\"section-05\">executable 与 recursive 选项</h2>\n<ul>\n<li><strong><code>executable = true;</code></strong>：如果你链接的是一个脚本文件，这个选项能确保它有执行权限。</li>\n<li><strong><code>recursive = true;</code></strong>：逐个链接目录中的文件；默认 <code>false</code> 则把目标目录整体链接到源码目录。两种方式都可以管理目录。</li>\n</ul>\n<hr>\n<h2 id=\"section-06\">为什么我的配置文件变“只读”了？</h2>\n<p>这是 Home Manager 的默认行为。</p>\n<ul>\n<li><strong>原因</strong>：链接指向的 Store 文件通常不可直接编辑；如果把链接替换成普通文件，下一次激活可能因文件冲突而拒绝覆盖。应在声明式源中修改。</li>\n<li><strong>教训</strong>：<strong>永远</strong>去修改你的 <code>.nix</code> 配置，而不是 <code>/nix/store</code> 链接出来的镜像。</li>\n</ul>\n<hr>\n<h2 id=\"section-07\">实战技巧：过渡方案</h2>\n<p>如果你还没准备好把几百行 Nvim 配置全部 Nix 化：</p>\n<ol>\n<li>把你的 <code>.config/nvim</code> 文件夹放到 Nix 配置目录下。</li>\n<li>用 <code>home.file.&quot;.config/nvim&quot;.source = ./nvim;</code> 整个链过去。</li>\n<li>等以后有空了，再慢慢拆解成独立的 Nix 模块。</li>\n</ol>\n",
+  "refs": [
+    [
+      "Home Manager 手册",
+      "https://nix-community.github.io/home-manager/"
+    ],
+    [
+      "Home Manager 命令源码",
+      "https://github.com/nix-community/home-manager/blob/master/home-manager/home-manager"
+    ],
+    [
+      "Home Manager 文件选项源码",
+      "https://github.com/nix-community/home-manager/blob/master/modules/lib/file-type.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "home-manager"
+  ]
+}

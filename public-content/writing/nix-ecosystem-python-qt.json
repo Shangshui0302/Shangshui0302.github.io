@@ -1,0 +1,48 @@
+{
+  "slug": "nix-ecosystem-python-qt",
+  "number": "089",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Python、uv 与 Matplotlib/Qt 的依赖边界",
+  "deck": "以 Qt5Agg 和 PyPI wheel 排错为例，追踪 Python 包、系统库与插件路径。",
+  "sections": [
+    [
+      "section-01",
+      "shell.nix 配置示例"
+    ],
+    [
+      "section-02",
+      "查找缺失依赖的方法"
+    ],
+    [
+      "section-06",
+      "阶段性总结（2026-04-08）"
+    ],
+    [
+      "section-07",
+      "版本与两套依赖路径"
+    ]
+  ],
+  "body": "<p>技术栈：nix-shell + uv + direnv</p>\n<p>主要问题：Python 编译问题；matplotlib 作图问题。</p>\n<h2 id=\"section-01\">shell.nix 配置示例</h2>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\npkgs.mkShell{\n  buildInputs = with pkgs; [\n    (python312.withPackages (ps: with ps; [\n      matplotlib\n      pyqt5  # Qt5Agg 所需 Python binding\n    ]))\n    qt5.qtwayland\n    qt5.qtbase\n    uv\n  ];\n\n  shellHook = &#39;&#39;\n    export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [\n      pkgs.stdenv.cc.cc.lib\n      pkgs.zlib\n      pkgs.libGL\n      pkgs.qt5.qtbase\n      pkgs.glib\n    ]}\n    export MPLBACKEND=Qt5Agg\n    export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix}\n    export QT_QPA_PLATFORM_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix}/platforms\n  &#39;&#39;;\n}</code></pre>\n<p>如需在代码中覆盖后端，应在导入 <code>pyplot</code> 之前指定；已设置 <code>MPLBACKEND</code> 时不必重复：</p>\n<pre><code>import matplotlib\nmatplotlib.use(&quot;Qt5Agg&quot;)\nimport matplotlib.pyplot as plt</code></pre>\n<h2 id=\"section-02\">查找缺失依赖的方法</h2>\n<h3 id=\"section-03\">1. nix-locate（按 .so 文件名反查包名）</h3>\n<pre><code>nix-locate --whole-name libgthread-2.0.so.0</code></pre>\n<p>需要先装 <code>nix-index</code> 并建立索引：<code>nix-index</code>（第一次运行要几分钟）。</p>\n<h3 id=\"section-04\">2. nixpkgs 网站搜索</h3>\n<p>包搜索主要检索软件包元数据，不是完整文件索引；知道候选包名后在这里确认属性：<a href=\"https://search.nixos.org/packages\" target=\"_blank\" rel=\"noopener noreferrer\">search.nixos.org</a></p>\n<h3 id=\"section-05\">3. ldd 诊断 PyPI 包依赖</h3>\n<p>仅对可信二进制使用 <code>ldd</code>；对不可信文件先用 <code>readelf -d</code> 或 <code>objdump -p</code> 静态查看依赖。路径随 Python 和 PyQt 版本变化。</p>\n<pre><code>ldd .venv/lib/python3.12/site-packages/PyQt5/QtWidgets.so | grep &quot;not found&quot;</code></pre>\n<p>一次性列出所有缺失的 <code>.so</code>，再用 <code>nix-locate</code> 批量查。</p>\n<p><strong>推荐流程</strong>：<code>ldd</code> 找全缺失库 → <code>nix-locate</code> 查包名 → 一次性加进 shell.nix</p>\n<h2 id=\"section-06\">阶段性总结（2026-04-08）</h2>\n<p>此记录中的核心问题是 <strong>PyPI wheel、Qt 插件和 Nix 提供的系统库混合后，搜索路径与 ABI 不一致</strong>；这不是 uv 与 Nix 必然冲突。</p>\n<ul>\n<li><strong>uv 的设计哲学</strong>：通常把 Python 依赖解析并安装到 <code>.venv</code>；带原生扩展的 wheel 仍可能依赖环境提供的系统库。</li>\n<li><strong>nix 的设计哲学</strong>：所有依赖在 nix store（<code>/nix/store/…</code>），不在标准系统路径。</li>\n</ul>\n<p>在纯 Python 包上没有冲突，但 matplotlib+Qt 链需要系统库：</p>\n<pre><code>matplotlib (PyPI)\n  └── PyQt5\n        └── libQt5XcbQpa.so (Qt 运行时)\n              └── libqxcb.so (platform plugin)\n                    └── libxcb, libX11, libxkbcommon…（全在 nix store）</code></pre>\n<p>踩到的坑：</p>\n<ol>\n<li>PyPI 的 PyQt5 自带 platform plugin，但缺几乎所有 X11 库</li>\n<li>加进 <code>LD_LIBRARY_PATH</code> 后版本不匹配，出现 <code>undefined symbol</code></li>\n<li>把 PyQt5 移入 nix 管理，但 uv 的 <code>.venv</code> 覆盖了 PATH</li>\n<li>用 <code>--python $(which python3)</code> 指定 nix 的 python，但 matplotlib 还在 venv 里</li>\n</ol>\n<p><strong>这份排错记录采用的收敛方案</strong>：把 matplotlib、PyQt 和 Qt5 系统库交给同一 Nixpkgs 管理，降低 ABI 混用。uv 也能用于含原生依赖的项目，但需要正确的动态库环境、wheel 兼容性与 Python 路径策略；不能仅靠全局叠加 LD_LIBRARY_PATH。</p>\n<h2 id=\"section-07\">版本与两套依赖路径</h2>\n<p>本篇保留 2026-04-08 记录里的 Python 3.12 / Qt5 示例；后端、插件路径和包属性以所用版本为准。纯 <code>withPackages</code> 路线直接使用该 Python；若另建 uv 虚拟环境，要明确哪些包来自 PyPI、哪些系统库来自 Nix，必要时设计 <code>--system-site-packages</code>，而不是让两套 Qt/PyQt 混在搜索路径里。<code>nix-locate</code> 查询前要建立或取得适配系统的文件索引。</p>\n",
+  "refs": [
+    [
+      "Nix Python 开发环境",
+      "https://nix.dev/guides/recipes/python-environment"
+    ],
+    [
+      "Matplotlib 后端",
+      "https://matplotlib.org/stable/users/explain/figure/backends.html"
+    ],
+    [
+      "nix-ld 的 Python 边界",
+      "https://github.com/nix-community/nix-ld"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

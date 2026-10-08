@@ -1,0 +1,81 @@
+{
+  "slug": "wine-proton-troubleshooting",
+  "number": "155",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Wine 与 Proton 排错",
+  "deck": "沿图形栈、前缀、媒体、音频和日志建立可以复核的故障定位流程。",
+  "sections": [
+    [
+      "section-01",
+      "诊断工作流"
+    ],
+    [
+      "section-03",
+      "常见问题与修复"
+    ],
+    [
+      "section-11",
+      "PROTON_LOG 日志分析"
+    ],
+    [
+      "section-15",
+      "社区资源"
+    ],
+    [
+      "section-16",
+      "来源与核验边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>Wine/Proton 问题诊断的系统化流程。从快速健康检查到深层次日志分析，从常见故障到社区资源。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">诊断工作流</h2>\n<pre><code>graph TD\n    A[&quot;程序/游戏无法运行&quot;] --&gt; B{&quot;有错误提示吗？&quot;}\n    B --&gt;|有| C[&quot;根据错误信息定位&quot;]\n    B --&gt;|无| D[&quot;生成 PROTON_LOG&quot;]\n    D --&gt; E[&quot;查看日志尾部错误&quot;]\n    C --&gt; F{&quot;错误类型？&quot;}\n    F --&gt;|Vulkan| G[&quot;检查显卡驱动&quot;]\n    F --&gt;|DLL/missing| H[&quot;安装缺失组件&quot;]\n    F --&gt;|crash/segfault| I[&quot;检查系统库&quot;]\n    G --&gt; J{&quot;vulkaninfo 正常？&quot;}\n    J --&gt;|否| K[&quot;核对驱动/loader/位宽与实际环境&quot;]\n    J --&gt;|是| L[&quot;检查 max_map_count&quot;]\n    H --&gt; M[&quot;winetricks / protontricks&quot;]\n    I --&gt; N[&quot;检查 ldd / steam-runtime&quot;]\n    L --&gt; O[&quot;有耗尽证据时评估目标值与回滚&quot;]</code></pre>\n<h3 id=\"section-02\">第一步：系统健康检查</h3>\n<pre><code># 1. 确认 Vulkan 正常工作\nvulkaninfo --summary 2&gt;&amp;1 | grep -E &quot;GPU|deviceName|apiVersion&quot;\n\n# 2. 确认 OpenGL 正常\nglxinfo | grep &quot;OpenGL version&quot;\n\n# 3. 确认显卡驱动加载\nlsmod | grep -E &quot;nvidia|amdgpu&quot;\n\n# 4. 检查 max_map_count\ncat /proc/sys/vm/max_map_count\n# 记录当前值；仅在日志和应用要求表明不足时评估调整。\n\n# 5. 检查是否有 NTSYNC 支持\nls -l /dev/ntsync\n# 节点缺失也可能是内核配置、模块或设备策略问题；存在不等于当前程序使用。</code></pre>\n<hr>\n<h2 id=\"section-03\">常见问题与修复</h2>\n<h3 id=\"section-04\">游戏/程序无法启动</h3>\n<p><strong>症状</strong>：点击启动后无任何反应，或瞬间崩溃。</p>\n<p><strong>排查步骤</strong>：</p>\n<pre><code># Steam 游戏：生成日志\nPROTON_LOG=1 %command%\n# 日志生成在 ~/steam-&lt;APPID&gt;.log\n\n# 非 Steam：命令行启动观察输出\nWINEDEBUG=+loaddll wine myapp.exe 2&gt;&amp;1 | tail -50</code></pre>\n<p><strong>常见修复</strong>：</p>\n<ul>\n<li>保留旧 runner 与前缀备份，再测试官方稳定编号版、Experimental 或适合目标游戏的 GE；避免同时改变多个条件</li>\n<li>只有前缀状态疑似损坏才重建：先退出应用、备份存档/授权状态并重命名 compatdata 目录；不要删除唯一副本</li>\n<li>验证游戏文件完整性（Steam 属性 → 本地文件）</li>\n</ul>\n<h3 id=\"section-05\">Vulkan 初始化失败</h3>\n<p><strong>症状</strong>：出现 <code>winevulkan</code>、<code>vkCreateInstance failed</code> 或扩展/符号缺失。</p>\n<p><strong>可能原因</strong>：驱动、Vulkan loader、ICD、图形组件版本或 32/64 位库不匹配；Flatpak 内外环境不同；混合 GPU 选择错误；所需扩展确实未被硬件支持。单个错误字符串不足以锁定原因。</p>\n<p>先在真实启动环境中确认设备与版本，再检查项目的包来源。Arch 上的 AMD/Mesa 示例需要适用的仓库和 multilib；避免局部更新或混入另一渠道不兼容的库：</p>\n<pre><code># Arch 示例：需符合该系统的完整升级策略，不能在 NixOS 上执行。\nsudo pacman -Syu vulkan-radeon lib32-vulkan-radeon mesa lib32-mesa</code></pre>\n<p>NixOS 使用声明式图形配置，32 位支持按实际 Steam/runner 需求选择：</p>\n<pre><code>hardware.graphics = {\n  enable = true;\n  enable32Bit = true;\n};</code></pre>\n<p>这个片段不代表已经构建或激活。NVIDIA 另需核对对应驱动配置，不能用 AMD 包清单替代。Flatpak 则检查匹配的运行时 GL 扩展和应用权限；宿主工具通过不等于 Bottle 已通过。</p>\n<h3 id=\"section-06\">过场动画/视频黑屏</h3>\n<p><strong>症状</strong>：标题画面正常，但某段视频黑屏、彩条或没有声音。</p>\n<p>可能涉及 Media Foundation、GStreamer、编解码器、媒体转换、GPU 解码或游戏专项修复。先记录发生的场景及日志，再检查所选 Proton 版本对该游戏的媒体问题：</p>\n<ol>\n<li>核对官方 Proton 与游戏 issue 中的修复状态，再在备份前缀后比较版本。</li>\n<li>GE 某些版本携带额外媒体修复，可以作为对照，但不保证播放所有视频。</li>\n<li>不把 <code>mf-install</code> 直接当作当前 protontricks/winetricks 的内建 verb；先查询组件清单和外部项目来源、许可证及兼容条件。</li>\n<li>原材料的 <code>PROTON_ENABLE_MEDIACONV</code> 属于需核对具体构建的变量，不能作为所有当前 Proton 都认可的修复开关；设置无效变量通常也不会报错。</li>\n</ol>\n<pre><code>protontricks &lt;APPID&gt; list-installed\n# 具体依赖安装应依据目标版本的列表和日志，而不是批量注入全部 DLL。</code></pre>\n<p>安装组件前后记录变化，以免把媒体问题改成 DLL 冲突。</p>\n<h3 id=\"section-07\">反作弊（EAC/BattlEye）无效</h3>\n<p><strong>症状</strong>：多人游戏提示反作弊未运行，或服务器拒绝连接。</p>\n<p>支持取决于游戏开发商启用的 Proton/Linux 路径、具体反作弊集成、游戏版本和服务策略。EAC/BattlEye 的某些受支持路径不等于所有使用它们的游戏都可运行；Wine 或 GE 不能绕过内核反作弊与账号策略。</p>\n<ul>\n<li>先查询游戏官方支持说明、Steam/Proton issue 与当期状态，再参考 ProtonDB 或 Are We Anti-Cheat Yet 的社区记录。</li>\n<li>Steam 提供的反作弊 runtime 与游戏安装需完整；若游戏方没有启用兼容支持，换 GE 或指定 runtime 路径不会自动解决。</li>\n<li>原材料的 <code>PROTON_EAC_RUNTIME</code>/<code>PROTON_BATTLEYE_RUNTIME</code> 是内部/构建相关路径机制，不作为所有游戏的通用启动模板。</li>\n<li>不使用绕过、DLL 替换或来路不明补丁去规避服务策略。单机启动成功也不证明多人服务允许。</li>\n</ul>\n<p>报告问题时记录 runner、游戏版本、错误与官方支持边界，避免提供账号或认证信息。</p>\n<h3 id=\"section-08\">音频爆音/同步漂移</h3>\n<p><strong>症状</strong>：声音断续、爆音或音画逐渐不同步。可能来自 buffer、CPU 调度、设备时钟、runner 音频实现或系统音频配置。</p>\n<p>先记录当前 PipeWire quantum/rate 与 CPU 负载。降低 quantum 会减少延迟，但也可能增加 xruns；不能视为爆音的通用修复。确需对照时，以下是临时设置与撤销示例：</p>\n<pre><code>pw-metadata -n settings 0 clock.force-quantum 256\n# 对照完成后解除强制值，恢复自适应策略。\npw-metadata -n settings 0 clock.force-quantum 0\nulimit -e</code></pre>\n<p>先测试默认值、较大/较小 buffer 的表现，再决定是否需要持久配置。NixOS 的 PAM/服务资源限制通过相应 Nix 模块管理，不直接改受管理的 <code>/etc/security/limits.conf</code>；加入 audio 组或设置 nice 上限也不自动证明实时调度生效。</p>\n<h3 id=\"section-09\">中文字体乱码</h3>\n<p>区分中文缺字方块、乱码编码和输入法问题。先检查应用实际字体、宿主字体覆盖、前缀内字体与 locale，不把所有问题都归因于一个 DLL。</p>\n<pre><code># 独立普通 Wine Prefix 的候选字体依赖；按应用需要与许可核对。\nWINEPREFIX=&quot;$HOME/Games/MyTool&quot; winetricks cjkfonts\n# 宿主字体查询只证明宿主字体集，不证明沙箱字体可见。\nfc-list :lang=zh</code></pre>\n<p>Bottles 使用自己的依赖或导入方式，并检查该 Bottle 内可见字体。不要把 <code>/usr/share/fonts</code> 的 Flatpak override 视为必需或必定有效；该目录受沙箱保留路径与字体集成规则影响。</p>\n<p>若明确拥有某个字体的使用/复制许可，可以把指定文件安装到关闭状态前缀的字体目录，再通过对应 runner 的字体注册/应用测试确认：</p>\n<pre><code>cp -- &quot;$HOME/Fonts/ExampleFont.ttf&quot; \\\n  &quot;$HOME/Games/MyTool/drive_c/windows/Fonts/&quot;</code></pre>\n<p>避免通配复制所有宿主字体、覆盖未知文件或把字体缓存当作已解决的运行证据。</p>\n<h3 id=\"section-10\">NTFS 分区游戏无法启动</h3>\n<p><strong>症状</strong>：存放在 Windows NTFS 分区上的 Steam 游戏无法通过 Proton 启动。</p>\n<p><strong>原因</strong>：行为取决于 NTFS 驱动、挂载选项、权限映射、符号链接和文件名语义；Windows 休眠/快速启动也可能导致只读或状态问题。不能仅根据文件系统名称断言每个故障同源。</p>\n<p><strong>排查</strong>：先检查挂载和文件权限，再用 Linux 原生文件系统上的独立 Steam 库及 compatdata 作对照。跨 Windows/Linux 共享同一库会增加一致性与启动器风险，尤其避免共享同一个可变 Prefix。迁移前保留存档和游戏文件，不以删除库作为第一步。</p>\n<hr>\n<h2 id=\"section-11\">PROTON_LOG 日志分析</h2>\n<h3 id=\"section-12\">生成和使用</h3>\n<pre><code>PROTON_LOG=1 %command%\n# 日志：~/steam-&lt;APPID&gt;.log</code></pre>\n<h3 id=\"section-13\">常见日志模式</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">日志模式</th>\n<th scope=\"col\">问题</th>\n<th scope=\"col\">修复</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>wine: failed to load ... .dll</code></td>\n<td>可能缺少/无法加载 DLL</td>\n<td>先核对架构、路径与依赖来源，再按证据安装组件</td>\n</tr>\n<tr>\n<td><code>vkCreateInstance failed</code></td>\n<td>Vulkan 不可用</td>\n<td>检查驱动、<code>vulkaninfo</code></td>\n</tr>\n<tr>\n<td><code>err:seh:segv_handler</code></td>\n<td>异常线索，未必是根因</td>\n<td>对照第一条相关错误、模组与 runner 版本</td>\n</tr>\n<tr>\n<td><code>fixme:ntdll:NtQuerySystemInformation</code></td>\n<td>未完整实现/诊断占位线索</td>\n<td>结合实际故障与上下文，不因 fixme 自动判定失败</td>\n</tr>\n<tr>\n<td><code>err:esync:...</code></td>\n<td>旧版同步路径线索</td>\n<td>仅对支持 esync 的版本对照开关；Proton 11.0 文档标为过时</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-14\">关键日志级别</h3>\n<pre><code>WINEDEBUG=+timestamp,+seh,+loaddll  # 时间戳 + 异常 + DLL 加载\nWINEDEBUG=+ntsync                   # 仅对实现该通道的 runner，结果是线索而非完整使用证明\nPROTON_LOG=1                        # Proton 的便捷调试日志，不保证包含所有诊断</code></pre>\n<hr>\n<h2 id=\"section-15\">社区资源</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">资源</th>\n<th scope=\"col\">链接</th>\n<th scope=\"col\">用途</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>ProtonDB</strong></td>\n<td><a href=\"https://www.protondb.com/\" target=\"_blank\" rel=\"noopener noreferrer\">https://www.protondb.com</a></td>\n<td>游戏兼容性报告 + 用户提交的启动参数</td>\n</tr>\n<tr>\n<td><strong>WineHQ AppDB</strong></td>\n<td><a href=\"https://appdb.winehq.org/\" target=\"_blank\" rel=\"noopener noreferrer\">https://appdb.winehq.org</a></td>\n<td>所有 Windows 应用的 Wine 兼容性评级</td>\n</tr>\n<tr>\n<td><strong>Proton GitHub</strong></td>\n<td><a href=\"https://github.com/ValveSoftware/Proton\" target=\"_blank\" rel=\"noopener noreferrer\">https://github.com/ValveSoftware/Proton</a></td>\n<td>官方 Issue 追踪</td>\n</tr>\n<tr>\n<td><strong>Proton-GE</strong></td>\n<td><a href=\"https://github.com/GloriousEggroll/proton-ge-custom\" target=\"_blank\" rel=\"noopener noreferrer\">https://github.com/GloriousEggroll/proton-ge-custom</a></td>\n<td>社区版 Release</td>\n</tr>\n<tr>\n<td><strong>r/linux_gaming</strong></td>\n<td><a href=\"https://reddit.com/r/linux_gaming\" target=\"_blank\" rel=\"noopener noreferrer\">https://reddit.com/r/linux_gaming</a></td>\n<td>社区讨论</td>\n</tr>\n<tr>\n<td><strong>Arch Wiki: Wine</strong></td>\n<td><a href=\"https://wiki.archlinux.org/title/Wine\" target=\"_blank\" rel=\"noopener noreferrer\">https://wiki.archlinux.org/title/Wine</a></td>\n<td>最全面的参考文档</td>\n</tr>\n<tr>\n<td><strong>Are We Anti-Cheat Yet?</strong></td>\n<td><a href=\"https://areweanticheatyet.com/\" target=\"_blank\" rel=\"noopener noreferrer\">https://areweanticheatyet.com</a></td>\n<td>反作弊游戏兼容性追踪</td>\n</tr>\n</tbody></table></div>\n<hr>\n<p>日志可能包含用户名、路径、启动参数或账号信息；发布前脱敏，不复制令牌、私钥、内部地址或完整环境变量。本篇所有排查命令均为示例，未在本次编辑中执行。</p>\n<h2 id=\"section-16\">来源与核验边界</h2>\n<p>以下参考定义相关机制与支持范围。安装、构建、激活、前缀状态与实际应用行为需要按目标环境分别核验；示例命令没有附带任何主机运行成功的结论。</p>\n<ul>\n<li><a href=\"https://github.com/ValveSoftware/Proton\" target=\"_blank\" rel=\"noopener noreferrer\">官方 Proton README</a></li>\n<li><a href=\"https://github.com/GloriousEggroll/proton-ge-custom\" target=\"_blank\" rel=\"noopener noreferrer\">GE-Proton README</a></li>\n<li><a href=\"https://docs.kernel.org/userspace-api/ntsync.html\" target=\"_blank\" rel=\"noopener noreferrer\">Linux NTSYNC 接口</a></li>\n<li><a href=\"https://docs.flatpak.org/en/latest/sandbox-permissions.html\" target=\"_blank\" rel=\"noopener noreferrer\">Flatpak 沙箱权限</a></li>\n<li><a href=\"https://github.com/Winetricks/winetricks\" target=\"_blank\" rel=\"noopener noreferrer\">Winetricks 上游</a></li>\n<li><a href=\"https://github.com/Matoking/protontricks\" target=\"_blank\" rel=\"noopener noreferrer\">Protontricks 上游</a></li>\n<li><a href=\"https://www.protondb.com/\" target=\"_blank\" rel=\"noopener noreferrer\">ProtonDB（社区报告）</a></li>\n<li><a href=\"https://appdb.winehq.org/\" target=\"_blank\" rel=\"noopener noreferrer\">WineHQ AppDB（兼容报告）</a></li>\n<li><a href=\"https://wiki.archlinux.org/title/Wine\" target=\"_blank\" rel=\"noopener noreferrer\">Arch Wiki Wine（发行版第三方参考）</a></li>\n<li><a href=\"https://areweanticheatyet.com/\" target=\"_blank\" rel=\"noopener noreferrer\">Are We Anti-Cheat Yet（社区追踪）</a></li>\n</ul>\n",
+  "refs": [
+    [
+      "官方 Proton README",
+      "https://github.com/ValveSoftware/Proton"
+    ],
+    [
+      "GE-Proton README",
+      "https://github.com/GloriousEggroll/proton-ge-custom"
+    ],
+    [
+      "Linux NTSYNC 接口",
+      "https://docs.kernel.org/userspace-api/ntsync.html"
+    ],
+    [
+      "Flatpak 沙箱权限",
+      "https://docs.flatpak.org/en/latest/sandbox-permissions.html"
+    ],
+    [
+      "Winetricks 上游",
+      "https://github.com/Winetricks/winetricks"
+    ],
+    [
+      "Protontricks 上游",
+      "https://github.com/Matoking/protontricks"
+    ],
+    [
+      "ProtonDB（社区报告）",
+      "https://www.protondb.com/"
+    ],
+    [
+      "WineHQ AppDB（兼容报告）",
+      "https://appdb.winehq.org/"
+    ],
+    [
+      "Arch Wiki Wine（发行版第三方参考）",
+      "https://wiki.archlinux.org/title/Wine"
+    ],
+    [
+      "Are We Anti-Cheat Yet（社区追踪）",
+      "https://areweanticheatyet.com/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "wine",
+    "proton",
+    "debugging"
+  ]
+}

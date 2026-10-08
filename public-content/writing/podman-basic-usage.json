@@ -1,0 +1,56 @@
+{
+  "slug": "podman-basic-usage",
+  "number": "120",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Podman 基本使用指南",
+  "deck": "逐项掌握安装、镜像、容器、卷、网络和日常维护命令。",
+  "sections": [
+    [
+      "section-01",
+      "安装 Podman"
+    ],
+    [
+      "section-03",
+      "镜像操作"
+    ],
+    [
+      "section-07",
+      "容器操作"
+    ],
+    [
+      "section-12",
+      "卷（Volume）：持久化数据"
+    ],
+    [
+      "section-13",
+      "网络（Network）：让容器互通"
+    ],
+    [
+      "section-14",
+      "日常维护命令"
+    ],
+    [
+      "section-15",
+      "Docker 命令兼容"
+    ]
+  ],
+  "body": "<blockquote>\n<p>从安装到日常操作，每一个命令都解释清楚。如果你用过 Docker，大部分命令只需要替换名字。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">安装 Podman</h2>\n<h3 id=\"section-02\">各发行版安装命令</h3>\n<pre><code># Fedora / RHEL / AlmaLinux（是否预装取决于镜像与版本）\nsudo dnf install podman\n\n# Ubuntu（22.04 及以上）\nsudo apt update &amp;&amp; sudo apt install -y podman\n\n# Arch Linux\nsudo pacman -Syu podman\n\n# openSUSE\nsudo zypper install podman\n\n# macOS\nbrew install podman\npodman machine init    # 首次需要创建 Linux VM\npodman machine start   # 启动 VM 后才能用 podman 命令</code></pre>\n<p>安装后验证：</p>\n<pre><code>podman version     # 显示版本信息\npodman info        # 显示完整系统信息（内核版本、存储驱动、rootless 状态等）\npodman system df   # 查看磁盘使用情况</code></pre>\n<p><strong>如果你在 NixOS 上</strong>：见 <a href=\"/writing/podman-nixos-management/\">第七篇 NixOS 管理实践</a>。</p>\n<hr>\n<h2 id=\"section-03\">镜像操作</h2>\n<p>&quot;镜像&quot;是容器的蓝图。就像程序的安装包。</p>\n<h3 id=\"section-04\">搜索和拉取镜像</h3>\n<pre><code># 搜索镜像（列出可用的 nginx 镜像）\npodman search nginx\n\n# 搜索镜像并限制结果数量\npodman search nginx --limit 10\n\n# 搜索符合特定条件的镜像（只看官方镜像）\npodman search nginx --filter=is-official=true\n\n# 从 Docker Hub 拉取镜像（这里使用完整名称，避免短名解析歧义）\npodman pull docker.io/library/nginx:alpine\n#           │     └─ 标签（版本），alpine 表示基于 Alpine Linux 的精简版\n#           └─────── 镜像名\n\n# 从指定仓库拉取\npodman pull docker.io/library/nginx:latest\n#           └────────────────────┘ └──┘ └─────┘\n#                  仓库地址          镜像   标签\n#                                   名\n\n# 一次性拉取并运行\npodman run docker.io/library/nginx:alpine</code></pre>\n<h3 id=\"section-05\">查看和管理镜像</h3>\n<pre><code># 列出本机所有镜像\npodman images\n# 输出列：REPOSITORY（来源） TAG（版本） IMAGE ID（唯一标识） CREATED SIZE\n\n# 只列出指定镜像\npodman images nginx\n\n# 查看镜像的详细信息和各层\npodman inspect docker.io/library/nginx:alpine\n\n# 查看镜像的修改历史（每一层做了什么）\npodman history docker.io/library/nginx:alpine\n\n# 删除镜像\npodman rmi docker.io/library/nginx:alpine\n# 如果镜像正被某个容器使用，需要加 -f 强制删除\npodman rmi -f docker.io/library/nginx:alpine\n\n# 清理所有未使用的镜像（释放磁盘空间）\npodman image prune -a\n# -a 表示删除所有未使用的镜像；不加 -a 只删除&quot;悬空&quot;镜像（标签为 &lt;none&gt; 的）</code></pre>\n<h3 id=\"section-06\">构建自己的镜像</h3>\n<pre><code># 从当前目录的 Dockerfile 构建镜像\npodman build -t myapp:1.0 .\n#           └─┘ └─────┘ └─┘\n#      给镜像打标签  镜像名:版本  构建上下文路径\n\n# 构建时指定 Dockerfile 路径\npodman build -t myapp:1.0 -f ./docker/Dockerfile .</code></pre>\n<p>一个最简 Dockerfile 示例（用于理解上面的命令在干什么）：</p>\n<pre><code># 以哪个镜像为基础\nFROM docker.io/library/alpine:latest\n# 在基础镜像上做什么改动\nRUN apk add --no-cache python3\n# 把本地文件复制进去\nCOPY app.py /app/\n# 容器启动时执行什么程序\nCMD [&quot;python3&quot;, &quot;/app/app.py&quot;]</code></pre>\n<hr>\n<h2 id=\"section-07\">容器操作</h2>\n<h3 id=\"section-08\">运行容器（核心命令）</h3>\n<pre><code># 最简运行\npodman run docker.io/library/nginx:alpine\n\n# 后台运行 + 端口映射 + 指定名称\npodman run -d --name myweb -p 127.0.0.1:8080:80 docker.io/library/nginx:alpine\n#         └┘ └────────┘ └───────┘\n#    后台运行  给容器取名   把宿主机的 8080 端口映射到容器的 80 端口\n#    (detach)\n\n# 运行后自动删除（一次性任务）\npodman run --rm docker.io/library/alpine echo &quot;hello, 我只跑一次就消失&quot;\n\n# 交互式运行（进入容器内 shell）\npodman run -it docker.io/library/ubuntu bash\n#         └┘└┘\n#   交互模式  分配虚拟终端，这样才能看到提示符\n# (interactive) (tty)</code></pre>\n<p><strong>常用 run 参数速查</strong>：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">参数</th>\n<th scope=\"col\">作用</th>\n<th scope=\"col\">示例</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>-d</code></td>\n<td>后台运行</td>\n<td><code>podman run -d ...</code></td>\n</tr>\n<tr>\n<td><code>--name</code></td>\n<td>给容器命名</td>\n<td><code>--name myweb</code></td>\n</tr>\n<tr>\n<td><code>-p</code></td>\n<td>端口映射</td>\n<td><code>-p 8080:80</code> 或 <code>-p 127.0.0.1:8080:80</code></td>\n</tr>\n<tr>\n<td><code>-v</code></td>\n<td>挂载目录</td>\n<td><code>-v /host/path:/container/path</code></td>\n</tr>\n<tr>\n<td><code>--rm</code></td>\n<td>退出时自动删除容器</td>\n<td><code>--rm</code></td>\n</tr>\n<tr>\n<td><code>-e</code></td>\n<td>设置环境变量</td>\n<td><code>-e DATABASE_URL=postgres://...</code></td>\n</tr>\n<tr>\n<td><code>-it</code></td>\n<td>交互模式 + 终端</td>\n<td><code>-it</code></td>\n</tr>\n<tr>\n<td><code>--restart</code></td>\n<td>重启策略</td>\n<td><code>--restart=always</code></td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-09\">查看容器状态</h3>\n<pre><code># 列出正在运行的容器\npodman ps\n\n# 列出所有容器（包括已停止的）\npodman ps -a\n\n# 输出含义：\n# CONTAINER ID  — 容器唯一 ID（可以用前几位缩写）\n# IMAGE         — 从哪个镜像启动的\n# COMMAND       — 容器里执行的命令\n# CREATED       — 什么时候创建的\n# STATUS        — 当前状态（Up X minutes / Exited / Created）\n# PORTS         — 端口映射情况\n# NAMES         — 容器名称（--name 指定的）</code></pre>\n<h3 id=\"section-10\">管理容器生命周期</h3>\n<pre><code># 停止容器（默认停止信号通常是 SIGTERM，也可由镜像/配置指定，超时后强杀）\npodman stop myweb\n\n# 立即强杀（发送 SIGKILL，不等待）\npodman kill myweb\n\n# 启动已存在的容器（不是新建，是重启之前创建过的）\npodman start myweb\n\n# 重启容器\npodman restart myweb\n\n# 暂停/恢复容器（暂停期间不消耗 CPU）\npodman pause myweb\npodman unpause myweb\n\n# 删除已停止的容器\npodman rm myweb\n\n# 强制删除（即使容器正在运行）\npodman rm -f myweb\n\n# 清理所有已停止的容器\npodman container prune</code></pre>\n<p><code>stop</code> vs <code>kill</code>：<code>stop</code> 礼貌地通知程序&quot;请退出&quot;，按配置的停止信号与超时给程序清理机会（默认值依配置与版本）；<code>kill</code> 直接拔电源。</p>\n<h3 id=\"section-11\">查看容器内部信息</h3>\n<pre><code># 查看容器内的输出（日志）\npodman logs myweb\n\n# 实时跟踪日志（类似 tail -f）\npodman logs -f myweb\n\n# 只显示最近 20 行\npodman logs --tail 20 myweb\n\n# 进入正在运行的容器内部\npodman exec -it myweb sh\n#          └┘└┘ └───┘ └──┘\n#    交互 终端  容器名  要执行的命令\n\n# 查看容器内运行的进程\npodman top myweb\n\n# 查看容器详细信息（JSON 格式，含 IP 地址、挂载点等）\npodman inspect myweb</code></pre>\n<hr>\n<h2 id=\"section-12\">卷（Volume）：持久化数据</h2>\n<p>删除容器会丢失其可写层中的数据；命名卷和 bind mount 的生命周期不同。<strong>卷</strong>把数据存在宿主机上，可以跨容器共享。</p>\n<pre><code># 创建命名卷\npodman volume create mydata\n\n# 列出所有卷\npodman volume ls\n\n# 使用卷：把卷挂载到容器的 /data 目录\npodman run -d --name db --env-file /path/to/private/postgres.env \\\n  -v mydata:/var/lib/postgresql/data docker.io/library/postgres:16\n#                               └──┬──┘ └──────────┬──────────┘\n#                            宿主机卷名      容器内路径\n\n# 也可以直接挂载宿主机普通目录\npodman run -v /path/to/project:/app docker.io/library/nginx:alpine\n#           └──────┬──────┘ └─┘\n#           宿主机绝对路径   容器内路径\n\n# 查看卷详情\npodman volume inspect mydata\n\n# 清理未使用的卷\npodman volume prune</code></pre>\n<p>命名卷 (volume) vs 目录挂载 (bind mount)：</p>\n<ul>\n<li>命名卷由 Podman 管理，rootful 通常在 <code>/var/lib/containers/storage/volumes/</code>；rootless 位置由用户 storage 配置决定，用 <code>podman volume inspect</code> 查询，不知道路径也没关系</li>\n<li>目录挂载直接指定宿主机路径，适合开发时实时同步代码</li>\n</ul>\n<hr>\n<h2 id=\"section-13\">网络（Network）：让容器互通</h2>\n<pre><code># 列出所有网络\npodman network ls\n\n# 创建自定义网络\npodman network create mynet\n\n# 查看网络详情（含接入的容器和 IP）\npodman network inspect mynet\n\n# 在指定网络中运行容器\npodman run -d --name web --network mynet docker.io/library/nginx:alpine\npodman run -d --name db --network mynet --env-file /path/to/private/postgres.env docker.io/library/postgres:16\n\n# 同一网络中的容器可以用容器名互相访问\n# 若网络 DNS 已启用，通常可解析容器名；ping 工具/ICMP 权限与应用可达性仍需分别检查\n\n# 删除网络\npodman network rm mynet</code></pre>\n<hr>\n<h2 id=\"section-14\">日常维护命令</h2>\n<pre><code># 查看磁盘使用情况\npodman system df      # 总览\npodman system df -v   # 详细（每个镜像/容器/卷分别占用多少）\n\n# 一键清理（谨慎！会删除所有未在运行的容器和未使用的镜像）\npodman system prune -a\n\n# 查看 Podman 自身日志\npodman events    # 实时显示所有容器事件（创建/启动/停止/删除）\n\n# 复制文件：宿主机 → 容器\npodman cp /host/file.txt myweb:/container/path/\n\n# 复制文件：容器 → 宿主机\npodman cp myweb:/container/path/file.txt /host/dest/</code></pre>\n<hr>\n<h2 id=\"section-15\">Docker 命令兼容</h2>\n<p>常用 CLI 形式相近，但不是完全兼容。对熟悉的基本命令可以使用别名：</p>\n<pre><code># 如果你用过 Docker，直接别名\nalias docker=podman\n\n# 此后 docker ps/build 等映射到 Podman；Compose 仍需要外部 provider</code></pre>\n<p>但是需要注意：<code>docker</code> 命令本身可能不存在于系统中（如果没装 Docker），所以通常的做法是：</p>\n<pre><code># 安装 podman-docker 包（会创建 docker → podman 的软链接）\n# Fedora\nsudo dnf install podman-docker\n# Ubuntu\nsudo apt install podman-docker\n# 之后直接敲 docker 命令，实际调用的是 podman</code></pre>\n<hr>\n<hr>\n<p>上述安装命令针对可变发行版；NixOS 通过 Nix 模块声明，应用前由管理员检查并授权。数据库示例的 env 文件需在仓库外受限保存并提供 POSTGRES_PASSWORD 等必需值；这里不提供任何有效凭据。prune、rm、rmi -f 会删除资源；先检查使用关系与备份，镜像强制删除可能连带移除依赖容器。普通端口 <code>-p 8080:80</code> 通常绑定全部接口；需要本机访问时显式写 loopback。</p>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers"
+  ]
+}

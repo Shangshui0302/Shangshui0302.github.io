@@ -1,0 +1,56 @@
+{
+  "slug": "nixos-configuration-basics",
+  "number": "015",
+  "category": "LINUX / SYSTEMS",
+  "title": "NixOS 配置基础：选项与模块",
+  "deck": "从引导、网络、用户、软件包到服务组织一份系统配置。",
+  "sections": [
+    [
+      "section-01",
+      "配置文件结构"
+    ],
+    [
+      "section-02",
+      "配置文件的基本结构"
+    ],
+    [
+      "section-03",
+      "常用配置选项"
+    ],
+    [
+      "section-10",
+      "重建系统"
+    ],
+    [
+      "section-12",
+      "模块化配置"
+    ],
+    [
+      "section-14",
+      "常用命令"
+    ],
+    [
+      "section-15",
+      "参考资源"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">配置文件结构</h2>\n<p>NixOS 的主要配置文件位于 <code>/etc/nixos/</code>：</p>\n<pre><code>/etc/nixos/\n├── configuration.nix      # 主配置文件\n└── hardware-configuration.nix  # 硬件配置（自动生成）</code></pre>\n<h2 id=\"section-02\">配置文件的基本结构</h2>\n<pre><code>{ config, pkgs, ... }:\n\n{\n  imports = [\n    ./hardware-configuration.nix\n  ];\n  \n  # 你的配置...\n  \n  system.stateVersion = &quot;24.05&quot;; # 示例初装版本；保留自己的初装值\n}</code></pre>\n<p>参数说明：</p>\n<ul>\n<li><code>config</code>: 整个系统的配置状态</li>\n<li><code>pkgs</code>: nixpkgs 包集合</li>\n<li><code>...</code>: 允许传递其他参数（忽略不用的）</li>\n</ul>\n<h2 id=\"section-03\">常用配置选项</h2>\n<h3 id=\"section-04\">引导配置</h3>\n<p>UEFI/systemd-boot 与 BIOS/GRUB 是两种示例，按实际安装模式选择；GRUB 整盘目标必须核对，不能照抄 <code>/dev/sda</code>。</p>\n<pre><code># UEFI 引导\nboot.loader.systemd-boot.enable = true;\nboot.loader.efi.canTouchEfiVariables = true;\n\n# 传统 BIOS 引导\nboot.loader.grub.enable = true;\nboot.loader.grub.device = &quot;/dev/sda&quot;;\nboot.loader.grub.useOSProber = true;</code></pre>\n<h3 id=\"section-05\">网络配置</h3>\n<p>下列静态地址使用文档专用网段，并非可用的真实网络。需按实际网络替换；桌面 NetworkManager 与静态接口方案应明确由谁管理同一接口。</p>\n<pre><code># 主机名\nnetworking.hostName = &quot;workstation&quot;;\n\n# NetworkManager（推荐桌面使用）\nnetworking.networkmanager.enable = true;\n\n# 静态 IP（服务器使用）\nnetworking.interfaces.eth0.ipv4.addresses = [ {\n  address = &quot;192.0.2.10&quot;;\n  prefixLength = 24;\n} ];\nnetworking.defaultGateway = &quot;192.0.2.1&quot;;\nnetworking.nameservers = [ &quot;192.0.2.53&quot; &quot;192.0.2.54&quot; ];</code></pre>\n<h3 id=\"section-06\">本地化配置</h3>\n<pre><code># 时区\ntime.timeZone = &quot;Asia/Shanghai&quot;;\n\n# 区域设置\ni18n.defaultLocale = &quot;zh_CN.UTF-8&quot;;\ni18n.extraLocaleSettings = {\n  LC_ADDRESS = &quot;zh_CN.UTF-8&quot;;\n  LC_IDENTIFICATION = &quot;zh_CN.UTF-8&quot;;\n  LC_MEASUREMENT = &quot;zh_CN.UTF-8&quot;;\n  LC_MONETARY = &quot;zh_CN.UTF-8&quot;;\n  LC_NAME = &quot;zh_CN.UTF-8&quot;;\n  LC_NUMERIC = &quot;zh_CN.UTF-8&quot;;\n  LC_PAPER = &quot;zh_CN.UTF-8&quot;;\n  LC_TELEPHONE = &quot;zh_CN.UTF-8&quot;;\n  LC_TIME = &quot;zh_CN.UTF-8&quot;;\n};\n\n# 中文输入法\ni18n.inputMethod = {\n  enable = true;\n  type = &quot;fcitx5&quot;;\n  fcitx5.addons = with pkgs; [\n    fcitx5-rime\n    fcitx5-chinese-addons\n  ];\n};</code></pre>\n<h3 id=\"section-07\">用户配置</h3>\n<p><code>docker</code> 组拥有较高权限，仅确需时加入。SSH 禁用密码登录前，应先验证密钥登录可用，避免锁住管理入口。</p>\n<pre><code>users.users.alice = {\n  isNormalUser = true;\n  description = &quot;Alice&quot;;\n  extraGroups = [ &quot;networkmanager&quot; &quot;wheel&quot; &quot;docker&quot; ];\n  # 安装时交互设置密码；不要将明文密码写入公开配置。\n  \n  # 需要声明密码时，可使用部署时提供的 hashedPasswordFile。\n  # 不要把密码哈希写进公开仓库或可读的 Nix store。\n  \n  # 设置默认 shell\n  shell = pkgs.zsh;\n  \n  # SSH 公钥授权（不负责打开防火墙端口）\n  openssh.authorizedKeys.keys = [\n    &quot;&lt;完整 SSH 公钥，占位符不可直接使用&gt;&quot;\n  ];\n};</code></pre>\n<h3 id=\"section-08\">软件包管理</h3>\n<pre><code># 系统级安装\nenvironment.systemPackages = with pkgs; [\n  vim\n  git\n  curl\n  wget\n  htop\n  firefox\n];\n\n# 启用程序\nprograms.firefox.enable = true;\nprograms.git.enable = true;\nprograms.zsh.enable = true;</code></pre>\n<h3 id=\"section-09\">服务配置</h3>\n<pre><code># OpenSSH\nservices.openssh = {\n  enable = true;\n  settings = {\n    PermitRootLogin = &quot;no&quot;;\n    PasswordAuthentication = false;\n  };\n};\n\n# Docker\nvirtualisation.docker = {\n  enable = true;\n  enableOnBoot = true;\n};\n\n# 防火墙\nnetworking.firewall.enable = true;\nnetworking.firewall.allowedTCPPorts = [ 22 80 443 ];</code></pre>\n<h2 id=\"section-10\">重建系统</h2>\n<p><code>build</code> 只构建；<code>dry-build</code> 只显示构建计划；<code>test</code> 会立即激活；<code>switch</code> 立即激活并设为启动默认。它们都不能单独证明实际服务行为正常。</p>\n<p>修改配置后，需要重建系统使其生效：</p>\n<pre><code># 临时激活配置（会立即改变运行系统，但不设为启动默认项）\nsudo nixos-rebuild test\n\n# 应用配置\nsudo nixos-rebuild switch\n\n# 更新并重建\nsudo nixos-rebuild switch --upgrade</code></pre>\n<h3 id=\"section-11\">回滚配置</h3>\n<pre><code># 查看历史版本\nsudo nixos-rebuild list-generations\n\n# 切换到特定版本\nsudo nix-env --profile /nix/var/nix/profiles/system --switch-generation 42\nsudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch\n\n# 删除旧版本并回收（确认当前系统稳定、允许放弃旧回滚点后）\nsudo nix-collect-garbage --delete-older-than 30d</code></pre>\n<h2 id=\"section-12\">模块化配置</h2>\n<p>将配置拆分到多个文件：</p>\n<pre><code>/etc/nixos/\n├── configuration.nix\n├── hardware-configuration.nix\n├── users.nix\n├── desktop.nix\n└── services.nix</code></pre>\n<p>在 <code>configuration.nix</code> 中导入：</p>\n<pre><code>imports = [\n  ./hardware-configuration.nix\n  ./users.nix\n  ./desktop.nix\n  ./services.nix\n];</code></pre>\n<h3 id=\"section-13\">示例：users.nix</h3>\n<pre><code>{ config, pkgs, ... }:\n\n{\n  users.users.alice = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; &quot;networkmanager&quot; ];\n  };\n  \n  users.users.bob = {\n    isNormalUser = true;\n    extraGroups = [ &quot;networkmanager&quot; ];\n  };\n}</code></pre>\n<h2 id=\"section-14\">常用命令</h2>\n<pre><code># 编辑配置\nsudo nano /etc/nixos/configuration.nix\n\n# 求值并列出将要构建/下载的路径（不执行构建）\nnixos-rebuild dry-build\n\n# 构建并预览激活操作（预览不保证包含全部影响）\nnixos-rebuild dry-activate\n\n# 查看当前配置选项值\nnixos-option networking.hostName\n\n# 搜索可用选项\nman configuration.nix</code></pre>\n<hr>\n<h2 id=\"section-15\">参考资源</h2>\n<ul>\n<li><a href=\"https://search.nixos.org/options\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 选项搜索</a></li>\n<li><a href=\"https://nixos.org/manual/nixos/stable/#ch-configuration\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 手册 - 配置</a></li>\n<li><a href=\"https://nixos.org/manual/nixos/stable/#sec-writing-modules\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 模块系统</a></li>\n</ul>\n<hr>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

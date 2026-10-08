@@ -1,0 +1,69 @@
+{
+  "slug": "nix-deploy-ssh-deployment",
+  "number": "072",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "通过 SSH 部署 NixOS",
+  "deck": "区分本地构建、远端临时激活、持久切换和故障回滚。",
+  "sections": [
+    [
+      "section-01",
+      "前置要求"
+    ],
+    [
+      "section-02",
+      "基本部署流程"
+    ],
+    [
+      "section-06",
+      "使用 Flakes 部署"
+    ],
+    [
+      "section-09",
+      "批量部署多台服务器"
+    ],
+    [
+      "section-10",
+      "使用 deploy-rs 工具"
+    ],
+    [
+      "section-14",
+      "密钥管理"
+    ],
+    [
+      "section-16",
+      "部署检查与回滚"
+    ],
+    [
+      "section-17",
+      "持续部署 CI/CD"
+    ]
+  ],
+  "body": "<blockquote>\n<p>版本范围：下列示例保留 NixOS 24.05 的教程上下文；该版本已结束维护。实际项目应选择受支持的发行版、锁定 nixpkgs revision，并核对相应选项。<code>system.stateVersion</code> 表示兼容性基线，不应随升级机械改动。本文命令是教学示例，未在目标系统运行验证。</p>\n</blockquote>\n<blockquote>\n<p>翻译自 nix.dev: <a href=\"https://nix.dev/tutorials/nixos/provisioning-remote-machines\" target=\"_blank\" rel=\"noopener noreferrer\">Provisioning remote machines via SSH</a></p>\n</blockquote>\n<p>通过 SSH 将 NixOS 部署到远程服务器，实现基础设施即代码。</p>\n<h2 id=\"section-01\">前置要求</h2>\n<ul>\n<li>已安装 NixOS 的目标服务器</li>\n<li>SSH 密钥访问权限</li>\n<li>本地已安装 Nix</li>\n</ul>\n<h2 id=\"section-02\">基本部署流程</h2>\n<h3 id=\"section-03\">1. 准备目标服务器</h3>\n<p>确保远程服务器已启用 SSH：</p>\n<pre><code># 在远程服务器上检查\nsystemctl status sshd</code></pre>\n<h3 id=\"section-04\">2. 本地配置构建</h3>\n<p>创建部署配置 <code>deployment.nix</code>：</p>\n<pre><code>{ config, pkgs, ... }:\n\n{\n  # 网络配置\n  networking.hostName = &quot;remote-server&quot;;\n  networking.firewall.enable = true;\n  networking.firewall.allowedTCPPorts = [ 22 80 443 ];\n  \n  # SSH 配置\n  services.openssh = {\n    enable = true;\n    settings = {\n      PermitRootLogin = &quot;no&quot;;\n      PasswordAuthentication = false;\n    };\n  };\n  \n  # 用户配置\n  users.users.deploy = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; ];\n    openssh.authorizedKeys.keys = [\n      &quot;&lt;DEPLOY_SSH_PUBLIC_KEY&gt;&quot;\n    ];\n  };\n  \n  # Web 服务示例\n  services.nginx = {\n    enable = true;\n    virtualHosts.&quot;example.com&quot; = {\n      root = &quot;/var/www&quot;;\n      locations.&quot;/&quot; = {\n        extraConfig = &quot;index index.html;&quot;;\n      };\n    };\n  };\n  \n  system.stateVersion = &quot;24.05&quot;;\n}</code></pre>\n<h3 id=\"section-05\">3. 使用 nixos-rebuild 远程部署</h3>\n<p>目标必须已经安装 NixOS，部署配置还应导入该目标的 <code>hardware-configuration.nix</code>、文件系统与引导模块；这里的服务片段不是完整裸机配置。先保持一个可用 SSH 会话和控制台恢复路径，确认 deploy 用户能提升到 root。24.05 的 rebuild 使用 <code>--use-remote-sudo</code>；新版本 rebuild-ng 的对应参数可能为 <code>--sudo</code>，以目标工具的 <code>--help</code> 为准。</p>\n<p>先构建，再测试；<code>test</code> 会修改正在运行的系统，只是不设为下次启动默认值。<code>switch</code> 同时激活并更新系统 generation/启动配置。</p>\n<pre><code># 构建，不激活目标\nnixos-rebuild build -I nixos-config=./deployment.nix\n# 实际远程临时激活，先确认影响再执行\nnixos-rebuild test --target-host deploy@remote-server --use-remote-sudo \\\n  -I nixos-config=./deployment.nix</code></pre>\n<pre><code># 远程部署并应用配置\nnixos-rebuild switch \\\n  --target-host deploy@remote-server \\\n  --use-remote-sudo \\\n  -I nixos-config=./deployment.nix</code></pre>\n<p>参数说明：</p>\n<ul>\n<li><code>--target-host</code>: 目标服务器地址</li>\n<li><code>--build-host</code>: 指定远程构建主机；不指定时通常在本地构建。不要把 <code>localhost</code> 特殊值当作跨版本保证。</li>\n<li><code>--use-remote-sudo</code>：历史 rebuild 对非 root 目标用户启用远端 sudo。是否可交互输密码取决于工具版本与连接方式。</li>\n</ul>\n<h2 id=\"section-06\">使用 Flakes 部署</h2>\n<h3 id=\"section-07\">flake.nix</h3>\n<pre><code>{\n  inputs.nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-24.05&quot;;\n  \n  outputs = { self, nixpkgs }: {\n    nixosConfigurations.remote-server = nixpkgs.lib.nixosSystem {\n      system = &quot;x86_64-linux&quot;;\n      modules = [ ./configuration.nix ];\n    };\n  };\n}</code></pre>\n<h3 id=\"section-08\">部署命令</h3>\n<pre><code># 构建并部署\nnixos-rebuild switch \\\n  --flake .#remote-server \\\n  --target-host deploy@remote-server --use-remote-sudo</code></pre>\n<h2 id=\"section-09\">批量部署多台服务器</h2>\n<p>以下脚本实际逐台激活服务器。每个 <code>nixosConfigurations</code> key 必须与数组中的名称完全对应；应先对单台节点完成 build/test 和 SSH 验证，再批准整个列表。失败会停止后续部署，已成功节点不会自动整体回滚。创建 <code>deploy.sh</code>：</p>\n<pre><code>#!/usr/bin/env bash\n\nSERVERS=(\n  &quot;server1.example.com&quot;\n  &quot;server2.example.com&quot;\n  &quot;server3.example.com&quot;\n)\n\nfor server in &quot;${SERVERS[@]}&quot;; do\n  echo &quot;Deploying to $server...&quot;\n  nixos-rebuild switch \\\n    --flake &quot;.#$server&quot; \\\n    --target-host &quot;deploy@$server&quot; --use-remote-sudo || exit 1\n  echo &quot;✓ $server deployed&quot;\ndone\n\necho &quot;All servers deployed!&quot;</code></pre>\n<h2 id=\"section-10\">使用 deploy-rs 工具</h2>\n<p><code>deploy-rs</code> 是社区维护的部署工具，支持原子部署和回滚。</p>\n<h3 id=\"section-11\">安装</h3>\n<pre><code># 在 shell.nix 或配置中添加\nenvironment.systemPackages = with pkgs; [\n  deploy-rs\n];</code></pre>\n<h3 id=\"section-12\">配置 deploy.nix</h3>\n<p>下面的 attrset 应作为 flake 的 <code>deploy</code> 输出，由 <code>self</code> 和 <code>deploy-rs</code> inputs 提供作用域；仅保存成孤立文件并不会自动接入工具。建议同时暴露 <code>deploy-rs.lib.&lt;system&gt;.deployChecks self.deploy</code> 到 <code>checks</code>。原子 profile 切换、失败回滚及 magic rollback 都受配置和 SSH 恢复条件约束，不能代替数据备份。</p>\n<pre><code>{\n  nodes = {\n    web-server = {\n      hostname = &quot;web.example.com&quot;;\n      profiles.system = {\n        user = &quot;root&quot;;\n        sshUser = &quot;deploy&quot;;\n        path = deploy-rs.lib.x86_64-linux.activate.nixos \n          self.nixosConfigurations.web-server;\n      };\n    };\n    \n    db-server = {\n      hostname = &quot;db.example.com&quot;;\n      profiles.system = {\n        user = &quot;root&quot;;\n        sshUser = &quot;deploy&quot;;\n        path = deploy-rs.lib.x86_64-linux.activate.nixos \n          self.nixosConfigurations.db-server;\n      };\n    };\n  };\n}</code></pre>\n<h3 id=\"section-13\">执行部署</h3>\n<pre><code># 部署所有节点\ndeploy\n\n# 部署特定节点\ndeploy .#web-server\n\n# 显示待激活变化：可能构建、上传并在远端 dry-activate，仍会使用远程连接\ndeploy --dry-activate\n\n# 只做本地 flake 检查与系统构建，不触碰目标\nnix flake check\nnix build .#nixosConfigurations.web-server.config.system.build.toplevel</code></pre>\n<h2 id=\"section-14\">密钥管理</h2>\n<p>不要把明文密钥放入 Nix 字符串、store、镜像或 Terraform state。agenix 的密文可以随配置管理，私钥留在目标的受控路径；应用在运行时读取解密文件。</p>\n<h3 id=\"section-15\">使用 age 加密密钥</h3>\n<p><code>services.myapp</code> 是示意接口，必须由真实应用模块定义；owner/group 也须预先存在。agenix input 通过 specialArgs 等方式传入模块。</p>\n<pre><code>{ config, pkgs, agenix, ... }:\n\n{\n  imports = [ agenix.nixosModules.default ];\n  \n  age.secrets.api-key = {\n    file = ./secrets/api-key.age;\n    owner = &quot;myapp&quot;;\n    group = &quot;myapp&quot;;\n  };\n  \n  services.myapp = {\n    enable = true;\n    apiKeyFile = config.age.secrets.api-key.path;\n  };\n}</code></pre>\n<h2 id=\"section-16\">部署检查与回滚</h2>\n<pre><code># 先测试配置\nnixos-rebuild test \\\n  --flake .#remote-server \\\n  --target-host deploy@remote-server --use-remote-sudo\n\n# 如果出问题，远程回滚\nssh deploy@remote-server &#39;sudo nixos-rebuild switch --rollback&#39;\n\n# 查看远程系统版本\nssh deploy@remote-server &#39;sudo nix-env -p /nix/var/nix/profiles/system --list-generations&#39;</code></pre>\n<h2 id=\"section-17\">持续部署 CI/CD</h2>\n<h3 id=\"section-18\">GitHub Actions 示例</h3>\n<p>这是实际部署 workflow，push 会触发远端变更。生产环境应配置受保护 deployment environment/审批与最小权限，第三方 actions 固定到核验过的 commit SHA。安装 Nix 不保证 runner 已有 nixos-rebuild，应通过锁定的工具环境提供对应版本。known_hosts 从独立可信渠道核验后预存；临时 ssh-keyscan 只能采集候选公钥，不能建立服务器身份信任。</p>\n<pre><code>name: Deploy NixOS\n\non:\n  push:\n    branches: [ main ]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Install Nix\n        uses: DeterminateSystems/nix-installer-action@main\n        \n      - name: Setup SSH\n        run: |\n          mkdir -p ~/.ssh\n          echo &quot;$DEPLOY_KEY&quot; &gt; ~/.ssh/id_ed25519\n          chmod 600 ~/.ssh/id_ed25519\n          printf &#39;%s\\n&#39; &quot;$DEPLOY_KNOWN_HOSTS&quot; &gt; ~/.ssh/known_hosts\n          chmod 600 ~/.ssh/known_hosts\n        env:\n          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}\n          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}\n          \n      - name: Deploy\n        run: |\n          nixos-rebuild switch \\\n            --flake .#remote-server \\\n            --target-host deploy@remote-server --use-remote-sudo</code></pre>\n<hr>\n",
+  "refs": [
+    [
+      "nix.dev SSH 配置部署",
+      "https://nix.dev/tutorials/nixos/provisioning-remote-machines"
+    ],
+    [
+      "deploy-rs 官方仓库",
+      "https://github.com/serokell/deploy-rs"
+    ],
+    [
+      "deploy-rs CLI 参数源码",
+      "https://github.com/serokell/deploy-rs/blob/master/src/cli.rs"
+    ],
+    [
+      "agenix 官方仓库",
+      "https://github.com/ryantm/agenix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos",
+    "deployment"
+  ]
+}

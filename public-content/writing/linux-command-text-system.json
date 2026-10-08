@@ -1,0 +1,52 @@
+{
+  "slug": "linux-command-text-system",
+  "number": "041",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "文本处理与系统查询",
+  "deck": "从分页浏览和文本筛选走向内存、磁盘、网络与端口查询。",
+  "sections": [
+    [
+      "section-01",
+      "查看文件内容"
+    ],
+    [
+      "section-06",
+      "文本搜索"
+    ],
+    [
+      "section-08",
+      "简单文本处理"
+    ],
+    [
+      "section-13",
+      "系统信息"
+    ],
+    [
+      "section-18",
+      "网络相关"
+    ],
+    [
+      "section-24",
+      "日常场景速查"
+    ]
+  ],
+  "body": "<blockquote>\n<p>文件操作管&quot;东西在哪&quot;，进程管理管&quot;什么在跑&quot;，这篇管&quot;里面是什么&quot;和&quot;机器什么状态&quot;。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">查看文件内容</h2>\n<h3 id=\"section-02\">cat — 一次性输出全部</h3>\n<pre><code>cat file.txt           # 全部打印到终端\ncat -n file.txt        # 带行号\ncat a.txt b.txt        # 拼接两个文件输出</code></pre>\n<p>适合短文件。长文件刷屏太快，用下面的。</p>\n<h3 id=\"section-03\">less — 分页浏览</h3>\n<pre><code>less file.txt          # 进入浏览模式，按 q 退出\nless -N file.txt       # 带行号</code></pre>\n<p>进入 less 后的快捷键：</p>\n<ul>\n<li><code>Space</code> / <code>b</code> — 下翻一页 / 上翻一页</li>\n<li><code>/关键词</code> — 向下搜索，<code>n</code> 下一个，<code>N</code> 上一个</li>\n<li><code>?关键词</code> — 向上搜索</li>\n<li><code>g</code> / <code>G</code> — 跳到开头 / 结尾</li>\n<li><code>q</code> — 退出</li>\n</ul>\n<h3 id=\"section-04\">head 与 tail — 看头看尾</h3>\n<pre><code>head file.txt          # 前 10 行\nhead -n 20 file.txt    # 前 20 行\n\ntail file.txt          # 后 10 行\ntail -n 20 file.txt    # 后 20 行</code></pre>\n<h3 id=\"section-05\">tail -f — 实时追踪文件末尾</h3>\n<pre><code>tail -f /var/log/syslog     # 日志有新内容就实时显示</code></pre>\n<p>这是看日志的神器。按 <code>Ctrl+C</code> 退出追踪。</p>\n<hr>\n<h2 id=\"section-06\">文本搜索</h2>\n<h3 id=\"section-07\">grep — 搜索文本内容</h3>\n<pre><code>grep &quot;关键词&quot; file.txt             # 搜文件中的匹配行\ngrep -i &quot;error&quot; log.txt           # 忽略大小写\ngrep -r &quot;关键词&quot; dir/             # 递归搜整个目录\ngrep -n &quot;关键词&quot; file.txt         # 显示行号\ngrep -v &quot;排除词&quot; file.txt         # 反向：显示不匹配的行\ngrep -c &quot;关键词&quot; file.txt         # 只计数，不显示内容</code></pre>\n<p>最常用的组合：</p>\n<pre><code>grep -rn &quot;TODO&quot; .                  # 递归搜当前目录所有文件，显示行号\nps aux | grep nginx                # 在 ps 输出中筛选\nhistory | grep git                 # 在历史命令中搜索</code></pre>\n<hr>\n<h2 id=\"section-08\">简单文本处理</h2>\n<h3 id=\"section-09\">wc — 计数</h3>\n<pre><code>wc file.txt          # 行数  单词数  字节数\nwc -l file.txt       # 只看行数\nwc -w file.txt       # 只看单词数</code></pre>\n<h3 id=\"section-10\">sort — 排序</h3>\n<pre><code>sort file.txt             # 按字母排序\nsort -n file.txt          # 按数字排序\nsort -r file.txt          # 倒序\nsort -u file.txt          # 去重\ndu -sh * | sort -hr       # 文件大小从大到小排（常用组合）</code></pre>\n<h3 id=\"section-11\">cut — 切分列</h3>\n<pre><code>cut -d&#39;:&#39; -f1 /etc/passwd       # 以 : 为分隔，取第 1 列\ncut -d&#39;,&#39; -f1,3 data.csv        # 简单逗号分隔文本的第 1、3 列；不能解析带引号/逗号的通用 CSV</code></pre>\n<h3 id=\"section-12\">diff — 对比两个文件</h3>\n<pre><code>diff file1 file2         # 逐行对比差异\ndiff -y file1 file2      # 并排显示</code></pre>\n<hr>\n<h2 id=\"section-13\">系统信息</h2>\n<h3 id=\"section-14\">系统概况</h3>\n<pre><code>uname -a              # 内核版本、架构等全部信息\nhostname              # 主机名\nuptime                # 开了多久了</code></pre>\n<h3 id=\"section-15\">内存与 CPU</h3>\n<pre><code>free -h               # 内存使用情况（-h = 人类可读）\nlscpu                 # CPU 详细信息（几核、什么型号）\nnproc                 # 当前进程可用的处理单元数量，不等同物理核数</code></pre>\n<p><code>free -h</code> 的输出怎么看：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">列</th>\n<th scope=\"col\">含义</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>total</td>\n<td>总内存</td>\n</tr>\n<tr>\n<td>used</td>\n<td>已用</td>\n</tr>\n<tr>\n<td>available</td>\n<td>实际可用（含可回收缓存）</td>\n</tr>\n</tbody></table></div>\n<p>看 <code>available</code>，不是 <code>free</code>。Linux 会把空闲内存拿来做缓存，<code>free</code> 小但 <code>available</code> 大是正常的。</p>\n<h3 id=\"section-16\">磁盘与设备</h3>\n<pre><code>df -h                 # 各分区还剩多少空间\nlsblk                 # 列出所有块设备（硬盘/U 盘）\nlsusb                 # 列出 USB 设备\nlspci                 # 列出 PCI 设备（显卡/网卡等）</code></pre>\n<h3 id=\"section-17\">查看发行版信息</h3>\n<pre><code>cat /etc/os-release   # 你是什么 Linux（NixOS/Ubuntu/Arch...）</code></pre>\n<hr>\n<h2 id=\"section-18\">网络相关</h2>\n<h3 id=\"section-19\">ip — 查看网络接口（替代旧命令 ifconfig）</h3>\n<pre><code>ip a                  # 所有网络接口的 IP 地址\nip route              # 路由表（默认网关在哪）</code></pre>\n<h3 id=\"section-20\">ping — 测连通性</h3>\n<pre><code>ping 192.0.2.1        # 示例地址；替换为已知可达且允许探测的目标\nping -c 4 example.com   # 只发 4 个包就停</code></pre>\n<h3 id=\"section-21\">ss — 看谁在监听端口（替代旧命令 netstat）</h3>\n<pre><code>ss -tlnp              # 只看 TCP 监听端口\nss -tlnp | grep 8080  # 8080 端口被谁占了</code></pre>\n<h3 id=\"section-22\">curl — 命令行发 HTTP 请求</h3>\n<pre><code>curl https://example.com              # GET 请求，输出响应体\ncurl -I https://example.com           # 只看响应头\ncurl -O https://example.com/file.zip  # 下载文件（-O = 保留原名）\ncurl -o my.zip https://example.com/file.zip   # 下载并重命名</code></pre>\n<h3 id=\"section-23\">wget — 下载文件</h3>\n<pre><code>wget https://example.com/file.zip     # 下载到当前目录\nwget -c https://example.com/file.zip          # 断点续传</code></pre>\n<hr>\n<h2 id=\"section-24\">日常场景速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">我想...</th>\n<th scope=\"col\">命令</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>看日志</td>\n<td><code>tail -f /var/log/xxx.log</code></td>\n</tr>\n<tr>\n<td>搜代码里所有 TODO</td>\n<td><code>grep -rn &quot;TODO&quot; .</code></td>\n</tr>\n<tr>\n<td>内存还剩多少</td>\n<td><code>free -h</code></td>\n</tr>\n<tr>\n<td>磁盘还剩多少</td>\n<td><code>df -h</code></td>\n</tr>\n<tr>\n<td>哪个端口被占用了</td>\n<td><code>ss -tlnp | grep 端口号</code></td>\n</tr>\n<tr>\n<td>下载一个文件</td>\n<td><code>curl -O URL</code></td>\n</tr>\n<tr>\n<td>看两个文件哪里不同</td>\n<td><code>diff file1 file2</code></td>\n</tr>\n<tr>\n<td>当前目录有多少个普通文件（GNU find）</td>\n<td><code>find . -maxdepth 1 -type f -printf &#39;x\\n&#39; | wc -l</code></td>\n</tr>\n</tbody></table></div>\n<hr>\n<hr>\n<p><code>/var/log/syslog</code> 并非所有发行版都存在；使用 systemd journal 的系统可用 <code>journalctl -f</code>。<code>ss -p</code> 显示的进程信息受权限限制；ping 失败也可能只是目标过滤 ICMP。</p>\n",
+  "refs": [
+    [
+      "GNU Coreutils 手册",
+      "https://www.gnu.org/software/coreutils/manual/coreutils.html"
+    ],
+    [
+      "GNU Findutils 手册",
+      "https://www.gnu.org/software/findutils/manual/html_mono/find.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "cli"
+  ]
+}

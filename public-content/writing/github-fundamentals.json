@@ -1,0 +1,121 @@
+{
+  "slug": "github-fundamentals",
+  "number": "103",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "GitHub 基本操作",
+  "deck": "区分 Git、GitHub 与 gh，并走完登录、Fork、推送和创建 PR 的流程。",
+  "sections": [
+    [
+      "section-01",
+      "1. Git、GitHub 与 gh 的分工"
+    ],
+    [
+      "section-02",
+      "2. 认证与 gh auth"
+    ],
+    [
+      "section-05",
+      "3. 创建、克隆与 Fork 仓库"
+    ],
+    [
+      "section-10",
+      "4. fetch、pull 与 push 的边界"
+    ],
+    [
+      "section-13",
+      "5. 仓库网页、Issue、PR 与 Actions 导航"
+    ],
+    [
+      "section-16",
+      "6. 完整命令流：从 Fork 到 Push，再创建 PR"
+    ],
+    [
+      "section-21",
+      "7. 常见误区与安全检查"
+    ],
+    [
+      "section-23",
+      "官方资料"
+    ]
+  ],
+  "body": "<blockquote>\n<p>Git 负责本地版本历史，GitHub 负责托管、协作和界面，<code>gh</code> 负责在终端调用 GitHub。本文只建立这三者的使用边界，不重复讲 Git 对象、提交图或 rebase 的内部原理。</p>\n</blockquote>\n<p>GitHub 不会替代 Git。一次日常协作通常同时经过三层：本地用 Git 创建提交，远程用 GitHub 保存并展示仓库，必要时用官方 GitHub CLI（<code>gh</code>）操作仓库、Issue、Pull Request（PR）和 Actions。Git 的远程同步细节见 <a href=\"/writing/git-remotes/\">Git 03：远程协同</a>。</p>\n<h2 id=\"section-01\">1. Git、GitHub 与 gh 的分工</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">对象</th>\n<th scope=\"col\">它是什么</th>\n<th scope=\"col\">典型问题</th>\n<th scope=\"col\">常用入口</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Git</td>\n<td>本地分布式版本控制工具</td>\n<td>如何提交、切分支、合并和同步？</td>\n<td><code>git status</code>、<code>git switch</code>、<code>git commit</code></td>\n</tr>\n<tr>\n<td>GitHub</td>\n<td>托管 Git 仓库的协作平台</td>\n<td>代码放在哪里？谁能看、评审和合并？</td>\n<td>仓库网页、Issues、Pull requests、Actions</td>\n</tr>\n<tr>\n<td><code>gh</code></td>\n<td>GitHub 官方命令行客户端</td>\n<td>如何在终端操作 GitHub 对象？</td>\n<td><code>gh auth</code>、<code>gh repo</code>、<code>gh issue</code>、<code>gh pr</code>、<code>gh run</code></td>\n</tr>\n</tbody></table></div>\n<p>一个容易混淆的边界是：<code>git push</code> 是把 Git 提交发送到某个远程地址；它本身不知道 Issue 或 PR。<code>gh pr create</code> 才是在 GitHub 上创建 PR，且 PR 的目标是一个 GitHub 仓库中的基准分支。</p>\n<p>另一个边界是：Git 能够在没有网络的情况下创建提交和分支；GitHub 的仓库、权限、Issue、PR 和 Actions 需要访问 GitHub 服务。<code>gh</code> 是调用 GitHub API 和网页相关能力的客户端，不是 Git 的替代品。</p>\n<h2 id=\"section-02\">2. 认证与 gh auth</h2>\n<h3 id=\"section-03\">2.1 选择 Git 传输协议</h3>\n<p>从本地向 GitHub 读写仓库时，常见协议有：<strong>HTTPS</strong>（如 <code>https://github.com/OWNER/REPO.git</code>，由凭据助手完成登录）和 <strong>SSH</strong>（如 <code>git@github.com:OWNER/REPO.git</code>，需登记公钥并可用 <code>ssh -T git@github.com</code> 检查）。两者都支持 clone、fetch 和 push；协议不决定仓库权限，权限由账户、可见性、协作者角色和分支规则共同决定。</p>\n<h3 id=\"section-04\">2.2 用 gh 登录</h3>\n<p>先确认客户端存在，再启动交互式登录：</p>\n<pre><code>gh --version\ngh auth login\ngh auth status</code></pre>\n<p><code>gh auth login</code> 会让你选择 GitHub 主机和 Git 协议，并通常打开浏览器完成授权。<code>gh auth status</code> 用于检查当前主机和账户状态；不要把它的完整输出或任何凭据粘贴到公开 Issue、日志或笔记中。</p>\n<p>如果已经登录但 Git 操作仍无法写入，可以让 <code>gh</code> 为 Git 配置凭据助手：</p>\n<pre><code>gh auth setup-git</code></pre>\n<p>认证的安全边界：不要把 Personal Access Token（PAT）、SSH 私钥、<code>GH_TOKEN</code>、<code>GITHUB_TOKEN</code> 或内嵌凭据的远程 URL 写进仓库、脚本、shell 历史、<code>.git/config</code> 或日志。自动化 token 应放在 GitHub Secrets 或 Actions 提供的受限上下文中；不要运行或转发会直接输出令牌的命令。</p>\n<p>认证只回答“你是谁、能否访问”；它不代表你可以向任意仓库 push。遇到 <code>permission denied</code>，先确认远程地址和登录账户，再检查仓库权限或改用 Fork 工作流。</p>\n<p>官方说明：<a href=\"https://cli.github.com/manual/gh_auth_login\" target=\"_blank\" rel=\"noopener noreferrer\">gh auth login</a>、<a href=\"https://cli.github.com/manual/gh_auth\" target=\"_blank\" rel=\"noopener noreferrer\">gh auth</a>。</p>\n<h2 id=\"section-05\">3. 创建、克隆与 Fork 仓库</h2>\n<h3 id=\"section-06\">3.1 创建一个自己的仓库</h3>\n<p>网页路径会随 GitHub UI 调整；通常从右上角 <code>+</code> → <code>New repository</code> 进入，选择所有者、名称、可见性和初始化文件后创建。组织可能限制仓库创建，空仓库和带 README 的仓库在首次 clone/push 时也有不同提示。</p>\n<p>也可以用 <code>gh</code>：</p>\n<pre><code>gh repo create my-project --private\ngh repo create my-project --public --clone</code></pre>\n<p><code>--private</code>、<code>--public</code> 是重要的可见性选择；不要为了测试公开含私密资料的仓库。<code>--clone</code> 会在创建成功后克隆到本地；从已有本地目录创建远程仓库可使用 <code>--source</code> 和 <code>--push</code>，但应先检查将要公开的提交和文件。</p>\n<p>官方说明：<a href=\"https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository\" target=\"_blank\" rel=\"noopener noreferrer\">创建新仓库</a>、<a href=\"https://cli.github.com/manual/gh_repo_create\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh repo create</code></a>。</p>\n<h3 id=\"section-07\">3.2 Clone、Fork 与 Branch 不是一回事</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">操作</th>\n<th scope=\"col\">位置</th>\n<th scope=\"col\">结果</th>\n<th scope=\"col\">何时使用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>clone</code></td>\n<td>GitHub 仓库 → 本地</td>\n<td>得到一个本地 Git 仓库副本</td>\n<td>开始查看或修改某个远程仓库</td>\n</tr>\n<tr>\n<td><code>fork</code></td>\n<td>GitHub 仓库 → 你的 GitHub 账户</td>\n<td>得到一个服务器端独立仓库，并保留与上游的关系</td>\n<td>没有原仓库写权限时准备贡献</td>\n</tr>\n<tr>\n<td><code>branch</code></td>\n<td>本地 Git 仓库（也可推到远程）</td>\n<td>从某个提交分出一条开发线</td>\n<td>隔离一个功能、修复或实验</td>\n</tr>\n</tbody></table></div>\n<p>因此，“Fork 一个仓库”不会自动把代码下载到电脑；“Clone 一个仓库”也不会自动创建你的 GitHub 仓库。贡献者常用组合是：先 Fork，再 Clone 自己的 Fork，最后在本地建立 feature branch。</p>\n<h3 id=\"section-08\">3.3 Clone 到本地</h3>\n<p>Git 原生命令：</p>\n<pre><code>git clone https://github.com/OWNER/REPO.git\ncd REPO</code></pre>\n<p>clone 会取得远程仓库当前可见的完整 Git 数据，而不仅是网页上显示的文件。浅克隆 <code>git clone --depth 1 ...</code> 可以节省时间和空间，但会缺少历史，后续比较旧提交、切换历史分支或生成某些版本信息时可能需要补齐历史。\nclone 完成后可用 <code>git status --short --branch</code>、<code>git remote -v</code> 和 <code>git branch --show-current</code> 检查工作目录、远程地址和当前分支；这些命令不证明当前账户一定有写权限。</p>\n<h3 id=\"section-09\">3.4 Fork 后的两个远程：origin 与 upstream</h3>\n<p>远程名称只是本地约定，不是 GitHub 的保留字：</p>\n<ul>\n<li><code>origin</code> 通常指向你正在工作的远程仓库。Fork 工作流中，通常是你账户下的 Fork，可向它 push。</li>\n<li><code>upstream</code> 通常指向原项目仓库，用于获取原作者的新提交。通常只能 fetch，是否能 push 取决于权限。</li>\n</ul>\n<p>如果是从自己的 Fork clone，<code>origin</code> 可能已经指向 Fork；此时只需补上上游：</p>\n<pre><code>git remote add upstream https://github.com/OWNER/REPO.git\ngit remote -v</code></pre>\n<p>不要把 <code>origin</code> 或 <code>upstream</code> 当成“永远正确”的名字；真正重要的是用 <code>git remote -v</code> 确认每个名字对应的 URL。<code>gh repo clone</code> 对 Fork 可能自动添加 <code>upstream</code>，客户端版本和选项会影响这个行为，可用 <code>git remote -v</code> 验证。</p>\n<p>官方说明：<a href=\"https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository\" target=\"_blank\" rel=\"noopener noreferrer\">克隆仓库</a>、<a href=\"https://cli.github.com/manual/gh_repo_clone\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh repo clone</code></a>、<a href=\"https://cli.github.com/manual/gh_repo_fork\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh repo fork</code></a>。</p>\n<h2 id=\"section-10\">4. fetch、pull 与 push 的边界</h2>\n<p>下面三条命令都涉及远程，但副作用不同：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">命令</th>\n<th scope=\"col\">做什么</th>\n<th scope=\"col\">是否直接改当前工作文件</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>git fetch &lt;remote&gt;</code></td>\n<td>下载远程对象并更新远程跟踪分支</td>\n<td>通常不改当前分支和工作文件</td>\n</tr>\n<tr>\n<td><code>git pull &lt;remote&gt; &lt;branch&gt;</code></td>\n<td>先 fetch，再把结果整合到当前分支</td>\n<td>会整合提交，可能产生冲突</td>\n</tr>\n<tr>\n<td><code>git push &lt;remote&gt; &lt;branch&gt;</code></td>\n<td>把本地提交发送到远程分支</td>\n<td>不改本地工作文件，但会改变远程状态</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-11\">4.1 先看，再整合</h3>\n<pre><code>git fetch upstream\ngit log --oneline --decorate HEAD..upstream/main</code></pre>\n<p><code>HEAD..upstream/main</code> 表示“远程有而当前分支没有”的提交；它是查看差异，不是合并。实际默认分支可能叫 <code>master</code> 或其他名称，先按仓库显示的默认分支替换 <code>main</code>。</p>\n<p>如果当前分支没有未提交改动，并且希望把远程更新整合进本地分支，可以使用：</p>\n<pre><code>git pull --rebase origin main</code></pre>\n<p><code>pull --rebase</code> 不是无冲突保证；它仍可能暂停要求解决冲突。对共享分支使用 rebase 前应遵守团队约定，因为 rebase 会重写本地提交的祖先关系。想分两步检查时，使用 <code>git fetch</code>，确认后再显式 <code>git rebase</code> 或 <code>git merge</code>。</p>\n<h3 id=\"section-12\">4.2 首次推送与风险</h3>\n<p>确认当前分支、待推送提交和远程地址后，首次推送一个新分支：</p>\n<pre><code>git push --set-upstream origin feature/short-description</code></pre>\n<p><code>--set-upstream</code> 会建立本地分支与远程跟踪分支的关系，之后可以直接使用 <code>git pull</code> 和 <code>git push</code>。<code>git push</code> 会把提交公开给拥有该远程访问权的人；它不会自动创建 PR。</p>\n<p>不要把 <code>git push --force</code> 当作普通重试。它可能移动远程分支指针并使别人已经推送的提交暂时不可见。只有在确认是自己独占的分支、理解历史重写的影响并得到团队允许时，才考虑：</p>\n<pre><code>git push --force-with-lease origin feature/short-description</code></pre>\n<p><code>--force-with-lease</code> 会在远程状态不符合本地预期时拒绝覆盖，比 <code>--force</code> 多一道保护；它仍然不是公共分支的常规操作。</p>\n<h2 id=\"section-13\">5. 仓库网页、Issue、PR 与 Actions 导航</h2>\n<p>GitHub 网页上的标签和按钮会变化，下面记录的是稳定语义。实际操作时以当前仓库显示的入口为准。</p>\n<h3 id=\"section-14\">5.1 仓库首页与代码入口</h3>\n<ul>\n<li><strong>Code</strong>：获取 HTTPS/SSH clone 地址，查看文件和分支。</li>\n<li><strong>Issues</strong>：记录 bug、任务、问题和功能想法；Issue 是讨论与跟踪对象，不是 Git 提交。</li>\n<li><strong>Pull requests</strong>：比较一个 head 分支与 base 分支的差异，进行评审、检查和合并。</li>\n<li><strong>Settings</strong>：管理可见性、协作者、分支规则、Secrets 等；需要相应权限。</li>\n<li><strong>Actions</strong>：查看 workflow、运行记录、日志和失败步骤；仓库可能关闭 Actions 或限制可运行的 workflow。</li>\n</ul>\n<p>终端中可用以下命令打开或查看入口：</p>\n<pre><code>gh repo view --web\ngh issue list\ngh pr list\ngh run list\ngh run view</code></pre>\n<h3 id=\"section-15\">5.2 Issue、Pull Request 与 Actions 的关系</h3>\n<p>一个常见的协作链是：</p>\n<ol>\n<li>在 Issue 中说明问题、预期行为、复现步骤或任务边界。</li>\n<li>在本地创建 branch，修改代码并提交。</li>\n<li>把 branch push 到自己有写权限的远程。</li>\n<li>创建 PR，将 head branch 指向目标仓库的 base branch。</li>\n<li>GitHub Actions 对 push 或 PR 事件运行检查；维护者查看差异、评论和检查结果。</li>\n<li>通过评审与必需检查后，按仓库规则合并 PR。</li>\n</ol>\n<p>Issue 与 PR 可以通过 <code>Fixes #123</code> 等关键词建立关联；合并时是否自动关闭 Issue 取决于目标仓库和引用方式。Actions 是事件驱动的自动化平台；本篇只需知道它会在 PR 或 push 等事件上产生检查，Workflow、Job、Runner、权限和缓存见 GitHub 专题后续笔记。</p>\n<p>官方入口：<a href=\"https://docs.github.com/en/issues/tracking-your-work-with-issues\" target=\"_blank\" rel=\"noopener noreferrer\">Issues</a>、<a href=\"https://docs.github.com/en/pull-requests/collaborating-with-pull-requests\" target=\"_blank\" rel=\"noopener noreferrer\">Pull requests</a>、<a href=\"https://docs.github.com/en/actions/get-started/understand-github-actions\" target=\"_blank\" rel=\"noopener noreferrer\">理解 GitHub Actions</a>。</p>\n<h2 id=\"section-16\">6. 完整命令流：从 Fork 到 Push，再创建 PR</h2>\n<p>下面假定：<code>OWNER/REPO</code> 是原仓库，<code>YOUR_USER</code> 是你的 GitHub 登录名，原仓库默认分支是 <code>main</code>。先在变量中替换占位符；这些变量不包含密码或 token。</p>\n<h3 id=\"section-17\">6.1 创建 Fork 并准备远程</h3>\n<pre><code>UPSTREAM_OWNER=&quot;OWNER&quot;\nREPO=&quot;REPO&quot;\nYOUR_USER=&quot;YOUR_USER&quot;\n\ngh auth status\ngh repo fork &quot;$UPSTREAM_OWNER/$REPO&quot; --clone=false\ngit clone &quot;https://github.com/$YOUR_USER/$REPO.git&quot; &quot;$REPO&quot;\ncd &quot;$REPO&quot;\ngit remote add upstream &quot;https://github.com/$UPSTREAM_OWNER/$REPO.git&quot;\ngit remote -v</code></pre>\n<p>如果 Fork 已经存在，跳过 <code>gh repo fork</code>，直接 clone 现有 Fork。若团队偏好 SSH，把两个 HTTPS URL 换成对应的 SSH URL；不要在 URL 中加入 token。</p>\n<h3 id=\"section-18\">6.2 从上游默认分支建立开发分支</h3>\n<pre><code>git fetch upstream\ngit switch -c fix/short-description upstream/main</code></pre>\n<p>如果原仓库默认分支不是 <code>main</code>，将命令中的 <code>main</code> 换成实际名称。<code>git switch -c</code> 创建并切换本地分支；它不会把分支发布到 GitHub。</p>\n<h3 id=\"section-19\">6.3 检查、提交并推送</h3>\n<p>完成文件修改后，使用明确的路径进行检查和暂存：</p>\n<pre><code>git status --short\ngit diff --check\ngit diff\ngit add -- path/to/changed-file\ngit diff --cached --check\ngit commit -m &quot;Fix the short problem description&quot;\ngit push --set-upstream origin HEAD</code></pre>\n<p><code>git add -- path/to/changed-file</code> 比无条件 <code>git add .</code> 更容易避免把 <code>.env</code>、构建产物、编辑器缓存或不相关文件放进提交。<code>git push origin HEAD</code> 推送当前所在分支，减少手写错分支名的机会；它仍然会发布该提交，执行前要确认 <code>git remote -v</code>。</p>\n<h3 id=\"section-20\">6.4 创建 Pull Request</h3>\n<pre><code>gh pr create \\\n  --base main \\\n  --head &quot;$YOUR_USER:fix/short-description&quot; \\\n  --fill</code></pre>\n<p>也可以在 GitHub 网页打开新推送的分支，选择 <code>Compare &amp; pull request</code>。创建 PR 时确认：base 是原仓库及其目标分支，head 是你的 Fork 及其 feature branch；这两个方向选反会让 PR 进入错误的仓库或比较错误的分支。</p>\n<p>创建后用以下命令查看：</p>\n<pre><code>gh pr status\ngh pr checks\ngh run list</code></pre>\n<p>等待 Actions 检查、回应评审意见并按仓库规则更新分支。修改后继续在同一 feature branch 提交并 push，已有 PR 会自动更新；不要为每个小修复重复创建 PR。</p>\n<h2 id=\"section-21\">7. 常见误区与安全检查</h2>\n<p>常见误区可以压缩成四条检查：</p>\n<ul>\n<li><strong>Fork 不等于 Branch</strong>：Fork 是账户下的远程副本，Branch 是提交图上的开发线；前者解决“在哪里 push”，后者解决“如何隔离改动”。</li>\n<li><strong><code>origin</code> 不等于官方仓库</strong>：它只是本地默认远程名；Fork 工作流中通常指自己的 Fork，原项目另命名为 <code>upstream</code>。</li>\n<li><strong><code>pull</code> 不只是下载</strong>：<code>fetch</code> 只更新远程跟踪信息，<code>pull</code> 还会整合到当前分支并可能冲突；想先观察就先 <code>fetch</code>。</li>\n<li><strong>Push 不会创建 PR</strong>：Push 更新远程 branch，PR 需网页操作或 <code>gh pr create</code> 显式创建；运行 CI 也不等于请求合并。</li>\n</ul>\n<p>每次准备 fetch/push 前运行：</p>\n<pre><code>git remote -v</code></pre>\n<p>确认 URL 后再执行写操作。也不要硬编码所有仓库都有 <code>main</code>，或因为能 clone 就推断能 push；先确认默认分支、Fork 所有者、远程 URL 和账户，分支保护还可能要求 PR、评审或必需检查。</p>\n<h3 id=\"section-22\">凭据和私密文件</h3>\n<p>如果发现 token、私钥、<code>.env</code> 或个人数据，先停止 push，移除并轮换已经暴露的凭据，再按仓库安全流程处理。删除文件的后续提交不等于历史中从未出现过；敏感信息一旦 push 就应视为已泄露。</p>\n<h2 id=\"section-23\">官方资料</h2>\n<ul>\n<li><a href=\"https://docs.github.com/en/repositories/creating-and-managing-repositories\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Docs：仓库创建与管理</a>、<a href=\"https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository\" target=\"_blank\" rel=\"noopener noreferrer\">克隆仓库</a></li>\n<li><a href=\"https://docs.github.com/en/issues/tracking-your-work-with-issues\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Docs：Issues</a>、<a href=\"https://docs.github.com/en/pull-requests/collaborating-with-pull-requests\" target=\"_blank\" rel=\"noopener noreferrer\">Pull requests</a>、<a href=\"https://docs.github.com/en/actions/get-started/understand-github-actions\" target=\"_blank\" rel=\"noopener noreferrer\">理解 GitHub Actions</a></li>\n<li><a href=\"https://cli.github.com/manual/\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub CLI Manual</a>、<a href=\"https://cli.github.com/manual/gh_auth_login\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh auth login</code></a>、<a href=\"https://cli.github.com/manual/gh_repo_clone\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh repo clone</code></a>、<a href=\"https://cli.github.com/manual/gh_repo_fork\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh repo fork</code></a></li>\n<li><a href=\"https://git-scm.com/doc\" target=\"_blank\" rel=\"noopener noreferrer\">Git 官方文档</a>、<a href=\"https://git-scm.com/docs/git-clone\" target=\"_blank\" rel=\"noopener noreferrer\"><code>git-clone</code></a>、<a href=\"https://git-scm.com/docs/git-fetch\" target=\"_blank\" rel=\"noopener noreferrer\"><code>git-fetch</code></a>、<a href=\"https://git-scm.com/docs/git-pull\" target=\"_blank\" rel=\"noopener noreferrer\"><code>git-pull</code></a>、<a href=\"https://git-scm.com/docs/git-push\" target=\"_blank\" rel=\"noopener noreferrer\"><code>git-push</code></a></li>\n</ul>\n",
+  "refs": [
+    [
+      "gh auth login",
+      "https://cli.github.com/manual/gh_auth_login"
+    ],
+    [
+      "gh auth",
+      "https://cli.github.com/manual/gh_auth"
+    ],
+    [
+      "创建新仓库",
+      "https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository"
+    ],
+    [
+      "gh repo create",
+      "https://cli.github.com/manual/gh_repo_create"
+    ],
+    [
+      "克隆仓库",
+      "https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository"
+    ],
+    [
+      "gh repo clone",
+      "https://cli.github.com/manual/gh_repo_clone"
+    ],
+    [
+      "gh repo fork",
+      "https://cli.github.com/manual/gh_repo_fork"
+    ],
+    [
+      "Issues",
+      "https://docs.github.com/en/issues/tracking-your-work-with-issues"
+    ],
+    [
+      "Pull requests",
+      "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests"
+    ],
+    [
+      "理解 GitHub Actions",
+      "https://docs.github.com/en/actions/get-started/understand-github-actions"
+    ],
+    [
+      "GitHub Docs：仓库创建与管理",
+      "https://docs.github.com/en/repositories/creating-and-managing-repositories"
+    ],
+    [
+      "GitHub CLI Manual",
+      "https://cli.github.com/manual/"
+    ],
+    [
+      "Git 官方文档",
+      "https://git-scm.com/doc"
+    ],
+    [
+      "git-clone",
+      "https://git-scm.com/docs/git-clone"
+    ],
+    [
+      "git-fetch",
+      "https://git-scm.com/docs/git-fetch"
+    ],
+    [
+      "git-pull",
+      "https://git-scm.com/docs/git-pull"
+    ],
+    [
+      "git-push",
+      "https://git-scm.com/docs/git-push"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "github",
+    "git",
+    "collaboration"
+  ]
+}

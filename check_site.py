@@ -3,6 +3,7 @@
 Run after build_site.py (and optionally build_demos.py). Uses only the standard library.
 """
 from html.parser import HTMLParser
+from html import unescape
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
@@ -95,7 +96,8 @@ for path in OUT.rglob('index.html'):
 for post in posts:
     for prefix in ('writing', 'journal'):
         assert OUT.joinpath(prefix, post['slug'], 'index.html').is_file()
-    assert re.findall(r'<h2 id="([^"]+)">([^<]+)</h2>', post['body']) == [tuple(pair) for pair in post['sections']]
+    headings = [(anchor, unescape(label)) for anchor, label in re.findall(r'<h2 id="([^"]+)">([^<]+)</h2>', post['body'])]
+    assert headings == [tuple(pair) for pair in post['sections']], f'Article outline mismatch: {post["slug"]}'
 
 for key in taxonomy['categories']:
     expected = sum(post['category_id'] == key for post in posts)
@@ -122,7 +124,9 @@ for path in OUT.rglob('*'):
         text = path.read_text()
         # Public source URLs may contain repository paths named home/; inspect local data separately.
         local_text = re.sub(r'https?://[^\s<>"\']+', '', text)
-        if re.search(r'/home/[^/\s]+/|/Users/[^/\s]+/|MyVault|github_pat_|ghp_[A-Za-z0-9]{20}|BEGIN [A-Z ]*PRIVATE KEY|\[\[02_Academic', local_text):
+        # Reviewed generic examples retain absolute paths where ~ would change code semantics.
+        home_accounts = re.findall(r'(?<![\w.~])/(?:home|Users)/([^/:\s<>&"\']+)', local_text)
+        if any(account not in {'user', 'alice', 'bob', 'example', '用户', '$USER'} for account in home_accounts) or re.search(r'MyVault|github_pat_|ghp_[A-Za-z0-9]{20}|BEGIN [A-Z ]*PRIVATE KEY|\[\[02_Academic', local_text):
             errors.append(f'Private-source pattern: {path.relative_to(OUT)}')
         if Path.home().name not in ('root', 'user') and Path.home().name in text:
             errors.append(f'Local account name: {path.relative_to(OUT)}')

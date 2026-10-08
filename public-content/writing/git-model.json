@@ -1,0 +1,56 @@
+{
+  "slug": "git-model",
+  "number": "093",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Git 的底层模型：对象、快照与引用",
+  "deck": "用快照、对象数据库和引用理解 Git 操作改变的内容。",
+  "sections": [
+    [
+      "section-01",
+      "1. 进化论：为什么分布式 (Distributed) 是降维打击？"
+    ],
+    [
+      "section-02",
+      "2. 存储模型：快照 (Snapshots) vs. 差异 (Deltas)"
+    ],
+    [
+      "section-04",
+      "3. 核心物理模型：三棵树 (The Three Areas)"
+    ],
+    [
+      "section-07",
+      "4. Git 的原子组件：对象数据库 (Objects)"
+    ],
+    [
+      "section-08",
+      "5. 指针的艺术：HEAD 与 分支"
+    ],
+    [
+      "section-14",
+      "6. 只增不减的适用边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>&quot;Git 不仅仅是一个版本控制工具，它是一套关于协作与数据完整性的哲学。&quot;</p>\n</blockquote>\n<h2 id=\"section-01\">1. 进化论：为什么分布式 (Distributed) 是降维打击？</h2>\n<p>在 Git 出现之前，主流工具（如 SVN）是<strong>集中式</strong>的。</p>\n<ul>\n<li><strong>集中式 (Centralized)</strong>：<ul>\n<li><strong>逻辑</strong>：服务器是唯一的真理。</li>\n<li><strong>痛点</strong>：服务器不可用时同步受限，离线查看未缓存的历史和服务端操作受限；仍可通过服务器备份恢复，并非必然丢失全部数据。</li>\n</ul>\n</li>\n<li><strong>分布式 (Distributed)</strong>：<ul>\n<li><strong>逻辑</strong>：普通完整克隆通常有可达历史的本地副本；浅克隆和 partial clone 可能不完整。</li>\n<li><strong>优势</strong>：极速离线操作（在飞机上也能 commit/查看历史）；分支切换几乎瞬间完成；对象校验帮助检测内容损坏，但不代替身份认证、签名和备份。</li>\n</ul>\n</li>\n</ul>\n<h2 id=\"section-02\">2. 存储模型：快照 (Snapshots) vs. 差异 (Deltas)</h2>\n<p>这是理解 Git 速度和可靠性的关键。</p>\n<ul>\n<li><strong>差异模型 (传统工具)</strong>：类似于“差量备份”。记录文件 A 在版本 2 增加了哪几行。底层可能结合完整版本与差异存储，访问成本取决于实现，不能对所有传统工具一概而论。</li>\n<li><strong>快照模型 (Git)</strong>：每次提交，Git 记录的是整个项目在这一刻的“全量照片”。</li>\n</ul>\n<h3 id=\"section-03\">为什么“全快照”不会导致存储爆炸？</h3>\n<p>Git 实现了“<strong>逻辑全快照，物理增量存</strong>”的奇迹，依靠以下三大机制：</p>\n<ol>\n<li><strong>内容寻址 (Blob 复用)</strong>：Git 依据<strong>内容</strong>而非文件名存数据。如果你有 1000 个文件但在新提交中只改了 1 个，Git 只为那 1 个文件创建新存储，其余 999 个直接通过哈希指针指向已存在的旧数据。</li>\n<li><strong>树对象 (Tree) 的结构复用</strong>：目录结构也是对象。如果一个子目录内的内容完全没变，父级目录（Tree 对象）会直接引用旧子目录的哈希值，无需重复存储相同的树对象；工作区状态扫描是另一个机制。</li>\n<li><strong>Packfiles (打包压缩)</strong>：Git 会在维护时打包松散对象，传输也可以生成 pack；增量压缩减少相似对象占用。delta 基对象与版本顺序不构成固定保证，push 也不等于必然执行完整 gc。</li>\n</ol>\n<h2 id=\"section-04\">3. 核心物理模型：三棵树 (The Three Areas)</h2>\n<p>掌握这“三棵树”的流转，就掌握了 Git 的 80% 常用命令。Git 的工作本质就是在这些区域之间<strong>搬运快照</strong>。</p>\n<pre><code>graph LR\n    WD[工作区 / Working Directory / 物理文件] \n    SA[暂存区 / Staging Area / Index / 待提交清单] \n    RP[本地仓库 / Repository / .git 目录]\n\n    WD -- &quot;git add (追踪/快照)&quot; --&gt; SA\n    SA -- &quot;git commit (永久存档)&quot; --&gt; RP\n    RP -- &quot;git checkout/switch (恢复到工作区)&quot; --&gt; WD\n    SA -- &quot;git restore (从暂存区撤销)&quot; --&gt; WD</code></pre>\n<h3 id=\"section-05\">深度解析：为什么非要一个“暂存区”？</h3>\n<p>很多初学者觉得 <code>add</code> 是多余的。其实，<strong>暂存区（Index）是 Git 最具艺术感的设计</strong>：</p>\n<ol>\n<li><strong>解耦修改与提交</strong>：你在工作区可能修改了 10 处代码。其中 3 处是 Bug 修复，7 处是新功能。<ul>\n<li>你可以先 <code>git add</code> 那 3 处修复，进行一次 <code>commit</code>；</li>\n<li>然后再 <code>add</code> 剩下的 7 处，进行另一次 <code>commit</code>。</li>\n<li><strong>结果</strong>：提交历史极其整洁，每一个 commit 都只有一个明确的主题。</li>\n</ul>\n</li>\n<li><strong>构建“下一次快照”的蓝图</strong>：<code>git commit</code> 并不是从你的硬盘上抓取文件，而是根据<strong>暂存区里的清单</strong>直接打包。这保证了提交的原子性和可预测性。</li>\n</ol>\n<h3 id=\"section-06\">区域状态定义</h3>\n<ul>\n<li><strong>工作区 (Working Directory)</strong>：你在文件管理器里看到的真实文件。</li>\n<li><strong>暂存区 (Staging Area)</strong>：一个简单的索引文件（<code>.git/index</code>），记录了即将进入下一次提交的文件指纹。</li>\n<li><strong>本地仓库 (Repository)</strong>：Git 存放所有压缩对象和历史记录的数据库（<code>.git/objects</code>）。</li>\n</ul>\n<h2 id=\"section-07\">4. Git 的原子组件：对象数据库 (Objects)</h2>\n<p>在 <code>.git/objects</code> 目录下，存储着 Git 的灵魂。</p>\n<ol>\n<li><strong>Blob</strong>：存储<strong>内容</strong>（不含文件名）。</li>\n<li><strong>Tree</strong>：存储<strong>结构</strong>（类似文件夹，记录文件名及指向 Blob 的哈希）。</li>\n<li><strong>Commit</strong>：存储<strong>元数据</strong>（作者、时间戳、父提交 ID、指向哪个 Tree）。</li>\n</ol>\n<p><strong>对象哈希</strong>：传统 SHA-1 仓库以 40 位十六进制对象标识引用内容；SHA-256 仓库使用不同长度。对象标识帮助检测损坏和寻址，不提供绝对安全保证，也不验证提交者身份。</p>\n<h2 id=\"section-08\">5. 指针的艺术：HEAD 与 分支</h2>\n<p>Git 并不像老式工具那样在硬盘上按文件夹存版本。它的历史是靠“<strong>指针连连看</strong>”串起来的。</p>\n<h3 id=\"section-09\">提交链 (Commit Chaining)：历史是如何串联的？</h3>\n<p>当你创建一个新的 Commit 时，这个对象内部包含一个字段：<code>parent</code>。</p>\n<ul>\n<li><strong>机制</strong>：普通提交记录一个父提交，初始提交没有父提交，合并提交可能有多个父提交。</li>\n<li><strong>结果</strong>：通过这种回溯机制，形成了一条从当前快照一直指向初始快照的有向无环图（DAG）。这就是所谓的“历史记录”。</li>\n</ul>\n<h3 id=\"section-10\">Branch (分支)：轻如鸿毛的指针</h3>\n<ul>\n<li><strong>本质</strong>：分支并不是一个代码副本，它是指向提交的命名引用；松散 refs 可位于 <code>.git/refs/heads/</code>，也可使用 packed-refs 或其他引用存储，不能按单个文本文件理解所有实现。</li>\n<li><strong>动态性</strong>：当你处于 <code>master/main</code> 分支并提交代码时，Git 会创建一个新 Commit，并自动把指针文件的内容更新为这个新哈希。<strong>分支指针随着你的提交自动向前“漂移”</strong>。</li>\n</ul>\n<h3 id=\"section-11\">默认分支名称</h3>\n<p><code>master</code> 与 <code>main</code> 对 Git 核心机制没有差别。初始化默认名可通过 <code>git init -b main</code> 或 <code>init.defaultBranch</code> 指定，托管平台与已有仓库的名称各自配置，不应假定所有仓库已经统一为 main。</p>\n<h3 id=\"section-12\">分支的区别与共用</h3>\n<ul>\n<li><strong>如何区别</strong>：两个分支 <code>master</code> 和 <code>dev</code> 的区别仅仅是它们指向了不同的 Commit。</li>\n<li><strong>如何共用</strong>：如果 <code>dev</code> 是从 <code>master</code> 分出来的，在分叉点之前，它们的所有提交对象都是<strong>完全共用</strong>的。Git 只需要存储一份数据。</li>\n<li><strong>分叉 (Diverge)</strong>：当 <code>dev</code> 往前走而 <code>master</code> 停在原地（或走向另一个方向）时，它们才开始拥有各自独特的 Commit 指针。</li>\n</ul>\n<h3 id=\"section-13\">HEAD：你的“第一人称”视角</h3>\n<ul>\n<li><strong>HEAD</strong> 是一个特殊指针，指向你<strong>当前所在的那个分支</strong>（通常：<code>HEAD</code> -&gt; <code>master</code> -&gt; <code>Commit C</code>）。</li>\n<li><strong>游离状态 (Detached HEAD)</strong>：如果你让 HEAD 直接指向某个 Commit 而非分支，你就处于游离态。此时提交的代码就像没有挂载点的浮云，如果不及时新建分支关联，可能会被 Git 的垃圾回收机制清理掉。</li>\n</ul>\n<h2 id=\"section-14\">6. 只增不减的适用边界</h2>\n<p>Git 对象通常在创建后不改写，reset 或 rebase 先改变引用及可达关系，不会立刻抹除旧对象。已提交内容常可通过其他分支或本地 reflog 找到。</p>\n<p>但“提交过”不是永久备份：引用可能删除，reflog 会过期，GC 可回收不可达对象，磁盘也可能损坏。从未提交或暂存的工作区编辑更不能靠 reflog 保证恢复。危险操作前检查 <code>git status</code> 和 diff，并保留独立备份或明确的恢复引用。</p>\n",
+  "refs": [
+    [
+      "Pro Git：Git 对象",
+      "https://git-scm.com/book/en/v2/Git-Internals-Git-Objects"
+    ],
+    [
+      "Pro Git：Packfiles",
+      "https://git-scm.com/book/en/v2/Git-Internals-Packfiles"
+    ],
+    [
+      "Git 引用日志",
+      "https://git-scm.com/docs/git-reflog"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "git",
+    "version-control"
+  ]
+}

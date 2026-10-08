@@ -1,0 +1,64 @@
+{
+  "slug": "docker-swarm",
+  "number": "117",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Swarm：从服务副本到集群编排",
+  "deck": "理解 stack、overlay 与滚动更新，并检查 Compose 兼容边界。",
+  "sections": [
+    [
+      "section-01",
+      "什么时候需要编排？"
+    ],
+    [
+      "section-02",
+      "Swarm 快速上手"
+    ],
+    [
+      "section-05",
+      "Stack Deploy：迁移兼容的 Compose v3 配置"
+    ],
+    [
+      "section-06",
+      "Swarm vs Compose 功能对比"
+    ],
+    [
+      "section-08",
+      "Swarm 的网络：Overlay + Ingress"
+    ],
+    [
+      "section-09",
+      "什么时候从 Swarm 上 K8s？"
+    ],
+    [
+      "section-10",
+      "后续学习路径"
+    ],
+    [
+      "section-11",
+      "故障与数据边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>Docker Swarm 是 Docker 原生的集群编排方案。提供与 Docker 工具集成的服务编排，使用 legacy Compose v3 子集而非完整当前 Compose 规范——适合小团队和单集群场景。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">什么时候需要编排？</h2>\n<pre><code>单机 Compose              Swarm / K8s\n─────────────            ─────────────\n1 台机器                  多台机器\n可设重启策略              服务任务故障重新调度\n固定端口                  负载均衡\n单机更新                  可配置滚动更新（是否无中断需验证）\n可手动扩副本              跨节点副本调度（Swarm 无内置 HPA）</code></pre>\n<hr>\n<h2 id=\"section-02\">Swarm 快速上手</h2>\n<h3 id=\"section-03\">初始化集群</h3>\n<p>以下仅为已规划的测试集群示例。需要节点间管理/overlay 通信与防火墙策略，manager 应按仲裁规划；join token 是敏感凭据，必须安全传递。文档地址需替换为可达节点地址。</p>\n<pre><code># 初始化 Swarm 管理器节点\ndocker swarm init\n# 输出含 join 命令，用于其他机器加入集群：\n# docker swarm join --token &lt;worker-join-token&gt; 192.0.2.10:2377\n\n# 在其他机器上执行 join 命令\ndocker swarm join --token &lt;worker-join-token&gt; 192.0.2.10:2377\n\n# 查看集群节点\ndocker node ls\n# ID              HOSTNAME   STATUS  AVAILABILITY  MANAGER STATUS\n# abc123 *        node-1     Ready   Active        Leader\n# def456          node-2     Ready   Active\n# ghi789          node-3     Ready   Active</code></pre>\n<h3 id=\"section-04\">部署服务</h3>\n<pre><code># 创建服务（类似 docker run，但跑在集群上）\ndocker service create \\\n  --name web \\\n  --replicas 3 \\\n  --publish 80:80 \\\n  nginx:alpine\n\n# 查看服务\ndocker service ls\ndocker service ps web\n# 输出显示 3 个副本分别跑在哪些节点上</code></pre>\n<hr>\n<h2 id=\"section-05\">Stack Deploy：迁移兼容的 Compose v3 配置</h2>\n<p>共同的服务字段可复用，但 stack deploy 使用 legacy Compose v3；现代 develop/watch/profiles、build 等不能直接迁移。提前构建并把镜像发布到所有节点可访问的 registry。</p>\n<pre><code># stack.yaml（legacy Compose v3 示例，按 CLI 支持验证）\nversion: &quot;3.8&quot;\nservices:\n  web:\n    image: nginx:alpine\n    ports:\n      - &quot;80:80&quot;\n    deploy:\n      replicas: 3\n      update_config:\n        parallelism: 1\n        delay: 10s\n      restart_policy:\n        condition: on-failure\n      resources:\n        limits:\n          memory: 256M\n    healthcheck:\n      test: [&quot;CMD&quot;, &quot;wget&quot;, &quot;-q&quot;, &quot;--spider&quot;, &quot;http://localhost/&quot;] # 确认镜像提供 wget\n      interval: 30s\n\n  api:\n    image: myapi:latest\n    deploy:\n      replicas: 2\n    environment:\n      NODE_ENV: production</code></pre>\n<pre><code># 部署为 Swarm Stack\ndocker stack deploy -c compose.yaml myapp\n\n# 查看 stack 状态\ndocker stack ls\ndocker stack services myapp\ndocker stack ps myapp\n\n# 更新（镜像变化或 yaml 变化后）\ndocker stack deploy -c compose.yaml myapp\n\n# 删除\ndocker stack rm myapp</code></pre>\n<p><strong>关键</strong>：共享文件只适用于兼容字段。先检查 <code>docker stack config</code> 的输出与告警，再检查镜像、secret/config 来源、网络、placement 和卷；单机 Compose 通过不等于集群部署行为通过。</p>\n<hr>\n<h2 id=\"section-06\">Swarm vs Compose 功能对比</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">功能</th>\n<th scope=\"col\">Compose (单机)</th>\n<th scope=\"col\">Swarm (集群)</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>deploy.replicas</code></td>\n<td>单机多副本</td>\n<td>跨节点多副本</td>\n</tr>\n<tr>\n<td><code>deploy.update_config</code></td>\n<td>不支持</td>\n<td>滚动更新控制</td>\n</tr>\n<tr>\n<td><code>deploy.placement</code></td>\n<td>不支持</td>\n<td>节点标签调度</td>\n</tr>\n<tr>\n<td>负载均衡</td>\n<td>手动</td>\n<td>内置 VIP + DNS RR</td>\n</tr>\n<tr>\n<td>故障转移</td>\n<td>手动</td>\n<td>自动</td>\n</tr>\n<tr>\n<td>Secrets</td>\n<td>支持文件注入，来源保护自行负责</td>\n<td>Swarm secrets 提供加密 Raft 存储和分发</td>\n</tr>\n<tr>\n<td>Configs</td>\n<td>绑定挂载</td>\n<td>声明式配置注入</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-07\">Swarm 专有配置</h3>\n<pre><code>services:\n  api:\n    deploy:\n      replicas: 3\n      # 更新策略\n      update_config:\n        parallelism: 1      # 每次更新 1 个副本\n        delay: 10s\n        failure_action: rollback\n      # 节点调度\n      placement:\n        constraints:\n          - node.role == worker\n          - node.labels.zone == east</code></pre>\n<hr>\n<h2 id=\"section-08\">Swarm 的网络：Overlay + Ingress</h2>\n<pre><code>节点 A (manager)                节点 B (worker)               节点 C (worker)\n┌──────────────────┐           ┌──────────────────┐           ┌──────────────────┐\n│ web 副本 1       │           │ web 副本 2       │           │ web 副本 3       │\n│ api 副本 1       │           │                  │           │ api 副本 2       │\n└──────────────────┘           └──────────────────┘           └──────────────────┘\n        │                              │                              │\n        └──────────────────────────────┼──────────────────────────────┘\n                                       │\n                              Overlay Network\n                         (跨节点的虚拟二层网络)</code></pre>\n<p><strong>Ingress 网络</strong>：访问任何节点的 80 端口都会自动路由到 web 服务的某个健康副本。routing mesh 提供入口转发；外部负载均衡、TLS 和健康流量策略仍可能需要。</p>\n<hr>\n<h2 id=\"section-09\">什么时候从 Swarm 上 K8s？</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">当前需求</th>\n<th scope=\"col\">工具</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>1-5 台机器，没专门运维</td>\n<td><strong>Docker Compose</strong>（单机）/ <strong>Swarm</strong></td>\n</tr>\n<tr>\n<td>需要跨节点故障转移 + 简单扩缩</td>\n<td><strong>Swarm</strong></td>\n</tr>\n<tr>\n<td>规模扩大且需要生态/调度治理</td>\n<td>根据运维能力评估 <strong>Kubernetes</strong>，没有固定节点数门槛</td>\n</tr>\n<tr>\n<td>需要自动扩缩（HPA）</td>\n<td><strong>Kubernetes</strong></td>\n</tr>\n<tr>\n<td>需要完善的 RBAC/多租户</td>\n<td><strong>Kubernetes</strong></td>\n</tr>\n<tr>\n<td>团队已经有 K8s 经验</td>\n<td><strong>Kubernetes</strong></td>\n</tr>\n<tr>\n<td>需要 Service Mesh（Istio 等）</td>\n<td><strong>Kubernetes</strong></td>\n</tr>\n</tbody></table></div>\n<p>工具选择取决于可用性、调度、治理和团队能力。Swarm 延续 Docker 服务操作，Kubernetes 提供不同的控制器与生态；学习耗时不能按固定分钟或周数保证。</p>\n<hr>\n<h2 id=\"section-10\">后续学习路径</h2>\n<pre><code>graph LR\n    A[&quot;Docker 基础 / (run/build/compose)&quot;] --&gt; B[&quot;Swarm / (stack deploy)&quot;]\n    B --&gt; C[&quot;Kubernetes / (kubectl/helm)&quot;]\n    \n    A2[&quot;Podman 基础&quot;] --&gt; D[&quot;Pod + Quadlet&quot;]\n    D --&gt; C</code></pre>\n<p>Docker 和 Podman 两条路径最终在 K8s 汇合——不管你用哪个引擎构建镜像和跑本地测试，生产部署也可以保持单机或其他编排，是否采用 Kubernetes 由需求决定。</p>\n<hr>\n<h2 id=\"section-11\">故障与数据边界</h2>\n<p>Swarm 调度可在节点故障后重建任务，但 local volume 不会自动把数据复制到另一节点；数据服务需共享存储、复制或明确 placement 与恢复方案。manager 丢失多数仲裁会影响调度管理。滚动更新中的 start-first、健康检查和 failure_action 也不能保证数据库迁移可逆或流量无中断。删除 stack 停止服务，卷与外部 secret/config 生命周期应逐项核对。</p>\n",
+  "refs": [
+    [
+      "Swarm stack 格式",
+      "https://docs.docker.com/engine/swarm/stack-deploy/"
+    ],
+    [
+      "Swarm 管理",
+      "https://docs.docker.com/engine/swarm/admin_guide/"
+    ],
+    [
+      "Swarm secrets",
+      "https://docs.docker.com/engine/swarm/secrets/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "containers",
+    "docker"
+  ]
+}

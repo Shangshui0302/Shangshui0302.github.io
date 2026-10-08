@@ -1,0 +1,69 @@
+{
+  "slug": "nix-gnome-wayland-session",
+  "number": "080",
+  "category": "LINUX / SYSTEMS",
+  "title": "Wayland 会话中的 kmscon 与 uwsm",
+  "deck": "分别排查 DRM 交接、systemd 用户会话和 XDG autostart 的生命周期。",
+  "sections": [
+    [
+      "section-01",
+      "完整启动链"
+    ],
+    [
+      "section-02",
+      "第一层：DRM master 交接"
+    ],
+    [
+      "section-03",
+      "第二层：uwsm 会话模型"
+    ],
+    [
+      "section-04",
+      "第三层：graphical-session.target 的双重作用"
+    ],
+    [
+      "section-05",
+      "TTY 下切换 DE 的正确流程"
+    ],
+    [
+      "section-06",
+      "排查速查"
+    ],
+    [
+      "section-07",
+      "关联"
+    ],
+    [
+      "section-08",
+      "只读证据收集"
+    ]
+  ],
+  "body": "<blockquote>\n<p>核验范围：2026 年 10 月查询的 nixpkgs <code>nixos-unstable</code> 模块与上游文档。分组列表、包数和服务默认值会随 revision 改变；部署时应以项目锁定的 nixpkgs 和 Home Manager 源码为准。本文没有构建、激活或桌面运行测试。</p>\n</blockquote>\n<h2 id=\"section-01\">完整启动链</h2>\n<pre><code>TTY 登录 (kmscon) → 用户 shell → uwsm start compositor → 桌面\n     ↑                    ↑                ↑\n  握着 DRM master      会话管理器     激活 graphical-session.target</code></pre>\n<p>从裸 TTY 到一个可用桌面，中间藏着三层协调机制。它们分别影响显示设备所有权、用户服务环境与 autostart；排障需要逐层查证。</p>\n<h2 id=\"section-02\">第一层：DRM master 交接</h2>\n<p>在某些使用 <code>libseat=false</code> raw-VT 后端的 kmscon 配置中，终端可能持有 DRM master 渲染 TTY；这取决于 kmscon 版本、seat 后端及启动模式。compositor 要接管显示，必须让 kmscon 先释放 master。</p>\n<ul>\n<li>方式：向终端发 OSC 转义 <code>\\033]setBackground\\a</code> → kmscon 释放 master 进后台；compositor 退出后发 <code>setForeground</code> 恢复</li>\n<li>支持该接口的 kmscon 构建可提供 <strong><code>kmscon-launch-gui</code></strong>，按 <code>setBackground → 短暂等待 → 运行合成器 → setForeground</code> 协调；先检查本机工具是否存在及其实现，不固定等待时间为稳定协议。</li>\n<li>如果启动 compositor 时 DRM master 仍被占用，可能启动失败；不能仅凭黑屏就认定这一原因。</li>\n</ul>\n<h2 id=\"section-03\">第二层：uwsm 会话模型</h2>\n<p>uwsm（Universal Wayland Session Manager）把 compositor 包装成 systemd 用户会话：</p>\n<ul>\n<li><code>uwsm start hyprland.desktop</code> → 建立 <code>wayland-wm@.service</code> 等单元，激活 <strong><code>graphical-session.target</code></strong></li>\n<li>某些发行版/补丁版本可能集成 kmscon 协调；本次检查的上游 uwsm 主源码未发现 <code>setBackground</code>，因此不能把自动协调当成所有版本的保证。按实际锁定版本检查启动包装器与 seat 后端。</li>\n<li><code>graphical-session.target</code> 表示 systemd 用户图形会话生命周期的一部分；uwsm 还等待环境变量和服务就绪，不应把单个 active 状态当成所有桌面功能健康。</li>\n</ul>\n<h2 id=\"section-04\">第三层：graphical-session.target 的双重作用</h2>\n<p>这个 target 同时干两件事，理解它就能解释大部分玄学：</p>\n<p><strong>1. 检测 compositor 是否在跑</strong>：<code>uwsm check may-start</code> 检查它是否 active，active 就拒启（报 &quot;compositor already running&quot;）。</p>\n<blockquote>\n<p>多会话管理器可能留下状态\n如果某个桌面退出后相关 target 仍 active，uwsm 的 may-start 检查可能拒绝下一次启动。应核对实际版本的 unit 关系、退出日志和状态；不要从一次故障断言某个桌面与 uwsm 永久不兼容，也不要在另一个活跃会话中盲目停 target。</p>\n</blockquote>\n<p><strong>2. 触发 XDG autostart</strong>：systemd 的 <code>systemd-xdg-autostart-generator</code> 为兼容的 <code>.desktop</code> 文件生成用户服务；实际 unit 名和条件取决于文件 ID、OnlyShowIn/NotShowIn、环境与包版本。uwsm 将会话接入 <code>xdg-desktop-autostart.target</code>，从而启动符合条件的应用。GNOME 等其他 session manager 也能实现 autostart，并不只有 uwsm 能启动 fcitx5。</p>\n<blockquote>\n<p>绕过 uwsm 的代价\n只用显示交接工具裸跑 compositor，可能没有建立 systemd 图形会话与 autostart target。在这类启动路径下 fcitx5 不自动启动，应先检查 target、用户服务、环境和桌面文件条件；手动 <code>fcitx5 -d</code> 只能作为诊断，须避免重复实例。输入法故障也可能来自环境变量、协议或配置，不能用单一等式归因。</p>\n</blockquote>\n<h2 id=\"section-05\">TTY 下切换 DE 的正确流程</h2>\n<pre><code># 1. 退出当前 compositor（回 TTY）\n# 2. 先检查没有其他活跃图形会话\nsystemctl --user status graphical-session.target graphical-session-pre.target\nloginctl list-sessions\n# 3. 确认只是残留后，再清理（会停止相关用户图形服务）\nsystemctl --user stop graphical-session.target graphical-session-pre.target\n# 4. 启动下一个；kmscon 交接依已核验的包装器/后端实现\nuwsm start hyprland.desktop</code></pre>\n<p>在可正常结束和重新建立的用户会话中，通常无需重启系统。GNOME 示例采用 GDM + specialisation，由 GNOME 的 session manager 管理；不要再把其 compositor 嵌套包装进另一个 session manager。驱动、内核或登录服务变更可能仍需重启。</p>\n<h2 id=\"section-06\">排查速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">症状</th>\n<th scope=\"col\">优先核对</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>compositor already running</td>\n<td>graphical-session.target 残留（<code>systemctl --user status</code> 查）</td>\n</tr>\n<tr>\n<td>compositor 起不来/黑屏</td>\n<td>DRM/seat 权限、设备所有权、显示驱动与 compositor 日志</td>\n</tr>\n<tr>\n<td>fcitx5 不自动启动</td>\n<td>autostart target、desktop 条件、用户服务环境、输入法配置和是否重复实例</td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-07\">关联</h2>\n<ul>\n<li><a href=\"/writing/nix-gnome-specialisation/\">NixOS Specialisation 系统变体</a> — GNOME 例外路径</li>\n<li><a href=\"/writing/declarative-and-state/\">NixOS 声明层与运行时层</a> — 会话是运行时状态</li>\n</ul>\n<h2 id=\"section-08\">只读证据收集</h2>\n<pre><code>systemctl --user status graphical-session.target xdg-desktop-autostart.target\nsystemctl --user list-units --all &#39;wayland-*&#39; &#39;app-*fcitx*&#39;\njournalctl --user -b --no-pager\nloginctl session-status</code></pre>\n<p>先从具体错误定位 DRM/seat、用户服务和输入法三层；日志中的个人路径、环境值和设备身份在公开分享前需脱敏。</p>\n",
+  "refs": [
+    [
+      "uwsm 官方仓库",
+      "https://github.com/Vladimir-csp/uwsm"
+    ],
+    [
+      "uwsm 主实现",
+      "https://github.com/Vladimir-csp/uwsm/blob/master/uwsm/main.py"
+    ],
+    [
+      "systemd XDG autostart generator",
+      "https://www.freedesktop.org/software/systemd/man/latest/systemd-xdg-autostart-generator.html"
+    ],
+    [
+      "kmscon 官方项目",
+      "https://github.com/Aetf/kmscon"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos",
+    "gnome"
+  ]
+}

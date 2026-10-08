@@ -1,0 +1,61 @@
+{
+  "slug": "arch-package-aur",
+  "number": "057",
+  "category": "LINUX / SYSTEMS",
+  "title": "Pacman Hook、AUR 与构建安全",
+  "deck": "在包管理自动化中区分官方仓库、AUR 构建脚本与隔离环境的职责。",
+  "sections": [
+    [
+      "section-01",
+      "Pacman 的效率与 Hook"
+    ],
+    [
+      "section-04",
+      "AUR 助手：Paru 与 Yay"
+    ],
+    [
+      "section-05",
+      "审核与干净构建"
+    ],
+    [
+      "section-09",
+      "可复现构建与分发完整性"
+    ],
+    [
+      "section-10",
+      "包管理流程"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">Pacman 的效率与 Hook</h2>\n<h3 id=\"section-02\">并行下载</h3>\n<p>在 <code>/etc/pacman.conf</code> 的 <code>[options]</code> 中设置：</p>\n<pre><code>[options]\nParallelDownloads = 5</code></pre>\n<p>可根据带宽和镜像负载调整。并行数量过高不保证更快，可能受到服务器连接或速率限制。</p>\n<h3 id=\"section-03\">孤儿包提示钩子</h3>\n<p>在 <code>/etc/pacman.d/hooks/orphan-check.hook</code> 中可配置：</p>\n<pre><code>[Trigger]\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nType = Package\nTarget = *\n\n[Action]\nDescription = Checking for orphaned packages...\nWhen = PostTransaction\nExec = /usr/bin/bash -c &quot;/usr/bin/pacman -Qtd || echo &#39;No orphans found.&#39;&quot;</code></pre>\n<p>该示例只报告，不删除包。<code>pacman -Qtd</code> 无匹配时会返回非零；脚本中的回退消息也可能掩盖真正的查询失败，自动维护时应记录 stderr 并区分原因。</p>\n<h2 id=\"section-04\">AUR 助手：Paru 与 Yay</h2>\n<p>AUR 提供用户提交的构建脚本，不等于官方仓库的预编译包。AUR 助手不受官方支持，不能替代对 <code>PKGBUILD</code>、安装脚本和变更的审核。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">工具</th>\n<th scope=\"col\">实现语言</th>\n<th scope=\"col\">使用时应检查</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Paru</td>\n<td>Rust</td>\n<td>diff/pager 审阅设置、构建目录、chroot 集成是否启用</td>\n</tr>\n<tr>\n<td>Yay</td>\n<td>Go</td>\n<td>diff/cleanbuild 提示、依赖处理和实际构建模式</td>\n</tr>\n</tbody></table></div>\n<p>预览、资源占用和 chroot 支持随版本与配置变化，没有测量不能推断性能优劣。干净构建可避免旧产物干扰，但 <code>CleanBuild</code> 不自动产生安全隔离。</p>\n<h2 id=\"section-05\">审核与干净构建</h2>\n<h3 id=\"section-06\">为什么需要审核 PKGBUILD？</h3>\n<p><code>PKGBUILD</code> 本身是会执行的 shell 代码，读取文件、联网和运行其他程序都可能发生在构建阶段。不要以 root 运行 <code>makepkg</code>，也不要在含敏感凭据的工作目录中构建未经审核的脚本。</p>\n<h3 id=\"section-07\">devtools 的 clean chroot</h3>\n<pre><code>sudo pacman -S devtools\n# 在已审阅的 PKGBUILD 所在目录中执行\nextra-x86_64-build</code></pre>\n<p>干净 chroot 的主要用途是让构建依赖及环境一致、避免宿主机已安装包掩盖缺失依赖。它不等同于无网络、无宿主挂载、对恶意代码绝对安全的沙盒。不可信构建可进一步放在专门的虚拟机或受限制的账户/环境中。</p>\n<h3 id=\"section-08\">makepkg.conf 性能参数</h3>\n<pre><code>MAKEFLAGS=&quot;-j$(nproc)&quot;\nCOMPRESSZST=(zstd -c -T0 --ultra -20 -)</code></pre>\n<p>并行编译要结合内存容量调整；高压缩等级会增加打包时间和资源消耗，只有确实需要较小产物时再采用。可在用户级 makepkg 配置中试验，避免把机器相关参数当作所有系统的最佳值。</p>\n<h2 id=\"section-09\">可复现构建与分发完整性</h2>\n<p>可复现构建关注相同输入和环境能否得到相同产物。<code>archlinux-repro</code> 是相关工具之一：</p>\n<pre><code>repro --help\n# 具体包输入和子命令以已安装工具版本的帮助为准</code></pre>\n<p>原笔记的 <code>repro verify &lt;package_name&gt;</code> 不能作为跨版本保证。产物一致是可复现性证据；它不单独证明源代码无恶意。包签名验证、可信密钥、源代码审核和独立重建各自承担不同职责。</p>\n<h2 id=\"section-10\">包管理流程</h2>\n<pre><code>graph LR\n    A[AUR 构建脚本] --&gt; B[审阅来源和变更]\n    B --&gt; C[干净环境构建]\n    C --&gt; D[检查包产物]\n    D --&gt; E[安装并验证行为]\n    E --&gt; F[管理缓存与更新]</code></pre>\n<p>同步仓库数据库时应完成全系统升级：<code>sudo pacman -Syu</code>。不要使用 <code>pacman -Sy package</code> 形成不受支持的部分升级。</p>\n",
+  "refs": [
+    [
+      "ArchWiki：Pacman",
+      "https://wiki.archlinux.org/title/Pacman"
+    ],
+    [
+      "ArchWiki：Arch User Repository",
+      "https://wiki.archlinux.org/title/Arch_User_Repository"
+    ],
+    [
+      "ArchWiki：DeveloperWiki:Building in a clean chroot",
+      "https://wiki.archlinux.org/title/DeveloperWiki:Building_in_a_clean_chroot"
+    ],
+    [
+      "ArchWiki：Reproducible builds",
+      "https://wiki.archlinux.org/title/Reproducible_builds"
+    ],
+    [
+      "alpm-hooks(5)",
+      "https://man.archlinux.org/man/alpm-hooks.5.en"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "package-management"
+  ]
+}

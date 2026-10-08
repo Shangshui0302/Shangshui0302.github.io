@@ -1,0 +1,64 @@
+{
+  "slug": "nixos-cli-guide",
+  "number": "017",
+  "category": "LINUX / SYSTEMS",
+  "title": "NixOS 命令行：新旧接口与日常维护",
+  "deck": "区分系统激活、用户 profile、临时环境和垃圾回收的命令边界。",
+  "sections": [
+    [
+      "section-01",
+      "一、  日常生存包（只需记住这 4 个）"
+    ],
+    [
+      "section-02",
+      "二、  新旧 CLI 替代关系对照"
+    ],
+    [
+      "section-03",
+      "三、  常用新版命令（开发与测试）"
+    ],
+    [
+      "section-04",
+      "四、  Generation（世代）管理进阶"
+    ],
+    [
+      "section-07",
+      "五、  声明式自动维护（写进配置文件）"
+    ],
+    [
+      "section-08",
+      "六、按职责记忆命令"
+    ]
+  ],
+  "body": "<blockquote>\n<p><strong>背景说明</strong>：Nix 的命令行经历了历史包袱的折磨，导致 <code>nix-xxx</code>（旧版独立命令）和 <code>nix xxx</code>（新版统一子命令）并存。开启 <code>nix-command</code> 和 <code>flakes</code> 后可使用新 CLI，但旧命令仍用于旧 profile、channels 和特定管理操作。新 CLI 仍有实验性接口，按安装版本查阅帮助。</p>\n</blockquote>\n<h2 id=\"section-01\">一、  日常生存包（只需记住这 4 个）</h2>\n<p>作为日常使用者，先理解以下四类操作及其影响：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th align=\"left\">场景</th>\n<th align=\"left\">命令</th>\n<th align=\"left\">说明</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><strong>应用配置更改</strong></td>\n<td align=\"left\"><code>sudo nixos-rebuild switch</code></td>\n<td align=\"left\">改完 <code>configuration.nix</code> 或 <code>flake.nix</code> 后执行。若用 Flakes，通常为 <code>sudo nixos-rebuild switch --flake .#主机名</code></td>\n</tr>\n<tr>\n<td align=\"left\"><strong>更新系统所有软件</strong></td>\n<td align=\"left\"><code>sudo nixos-rebuild switch --upgrade</code></td>\n<td align=\"left\">channels 配置更新 channel 后构建并激活；Flake 工作流先更新 lock。</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>系统弄坏了，后悔药</strong></td>\n<td align=\"left\"><code>sudo nixos-rebuild switch --rollback</code></td>\n<td align=\"left\">立即回滚到上一个 Generation（无需重启，但建议重启确认）。</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>硬盘满了，清理垃圾</strong></td>\n<td align=\"left\"><code>sudo nix-collect-garbage -d</code></td>\n<td align=\"left\">删除所有旧世代并回收 <code>/nix/store</code> 空间。执行后<strong>无法回滚</strong>到已被删除的世代。</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-02\">二、  新旧 CLI 替代关系对照</h2>\n<p>开启 <code>experimental-features = [ &quot;nix-command&quot; &quot;flakes&quot; ]</code> 后，新版子命令提供对应功能；profile 格式和依赖来源不同，不能把表中命令视为无条件等价替换。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th align=\"left\">旧 CLI</th>\n<th align=\"left\">新 CLI</th>\n<th align=\"left\">用途</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><code>nix-env -iA nixpkgs.hello</code></td>\n<td align=\"left\"><code>nix profile add nixpkgs#hello</code></td>\n<td align=\"left\">用户级软件安装</td>\n</tr>\n<tr>\n<td align=\"left\"><code>nix-env -e hello</code></td>\n<td align=\"left\"><code>nix profile remove hello</code></td>\n<td align=\"left\">用户级软件卸载</td>\n</tr>\n<tr>\n<td align=\"left\"><code>nix-env --list-generations</code></td>\n<td align=\"left\"><code>nix profile history</code></td>\n<td align=\"left\">查看历史世代</td>\n</tr>\n<tr>\n<td align=\"left\"><code>nix-build</code></td>\n<td align=\"left\"><code>nix build</code></td>\n<td align=\"left\">构建 Derivation</td>\n</tr>\n<tr>\n<td align=\"left\"><code>nix-shell -p python3</code></td>\n<td align=\"left\"><code>nix shell nixpkgs#python3</code></td>\n<td align=\"left\">进入临时依赖环境</td>\n</tr>\n<tr>\n<td align=\"left\"><code>nix-channel --update</code></td>\n<td align=\"left\"><code>nix flake update</code></td>\n<td align=\"left\">分别更新 channel 或 Flake 锁定输入（并非同一数据源）</td>\n</tr>\n<tr>\n<td align=\"left\"><code>nix-instantiate --eval</code></td>\n<td align=\"left\"><code>nix eval</code></td>\n<td align=\"left\">求值 Nix 表达式</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p>** 注意例外**：<code>nixos-rebuild</code>（系统管理）和 <code>nix-collect-garbage</code>（垃圾回收）负责系统重建及 profile 历史配合 GC；<code>nix-collect-garbage</code> 也能在非 NixOS 系统使用，<code>nix store gc</code> 仅处理未被引用的 store 对象。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-03\">三、  常用新版命令（开发与测试）</h2>\n<ul>\n<li><strong>临时运行程序（不安装）</strong>：<pre><code>nix run nixpkgs#cowsay -- &quot;Hello NixOS&quot;</code></pre>\n</li>\n<li><strong>进入临时 Shell 环境</strong>：<pre><code>nix shell nixpkgs#python3 nixpkgs#postgresql</code></pre>\n</li>\n<li><strong>进入项目开发环境</strong>（需项目根目录有 <code>flake.nix</code> 配置 <code>devShells</code>）：<pre><code>nix develop</code></pre>\n</li>\n</ul>\n<hr>\n<h2 id=\"section-04\">四、  Generation（世代）管理进阶</h2>\n<p>Generation 就像游戏的&quot;存档&quot;。会更新系统 profile 的 <code>switch</code>/<code>boot</code> 可记录新存档，单独 <code>build</code>/<code>dry-build</code> 不会，旧的不会自动删除。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th align=\"left\">操作</th>\n<th align=\"left\">命令</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><strong>列出所有系统世代</strong></td>\n<td align=\"left\"><code>sudo nixos-rebuild list-generations</code></td>\n</tr>\n<tr>\n<td align=\"left\"><strong>切换到指定世代</strong> (如第 50 号)</td>\n<td align=\"left\"><code>sudo nix-env --profile /nix/var/nix/profiles/system --switch-generation 50</code>，随后运行该 profile 的 <code>bin/switch-to-configuration switch</code> 激活</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>删除指定世代</strong></td>\n<td align=\"left\"><code>sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations 50 51</code></td>\n</tr>\n<tr>\n<td align=\"left\"><strong>只保留最近 5 个世代</strong></td>\n<td align=\"left\"><code>sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5</code></td>\n</tr>\n<tr>\n<td align=\"left\"><strong>保留近 30 天的世代</strong></td>\n<td align=\"left\"><code>sudo nix-collect-garbage --delete-older-than 30d</code> (推荐，比 <code>-d</code> 更安全)</td>\n</tr>\n<tr>\n<td align=\"left\"><strong>开机时通过 GRUB 回滚</strong></td>\n<td align=\"left\">重启后在 GRUB 菜单选择 &quot;NixOS - All configurations&quot;</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-05\">store GC 与删除 profile 历史</h3>\n<p>新版的 <code>nix</code> CLI 虽然有 <code>nix store gc</code>（用于清理底层 store 目录），但它<strong>不会自动帮你删除旧的 generations（世代）</strong>。如果你只用 <code>nix store gc</code>，那些旧世代还在，对应的包就不会被判定为&quot;未引用&quot;，也就清不掉。<br><code>nix-collect-garbage</code> 默认仅回收不可达对象；加 <code>-d</code> 或 <code>--delete-older-than</code> 才会先删除它找到的 profiles 的旧历史。以 root 执行可能影响多个用户的 profiles，必须了解其扫描范围。</p>\n<h3 id=\"section-06\">系统 profile 的历史接口</h3>\n<p>新版 <code>nix profile</code> 为新 profile 工作流提供接口；在处理 NixOS <strong>系统级配置</strong>（路径在 <code>/nix/var/nix/profiles/system</code>）时，新旧命令的差异如下：</p>\n<ul>\n<li><strong>如果你想用新命令清理（可以替代）</strong>：<br>  你可以用 <code>nix profile wipe-history</code> 来替代 <code>nix-env</code>。</li>\n</ul>\n<pre><code>    # 新命令：删除 30 天前的非当前历史（先确认本机版本支持此 profile）\n    sudo nix profile wipe-history --profile /nix/var/nix/profiles/system --older-than 30d</code></pre>\n<ul>\n<li><strong>为何保留传统历史接口和 GC 工具</strong>：<br>  按时间或按数量保留是维护策略选择。而 <code>nix-collect-garbage --delete-older-than 30d</code> 把&quot;删世代&quot;和&quot;清空间&quot;一步到位完成了。如果用新命令，需要分两步走（先用 <code>nix profile wipe-history</code> 删世代，再用 <code>nix store gc</code> 清空间），便于分别控制历史删除范围和空间回收。</li>\n</ul>\n<hr>\n<h2 id=\"section-07\">五、  声明式自动维护（写进配置文件）</h2>\n<p>为了避免手动敲清理命令，可以直接在 <code>configuration.nix</code> 中开启自动维护：</p>\n<pre><code>{ config, pkgs, ... }:\n{\n  # 1. 限制 GRUB 启动菜单中保留的世代数量（避免启动列表过长）\n  boot.loader.grub.configurationLimit = 20;\n  # 2. 开启新版命令与 Flakes\n  nix.settings.experimental-features = [ &quot;nix-command&quot; &quot;flakes&quot; ];\n  # 3. 自动垃圾回收（每周清理 30 天前的世代）\n  nix.gc = {\n    automatic = true;\n    dates = &quot;weekly&quot;;\n    options = &quot;--delete-older-than 30d&quot;;\n  };\n  # 4. 自动优化存储（硬链接去重，节省空间）\n  nix.settings.auto-optimise-store = true;\n  # 5. (可选) 构建期间尝试 GC 的可用空间阈值，不是容量硬限制\n  nix.extraOptions = &#39;&#39;\n    min-free = ${toString (5 * 1024 * 1024 * 1024)}\n    max-free = ${toString (10 * 1024 * 1024 * 1024)}\n  &#39;&#39;;\n}</code></pre>\n<hr>\n<h2 id=\"section-08\">六、按职责记忆命令</h2>\n<ol>\n<li>日常系统管理：<code>nixos-rebuild</code>；临时程序和开发环境：<code>nix run</code>、<code>nix shell</code>、<code>nix develop</code>。</li>\n<li>profile、channels 与旧表达式维护：<code>nix-env</code>、<code>nix-build</code>、<code>nix-shell</code>、<code>nix-channel</code> 仍有适用场景，是否采用取决于工作流。</li>\n<li>安装和救援：<code>nixos-install</code>、<code>nixos-enter</code>、<code>nixos-generate-config</code>，安装后仍可能用于恢复。</li>\n</ol>\n<p>稳定的系统和用户环境适合用配置文件管理；临时探索可以用命令式环境。垃圾回收不会自动删除所有已安装软件，也不会保留已经移除的回滚点。</p>\n<p>命令表按当前 Nix 2.34 接口给出，<code>nix profile install</code> 是 <code>add</code> 的兼容别名；较旧版本可能只有旧名称。只有包输出进入 store 不等于永久安装，临时环境结束后输出也可能留在 store，之后由 GC 回收。</p>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ],
+    [
+      "Nix：垃圾回收与 profile 范围",
+      "https://nix.dev/manual/nix/stable/command-ref/nix-collect-garbage.html"
+    ],
+    [
+      "Nix：wipe-history",
+      "https://nix.dev/manual/nix/stable/command-ref/new-cli/nix3-profile-wipe-history.html"
+    ],
+    [
+      "Nix：profile add",
+      "https://nix.dev/manual/nix/stable/command-ref/new-cli/nix3-profile-add.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

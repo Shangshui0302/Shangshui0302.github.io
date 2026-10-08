@@ -1,0 +1,18 @@
+{
+  "slug": "kvm-management-foundations",
+  "title": "KVM 宿主与管理基础",
+  "deck": "从虚拟化职责边界走到可核对的宿主与管理流程。",
+  "description": "依次学习 KVM/QEMU/libvirt、宿主安装与权限、virsh 管理和 virt-manager 图形操作；每种入口都指向明确的宿主 URI、域状态和资源。",
+  "articles": [
+    "kvm-fundamentals",
+    "kvm-installation",
+    "kvm-libvirt-virsh",
+    "kvm-virt-manager"
+  ],
+  "reading_guide": [
+    "先辨认 KVM 加速器、QEMU 客体进程和 libvirt 管理层，再读 VM entry/exit、内存映射和 URI。",
+    "按所用发行版阅读安装分支；将 CPU 标志、/dev/kvm 权限、daemon、URI 和 NAT 状态分开验收。",
+    "以 URI 和 domain 状态为起点查命令；操作快照、存储或删除前先读恢复与离线备份边界。",
+    "从创建向导进入设备面板，再核对固件、客体驱动、共享内存和远程显示的条件。"
+  ]
+}

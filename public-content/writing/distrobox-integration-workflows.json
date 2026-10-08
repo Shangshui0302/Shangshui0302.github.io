@@ -1,0 +1,65 @@
+{
+  "slug": "distrobox-integration-workflows",
+  "number": "130",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Distrobox 桌面发现与后台服务集成",
+  "deck": "把 app/bin 导出的验证流程与独立的 init 服务生命周期分别处理。",
+  "sections": [
+    [
+      "section-01",
+      "1. 先验证 guest 应用，再验证导出"
+    ],
+    [
+      "section-02",
+      "2. 桌面文件、图标和 XDG 发现"
+    ],
+    [
+      "section-05",
+      "3. 与 Flatpak、Snap 桌面集成的区别"
+    ],
+    [
+      "section-06",
+      "4. 后台服务：管理容器和 guest unit"
+    ],
+    [
+      "section-11",
+      "5. 撤销导出与残留检查"
+    ]
+  ],
+  "body": "<p>本文的命令接口按 Distrobox 1.8.2.5 官方脚本核对；镜像标签与发行版包名是示例，使用前确认镜像仍受支持、仓库可用及本机实际版本。示例未做运行验证。</p>\n<p><code>distrobox-export</code> 只有 app 与 bin 两种导出模式；应用仍在来源容器里运行，宿主得到的是启动入口。完整参数表、Exec 改写、图标复制、wrapper 的跨容器分支、PATH 冲突和撤销流程见 <a href=\"/writing/distrobox-export/\">Distrobox 导出的，到底是什么？</a>；本篇保留桌面发现机制、验证工作流与独立的后台服务管理。</p>\n<h2 id=\"section-01\">1. 先验证 guest 应用，再验证导出</h2>\n<pre><code># 在宿主进入 Arch 环境\ndistrobox enter arch-box\n# 在 guest 中全量同步后安装应用；先测试程序能否显示\nsudo pacman -Syu --needed firefox\nfirefox\n# 在 guest 中生成宿主入口\ndistrobox-export --app firefox</code></pre>\n<p>导出需要已有 desktop entry；可用 app 名称或其绝对路径，不能以“程序存在”替代 desktop 文件。生成名称按来源容器与源 desktop 文件组织，不要猜 <code>&lt;app&gt;-&lt;container&gt;.desktop</code>。使用实际文件定位后检查 Exec 和 Name。</p>\n<pre><code># 在宿主检查已生成的入口（根据实际文件选择，不盲目覆盖）\nfind &quot;${XDG_DATA_HOME:-$HOME/.local/share}/applications&quot; -name &#39;*firefox*.desktop&#39; -print\n# 在来源 guest 查看与撤销导出\ndistrobox-export --list-apps\ndistrobox-export --list-binaries --export-path &quot;$HOME/.local/bin&quot;</code></pre>\n<p><code>--extra-flags</code> 的值应把所有所需参数写在一个字符串里；1.8.2.5 重复传递会覆盖，而不是自动叠加。Electron 应用没有统一必需的 <code>--foreground</code> 参数，须查具体程序帮助。<code>--sudo</code> 是在 guest 中提权，不能把它解释为创建宿主 root 服务；尤其是磁盘工具，要先确认可见设备和真实数据。</p>\n<h2 id=\"section-02\">2. 桌面文件、图标和 XDG 发现</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">产物</th>\n<th scope=\"col\">常见宿主位置</th>\n<th scope=\"col\">含义</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>desktop entry</td>\n<td><code>$XDG_DATA_HOME/applications</code>，默认 <code>~/.local/share/applications</code></td>\n<td>GUI 入口，执行仍进入 guest</td>\n</tr>\n<tr>\n<td>图标</td>\n<td>用户 data home 的 icons/hicolor 等目录</td>\n<td>来自源应用的图标资源，命名与格式以实际文件为准</td>\n</tr>\n<tr>\n<td>binary wrapper</td>\n<td><code>--export-path</code>，默认用户 <code>.local/bin</code></td>\n<td>shell 跳板，需确认 PATH 解析</td>\n</tr>\n<tr>\n<td>mimeinfo.cache</td>\n<td>applications 目录</td>\n<td>MIME 关联缓存，由 desktop database 工具维护</td>\n</tr>\n</tbody></table></div>\n<p>启动器按 XDG 数据目录发现 entry：用户 <code>$XDG_DATA_HOME</code>（未设时默认 <code>~/.local/share</code>），以及 <code>$XDG_DATA_DIRS</code>（未设时默认 <code>/usr/local/share:/usr/share</code>）各自的 applications 子目录。桌面通常监视目录变化或维护自己的缓存；不能保证所有启动器都采用相同 inotify 或即时刷新策略。</p>\n<p><code>update-desktop-database</code> 更新 MIME 类型关联缓存，不是通用的启动器重新扫描开关。<code>gio info</code> 查看文件信息，也不证明 desktop entry 已被正确解析和启动。应分层检查：</p>\n<pre><code># 在宿主，用 find 找到的实际文件替换此路径\nentry=&quot;$HOME/.local/share/applications/arch-box-firefox.desktop&quot;\ndesktop-file-validate &quot;$entry&quot;\ngio launch &quot;$entry&quot;\n# 需要 MIME 缓存时才刷新相应目录\nupdate-desktop-database &quot;${XDG_DATA_HOME:-$HOME/.local/share}/applications&quot;\nprintf &#39;%s\\n&#39; &quot;$XDG_DATA_HOME&quot; &quot;$XDG_DATA_DIRS&quot;</code></pre>\n<p>若 valid 但启动器不显示，检查 <code>NoDisplay</code>、<code>Hidden</code>、<code>OnlyShowIn</code>/<code>NotShowIn</code>、目录位置与桌面自己的缓存。若启动报错，直接在终端执行 entry 的实际命令，检查 guest 程序、图形库、字体、显示 socket、应用单实例行为和日志。不要用注销或重启整个桌面掩盖前面环节的错误。</p>\n<h3 id=\"section-03\">2.1 轻量图形验证</h3>\n<pre><code># guest 内，二选一，包名以仓库为准\n# Arch 的可执行名称不一定就是包名\nsudo pacman -Syu --needed xorg-xeyes mesa-utils gedit\n# Debian/Ubuntu\n# sudo apt update &amp;&amp; sudo apt install -y x11-apps mesa-utils gedit\nxeyes\nglxgears\ngedit</code></pre>\n<p>先确认程序本体能工作，再确认该包是否提供可导出的 desktop entry。xeyes/glxgears 可用于诊断 X11/XWayland 与 OpenGL，但有的包没有 desktop 文件，不能假定 <code>--app xeyes</code> 必然成功。Wayland 原生通路需用支持 Wayland 的应用并检查实际后端，窗口出现也不等于获得硬件加速。</p>\n<h3 id=\"section-04\">2.2 多容器标签与同名 CLI</h3>\n<pre><code># 在 Arch 来源容器中执行\ndistrobox-export --app firefox --export-label &#39;(Arch)&#39;\n# 在 Ubuntu 来源容器中执行\ndistrobox-export --app firefox --export-label &#39;(Ubuntu)&#39;</code></pre>\n<p>容器名称自身必须唯一；问题通常是多个不同容器安装了同名应用。GUI label 可以区分来源，而同名 CLI wrapper 在同一 export-path 会发生冲突。为每个容器选不同目录，例如 <code>~/bin/arch-tools</code>、<code>~/bin/ubuntu-tools</code>，在宿主使用完整路径或明确 alias，不能以显示标签解决 CLI 覆盖。</p>\n<h2 id=\"section-05\">3. 与 Flatpak、Snap 桌面集成的区别</h2>\n<p>Distrobox 直接在宿主用户数据目录生成 desktop entry，Exec 通过 distrobox-enter 回到来源环境。Flatpak 的系统/用户导出目录通常被接入 XDG_DATA_DIRS，Exec 通过 flatpak run 启动，权限由沙箱与应用授权决定；Snap 也有自身导出与启动封装。不要把几种目录布局或隔离模型混用。</p>\n<p>Distrobox 默认共享 HOME、网络和会话 socket，适合可信开发工具集成；GUI 导出不会增加一道安全沙箱。Flatpak 的实际隔离程度也要看应用权限与 portal 使用，不能仅从菜单图标判断。</p>\n<h2 id=\"section-06\">4. 后台服务：管理容器和 guest unit</h2>\n<p>1.8.2.5 的 distrobox-export 没有 <code>--service</code>，assemble 也没有 <code>exported_services</code>。需要长期服务时，可建立 --init guest，再分别管理 guest system unit 与宿主 user unit。两层不能互相替代。</p>\n<h3 id=\"section-07\">4.1 创建、初始化并测试服务</h3>\n<pre><code># 宿主创建；镜像与包名需确认仍可用\ndistrobox create --name myserver --image ubuntu:24.04 --init \\\n  --additional-packages &#39;systemd nginx&#39;\n# 第一次 enter 完成用户/包初始化\ndistrobox enter myserver\n# 以下在 guest 中：guest sudo 不等于宿主 rootful 后端\nsudo systemctl enable --now nginx\nsudo systemctl status nginx\nsudo journalctl -u nginx</code></pre>\n<p><code>--init</code> 使用独立进程命名空间，让 guest 的 init 成为 PID 1。普通开发容器无需 init。若已有容器需要改变 init/namespace，记录清单与数据后重建，不能通过不存在的 export 标志补上。</p>\n<p>默认网络共享宿主，所以 nginx 等服务会占用宿主端口；开发服务应限制监听地址并检查端口冲突。数据库需要认证、持久数据目录和一致性备份，不能因放入 rootless guest 就认定不暴露。</p>\n<h3 id=\"section-08\">4.2 宿主 user unit 只控制容器启停</h3>\n<p>先完成 guest 初始化和服务验证，再准备 user unit。这里是 Podman 的传统路径示例；NixOS 应以 <code>${pkgs.podman}/bin/podman</code> 等声明式生成的真实路径替换。</p>\n<pre><code># ~/.config/systemd/user/distrobox-myserver.service\n[Unit]\nDescription=Distrobox init container myserver\nAfter=network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/bin/podman start myserver\nExecStop=/usr/bin/podman stop myserver\n\n[Install]\nWantedBy=default.target</code></pre>\n<pre><code># 在宿主操作宿主 user unit\nsystemctl --user daemon-reload\nsystemctl --user enable --now distrobox-myserver.service\nsystemctl --user status distrobox-myserver.service\njournalctl --user -u distrobox-myserver.service\n# guest nginx 的状态和日志仍在 guest 中查询\ndistrobox enter myserver -- sudo systemctl status nginx\ndistrobox enter myserver -- sudo journalctl -u nginx</code></pre>\n<p>oneshot + RemainAfterExit 仅记录成功启动操作，不持续监视容器是否后来崩溃；要可靠服务监督可采用适合实际工作负载的 Podman Quadlet/专用 OCI 服务。<code>systemctl --user enable</code> 主要依附用户 manager 生命周期；要求无人登录时启动，要显式评估 linger 与运行权限。</p>\n<h3 id=\"section-09\">4.3 停止、撤销和保留数据</h3>\n<pre><code># guest 中禁用某个应用服务\ndistrobox enter myserver -- sudo systemctl disable --now nginx\n# 宿主停止并禁用容器启动 unit\nsystemctl --user disable --now distrobox-myserver.service\n# 审核 unit 来源后移除你自己创建的 unit，再 reload\n# rm &quot;$HOME/.config/systemd/user/distrobox-myserver.service&quot;\nsystemctl --user daemon-reload</code></pre>\n<p>unit 撤销、应用卸载、容器删除、app/bin 撤销和数据清理是不同操作。若 unit 由 Home Manager 管理，应修改声明而非直接删除生成文件。不要根据文件名 glob 盲目删除所有用户服务。</p>\n<h3 id=\"section-10\">4.4 适用场景</h3>\n<p>这种分层可以服务 nginx/apache/caddy 开发站点、PostgreSQL/MySQL/Redis、文件同步和 CI runner。具体应用是否适合 Distrobox 取决于后台生命周期、端口、认证和数据要求；需要最小权限或可靠监督时，常规 OCI 服务更直接。Docker-in-Docker 和 libvirt 等涉及额外权限与宿主控制，不能当作普通服务导出的一键场景。</p>\n<h2 id=\"section-11\">5. 撤销导出与残留检查</h2>\n<pre><code># 来源 guest 中分别列出并撤销已知 app/bin\ndistrobox-export --list-apps\ndistrobox-export --list-binaries --export-path &quot;$HOME/.local/bin&quot;\ndistrobox-export --app firefox --delete\ndistrobox-export --bin /usr/bin/vim --export-path &quot;$HOME/.local/bin&quot; --delete</code></pre>\n<p>先在来源 guest 撤销入口，再决定是否卸载应用或删除容器。删除容器后入口将不能运行，但宿主 desktop/wrapper 不一定自动清理；根据来源标记与内容逐项确认残留，不要按未经验证的文件命名批量删除。图标可能被其他 entry 复用，清理需检查引用。</p>\n",
+  "refs": [
+    [
+      "Distrobox security implications",
+      "https://distrobox.it/#security-implications"
+    ],
+    [
+      "Distrobox create",
+      "https://distrobox.it/usage/distrobox-create/"
+    ],
+    [
+      "Distrobox enter",
+      "https://distrobox.it/usage/distrobox-enter/"
+    ],
+    [
+      "Distrobox export",
+      "https://distrobox.it/usage/distrobox-export/"
+    ],
+    [
+      "Desktop Entry specification",
+      "https://specifications.freedesktop.org/desktop-entry-spec/latest/"
+    ],
+    [
+      "Distrobox 1.8.2.5 export implementation",
+      "https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-export"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "linux",
+    "containers",
+    "distrobox"
+  ]
+}

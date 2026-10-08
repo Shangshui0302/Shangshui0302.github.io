@@ -1,0 +1,69 @@
+{
+  "slug": "arch-gnome-maintenance",
+  "number": "068",
+  "category": "LINUX / SYSTEMS",
+  "title": "Arch 桌面的交换空间、内核与排障",
+  "deck": "保留压缩交换、内核切换、系统清理及桌面常见问题的完整操作细节。",
+  "sections": [
+    [
+      "section-01",
+      "维护与删除的前提"
+    ],
+    [
+      "section-02",
+      "性能优化"
+    ],
+    [
+      "section-09",
+      "删除 Linux"
+    ],
+    [
+      "section-12",
+      "issues"
+    ],
+    [
+      "section-20",
+      "附录"
+    ],
+    [
+      "section-28",
+      "官方核对入口"
+    ]
+  ],
+  "body": "<p>本文整理自 <a href=\"https://github.com/shorinkiwata/archlinuxinstall\" target=\"_blank\" rel=\"noopener noreferrer\">shorinkiwata/archlinuxinstall</a>，保留原教程的操作深度并进行匿名化与风险校正。安装包名、扩展、驱动和界面可能随滚动更新变化，以下命令均为阅读示例，没有在此任务中执行或验证。</p>\n<h2 id=\"section-01\">维护与删除的前提</h2>\n<p>先确认当前运行内核、引导条目、备用内核和备份。swapoff 需要把交换中的页面放回其他可用内存/交换空间；内存不足时不要停用。删除交换文件前检查 fstab、休眠和引导参数中的引用。</p>\n<p>删除 Linux 分区或 ESP 文件前，应从 Windows/恢复介质确认 Windows 能独立启动，备份重要数据及加密恢复资料。共享 ESP 时只处理确认属于 Linux 的目录，不删除 Microsoft、OEM 或整个分区。以下 DiskPart 选择编号是语法示例，现场编号必须重新核对；更改分区类型也不是“绝对安全”的删除方法。</p>\n<h2 id=\"section-02\">性能优化</h2>\n<h3 id=\"section-03\">N 卡动态功耗调节</h3>\n<pre><code>sudo systemctl enable --now nvidia-powerd.service\n</code></pre>\n<h3 id=\"section-04\">LACT 进行显卡 offset</h3>\n<h3 id=\"section-05\">交换空间</h3>\n<p>关于交换空间大小： <a href=\"https://wiki.manjaro.org/index.php?title=Swap\" target=\"_blank\" rel=\"noopener noreferrer\">Swap - Manjaro --- Swap - Manjaro</a> <a href=\"https://wiki.archlinuxcn.org/wiki/%E7%94%B5%E6%BA%90%E7%AE%A1%E7%90%86/%E6%8C%82%E8%B5%B7%E4%B8%8E%E4%BC%91%E7%9C%A0#%E7%A6%81%E7%94%A8_zswap_%E5%86%99%E5%9B%9E%E4%BB%A5%E4%BB%85%E5%B0%86%E4%BA%A4%E6%8D%A2%E7%A9%BA%E9%97%B4%E7%94%A8%E4%BA%8E%E4%BC%91%E7%9C%A0\" target=\"_blank\" rel=\"noopener noreferrer\">电源管理/挂起与休眠 - Arch Linux 中文维基</a> <a href=\"https://wiki.archlinux.org/title/Zswap\" target=\"_blank\" rel=\"noopener noreferrer\">zswap - ArchWiki</a> <a href=\"https://wiki.archlinux.org/title/Zram\" target=\"_blank\" rel=\"noopener noreferrer\">zram - ArchWiki</a> <a href=\"https://wiki.archlinux.org/title/Swap\" target=\"_blank\" rel=\"noopener noreferrer\">Swap - ArchWiki</a> <a href=\"https://www.reddit.com/r/archlinux/comments/1ivwv1l/zram_vs_zswap_vs_swap/\" target=\"_blank\" rel=\"noopener noreferrer\">Zram vs zswap vs swap? : r/archlinux</a> <a href=\"https://www.reddit.com/r/archlinux/comments/13ujemv/zswap_or_zram_at_this_time_which_one_is_more/\" target=\"_blank\" rel=\"noopener noreferrer\">Zswap or Zram: at this time, which one is more efficient? : r/archlinux</a> <a href=\"https://forum.manjaro.org/t/zram-zswap-and-hibernation/82348\" target=\"_blank\" rel=\"noopener noreferrer\">Zram, zswap and hibernation - Support - Manjaro Linux Forum</a> <a href=\"https://askubuntu.com/questions/471912/zram-vs-zswap-vs-zcache-ultimate-guide-when-to-use-which-one/472227#472227\" target=\"_blank\" rel=\"noopener noreferrer\">kernel - zram vs zswap vs zcache Ultimate guide: when to use which one - Ask Ubuntu</a> <a href=\"https://www.kernel.org/doc/html/v4.18/vm/zswap.html\" target=\"_blank\" rel=\"noopener noreferrer\">zswap — The Linux Kernel documentation</a> <a href=\"https://docs.kernel.org/admin-guide/blockdev/zram.html\" target=\"_blank\" rel=\"noopener noreferrer\">zram: Compressed RAM-based block devices — The Linux Kernel documentation</a></p>\n<h3 id=\"section-06\">不需要休眠的话</h3>\n<p>如果不需要休眠功能可以禁用 swap，然后开启 zram</p>\n<pre><code>sudo swapoff /swap/swapfile\n</code></pre>\n<pre><code>sudo rm /swap/swapfile\n</code></pre>\n<ul>\n<li>编辑 fstab</li>\n</ul>\n<pre><code>sudo vim /etc/fstab\n</code></pre>\n<pre><code>删除与swap相关的挂载\n\n</code></pre>\n<h3 id=\"section-07\">zram 内存压缩</h3>\n<pre><code>sudo pacman -S zram-generator\n</code></pre>\n<pre><code>sudo vim  /etc/systemd/zram-generator.conf\n</code></pre>\n<pre><code>[zram0]\nzram-size = ram * 0.5\ncompression-algorithm = zstd #重视cpu开销和速度选择lz4\n</code></pre>\n<ul>\n<li>禁用 zswap</li>\n</ul>\n<pre><code>sudo vim /etc/default/grub\n</code></pre>\n<pre><code>编辑GRUB_CMDLINE_LINUX_DEFAULT=&quot;&quot;\n写入zswap.enabled=0\n</code></pre>\n<ul>\n<li>重新生成 grub 的配置文件</li>\n</ul>\n<pre><code>sudo grub-mkconfig -o /boot/grub/grub.cfg\n</code></pre>\n<ul>\n<li>reboot</li>\n<li>验证 zswap 是否关闭</li>\n</ul>\n<pre><code>cat /sys/module/zswap/parameters/enabled\n</code></pre>\n<ul>\n<li>验证 zram 是否开启</li>\n</ul>\n<pre><code>sudo zramctl\n或者\nswapon\n</code></pre>\n<h3 id=\"section-08\">安装 zen 内核</h3>\n<p>功耗和响应变化取决于负载，应实测比较。</p>\n<ul>\n<li>安装内核</li>\n</ul>\n<pre><code>sudo pacman -S linux-zen linux-zen-headers\n</code></pre>\n<ul>\n<li>按 GPU 代际选择对应 DKMS 驱动，并为 linux-zen 安装匹配的 headers</li>\n</ul>\n<pre><code>sudo pacman -S nvidia-open-dkms # 按 GPU 支持分支调整\n</code></pre>\n<ul>\n<li>重新生成 grub</li>\n</ul>\n<pre><code>sudo grub-mkconfig -o /boot/grub/grub.cfg\n</code></pre>\n<ul>\n<li>重启</li>\n</ul>\n<pre><code>reboot #重启时在grub的arch advance启动项里选择zen\n</code></pre>\n<ul>\n<li>可选：确认备用恢复内核、DKMS 和引导都可用后再考虑删除原内核；通常保留一个备用内核更稳妥</li>\n</ul>\n<pre><code>sudo pacman -R linux linux-headers\n</code></pre>\n<ul>\n<li>重新生成 grub</li>\n</ul>\n<pre><code>sudo grub-mkconfig -o /boot/grub/grub.cfg\n</code></pre>\n<h2 id=\"section-09\">删除 Linux</h2>\n<p>下列操作会影响启动文件和分区。不要把示例磁盘 0/分区 1 当作自己的目标。</p>\n<h3 id=\"section-10\">和 windows 共用 efi 分区时</h3>\n<p><a href=\"https://www.bilibili.com/video/BV14p4y1n7rJ/\" target=\"_blank\" rel=\"noopener noreferrer\">(重制)彻底删除Linux卸载后的无用引导项_哔哩哔哩_bilibili</a> win+x 选择磁盘管理，找到 efi 在第几个磁盘的第几个分区\nwin+R 输入 diskpart 回车 select disk 命令选择 efi 分区所在磁盘，从 0 开始，第一个磁盘是数字 0</p>\n<pre><code>select disk &lt;VERIFIED_DISK_NUMBER&gt;\n</code></pre>\n<p>select partition 选择 efi 分区，从 1 开始，第一个分区是数字 1</p>\n<pre><code>select partition &lt;VERIFIED_ESP_PARTITION_NUMBER&gt;\n</code></pre>\n<p>以上命令只展示选择语法；核对现场磁盘/分区后才分配未被使用的盘符。</p>\n<pre><code>assign letter p\n</code></pre>\n<p>管理员运行记事本 ctrl+s 打开保存窗口 选择 p 盘,删除里面的 linux 启动相关文件 移除盘符</p>\n<pre><code>remove letter p\n</code></pre>\n<h3 id=\"section-11\">单独 EFI 分区时</h3>\n<p>只有确认 Windows 完全不依赖这个分区、恢复资料可用后才考虑删除。下面保留历史分区类型转换命令用于解释，不是必要或推荐的通用卸载步骤：\n<a href=\"https://blog.csdn.net/sinat_29957455/article/details/88726797\" target=\"_blank\" rel=\"noopener noreferrer\">原参考：Windows 中删除独立 EFI 分区</a> diskpart 选中 efi 分区后输入：</p>\n<pre><code> SET ID=ebd0a0a2-b9e5-4433-87c0-68b6b72699c7\n</code></pre>\n<p>分区类型转换可能让工具允许后续删除，但不能证明安全。先判断系统是否仍依赖该 ESP，再使用可信的分区管理工具并逐项确认。</p>\n<h2 id=\"section-12\">issues</h2>\n<h3 id=\"section-13\">时间错乱，windwos 开机磁盘检查</h3>\n<p><a href=\"https://blog.csdn.net/zhouchen1998/article/details/108893660\" target=\"_blank\" rel=\"noopener noreferrer\">双系统时间同步-CSDN博客</a> 管理员打开 powershell 运行</p>\n<pre><code>Reg add HKLM\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation /v RealTimeIsUniversal /t REG_DWORD /d 1\n</code></pre>\n<h3 id=\"section-14\">nautilus 创建文件的 symlinks 符号链接</h3>\n<p><a href=\"https://www.reddit.com/r/gnome/comments/10qayrs/creating_symlinks_in_files_under_wayland/\" target=\"_blank\" rel=\"noopener noreferrer\">Creating Symlinks in Files under Wayland : r/gnome</a>\nctrl+c 复制文件后 ctrl+m</p>\n<h3 id=\"section-15\">NAUTILUS 无法访问 smb 共享</h3>\n<p>如果你的路由器或者别的设备开启了 smb 文件共享，安装 gvfs-smb 可以使你在 nautilus 访问那些文件</p>\n<pre><code>sudo pacman -S gvfs-smb\n</code></pre>\n<h3 id=\"section-16\">域名解析出现暂时性错误</h3>\n<p><a href=\"https://blog.csdn.net/qq_15603633/article/details/141032652\" target=\"_blank\" rel=\"noopener noreferrer\">解决 Ubuntu 系统中 “Temporary Failure in Name Resolution“ 错误-CSDN博客</a></p>\n<pre><code>sudo vim /etc/resolv.conf\n</code></pre>\n<p>如果 <code>/etc/resolv.conf</code> 由 NetworkManager 或 systemd-resolved 管理，应在实际管理器配置 DNS，避免直接覆盖。静态管理时才使用下面的配置结构：</p>\n<pre><code>nameserver &lt;DNS_SERVER_IP&gt;\nnameserver &lt;SECONDARY_DNS_SERVER_IP&gt;\n</code></pre>\n<h3 id=\"section-17\">自定义安装字体</h3>\n<ul>\n<li>复制字体到该目录下（可以自由创建子目录）</li>\n</ul>\n<pre><code>~/.local/share/fonts/\n</code></pre>\n<ul>\n<li>刷新字体缓存</li>\n</ul>\n<pre><code>fc-cache -fv\n</code></pre>\n<h3 id=\"section-18\">扩展 windwos 的 efi 分区空间</h3>\n<pre><code>NIUBI partition Editor free edition\n</code></pre>\n<h3 id=\"section-19\">grub 卡顿</h3>\n<p>检查 GRUB 图形模式、分辨率、固件和相关驱动条件，保存日志及现象后再定位；不能直接归因于某个品牌。</p>\n<h2 id=\"section-20\">附录</h2>\n<h3 id=\"section-21\">pacman 常用指令</h3>\n<ul>\n<li><code>-R</code> 删除包，<code>-s</code> 同时删除不再被需要的依赖，<code>-n</code> 不保存受管理配置为 <code>.pacsave</code>；用户家目录配置另行处理。</li>\n</ul>\n<pre><code>sudo pacman -Rns &lt;PACKAGE&gt;\n</code></pre>\n<ul>\n<li>查询包</li>\n</ul>\n<pre><code>pacman -Ss &lt;KEYWORD&gt;\n</code></pre>\n<ul>\n<li>列出所有已安装的包</li>\n</ul>\n<pre><code>pacman -Qe # 列出显式安装的包；全部已安装包用 pacman -Q\n</code></pre>\n<ul>\n<li>列出所有已安装的依赖</li>\n</ul>\n<pre><code>sudo pacman -Qd\n</code></pre>\n<ul>\n<li>清理包缓存</li>\n</ul>\n<pre><code>sudo pacman -Sc\n</code></pre>\n<ul>\n<li>列出孤立依赖包</li>\n</ul>\n<pre><code>sudo pacman -Qdt\n</code></pre>\n<ul>\n<li>清理孤立依赖包</li>\n</ul>\n<pre><code>sudo pacman -Rns &lt;CONFIRMED_ORPHAN_PACKAGE&gt; # 先用 pacman -Qdt 检查\n</code></pre>\n<h3 id=\"section-22\">cpu 资源优先级</h3>\n<p>ananicy-cpp 按规则调整进程调度优先级，收益与影响应针对当前规则和实际负载测试，不把历史个案当作普遍结论。</p>\n<pre><code>sudo pacman -S ananicy-cpp\n</code></pre>\n<pre><code>sudo systemctl enable --now ananicy-cpp.service\n</code></pre>\n<h3 id=\"section-23\">TLP 相关</h3>\n<pre><code>sudo pacman -S tlp tlp-rdw\n</code></pre>\n<pre><code>yay -S tlpui\n</code></pre>\n<p>设置方法参考官方文档 <a href=\"https://linrunner.de/tlp/settings/index.html\" target=\"_blank\" rel=\"noopener noreferrer\">Settings — TLP 1.8.0 documentation</a> 以下是原教程的设置思路，需按驱动支持与实测调整，不能视为通用设置：</p>\n<pre><code>processor选项卡中\n\nCPU DRIVER OPMODE\nAC active\nBAT active\n# 是否适用取决于 CPU scaling driver，不是所有机器都有此选项\n\nCPU SCALING GOVERNOR\nAC &lt;SUPPORTED_GOVERNOR&gt;\nBAT &lt;SUPPORTED_GOVERNOR&gt; # 先检查驱动支持列表\n\nCPU ENERGY PERF POLICY\nAC balance_performance\nBAT power\n\nCPU BOOST\nAC on\nBAT off\n\nPLATFORM PROFILE\nAC balanced\nBAT low-power\n\nMEM SLEEP\nBAT deep\n</code></pre>\n<ul>\n<li>开启服务</li>\n</ul>\n<pre><code>sudo systemctl enable --now tlp\n</code></pre>\n<h3 id=\"section-24\">安装 alhp</h3>\n<p>ALHP 是第三方优化仓库，以下为历史配置结构示例。仓库覆盖官方包会改变支持与信任边界；检查当前仓库名称、签名和 CPU 指令集兼容性，不盲目启用。 * 参考链接: <a href=\"https://www.bilibili.com/opus/745324585822453908?from=search\" target=\"_blank\" rel=\"noopener noreferrer\">ALHP：优化你的archlinux性能 - 哔哩哔哩</a></p>\n<ul>\n<li>检查芯片支持,记住结果里是 x86-64-v 几</li>\n</ul>\n<pre><code>/lib/ld-linux-x86-64.so.2 --help\n</code></pre>\n<ul>\n<li>安装密钥和镜像列表</li>\n</ul>\n<pre><code>yay -S alhp-keyring alhp-mirrorlist\n</code></pre>\n<ul>\n<li>编辑配置文件</li>\n</ul>\n<pre><code>sudo vim /etc/pacman.conf\n</code></pre>\n<ul>\n<li>搜索 core，在 core 上方加入</li>\n</ul>\n<pre><code>   [core-x86-64-v4]\n   Include = /etc/pacman.d/alhp-mirrorlist\n   [extra-x86-64-v4]\n   Include = /etc/pacman.d/alhp-mirrorlist\n   [multilib-x86-64-v4]\n   Include = /etc/pacman.d/alhp-mirrorlist\n</code></pre>\n<ul>\n<li>刷新源</li>\n</ul>\n<pre><code>sudo pacman -Syyu\n</code></pre>\n<h3 id=\"section-25\">ibus 输入法</h3>\n<p>可按输入习惯选择 IBus 方案。 ibpinyin 是中文拼音输入法，anthy 是日文输入法登出一次，设置里找到键盘，添加输入源</p>\n<pre><code>sudo pacman -S ibus ibus-pinyin\n更好用的中文输入法：\nsudo pacman -S ibus-rime\n日语输入法：\nyay -S ibus-mozc\n</code></pre>\n<ul>\n<li>配置输入法 常规里勾选候选词，设置候选词排序为词频 拼音模式里启用云输入 辞典里勾选辞典 用户数据里取消所有勾选 * 登出，测试输入是否正常</li>\n</ul>\n<h3 id=\"section-26\">ranger 预览图片</h3>\n<pre><code>sudo pacman -S python-pillow ranger kitty\n</code></pre>\n<pre><code>vim ~/.config/ranger/rc.conf\n</code></pre>\n<pre><code>set preview_images true\nset preview_images_method kitty\n</code></pre>\n<h3 id=\"section-27\">美化 kitty</h3>\n<p>终端与平铺扩展的兼容性依赖版本；多显示器下出现问题时可单独测试扩展。</p>\n<pre><code>sudo pacman -S kitty\n</code></pre>\n<pre><code># 下载配置文件 https://github.com/catppuccin/kitty\n以frappe为例，下载frappe.conf，复制到~/.config/kitty/目录下，重命名为kitty.conf\n</code></pre>\n<pre><code># 编辑配置文件\n写入：\nlinux_display_server x11 #修复kitty奇怪的刘海\nhide_window_decorations yes #隐藏顶栏，隐藏后无法调整窗口大小，建议配合tiling shell扩展使用\nbackground_opacity 0.8 #设置背景透明度\nfont_family 字体名\nfont_size 字体大小数字\n</code></pre>\n<pre><code># 如果波浪号在左上角，配置文件写入：\nsymbol_map U+007E Adwaita Mono\n# 强制指定notosansmono字体，也可以选择别的\n</code></pre>\n<pre><code># 示例配置\nhide_window_decorations yes\nbackground_opacity 0.8\nfont_family Adwaita Mono\nfont_size 14\n</code></pre>\n<pre><code># 重启终端\n</code></pre>\n<h2 id=\"section-28\">官方核对入口</h2>\n<p><a href=\"https://wiki.archlinux.org/title/Swap\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Swap</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/Zram\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Zram</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/Dual_boot_with_Windows\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Dual boot with Windows</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/Domain_name_resolution\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Domain name resolution</a>。</p>\n<p><a href=\"https://man.archlinux.org/man/zram-generator.conf.5.en\" target=\"_blank\" rel=\"noopener noreferrer\">zram-generator.conf(5)</a>。</p>\n",
+  "refs": [
+    [
+      "原教程：shorinkiwata/archlinuxinstall",
+      "https://github.com/shorinkiwata/archlinuxinstall"
+    ],
+    [
+      "ArchWiki：Swap",
+      "https://wiki.archlinux.org/title/Swap"
+    ],
+    [
+      "ArchWiki：Zram",
+      "https://wiki.archlinux.org/title/Zram"
+    ],
+    [
+      "ArchWiki：Dual boot with Windows",
+      "https://wiki.archlinux.org/title/Dual_boot_with_Windows"
+    ],
+    [
+      "ArchWiki：Domain name resolution",
+      "https://wiki.archlinux.org/title/Domain_name_resolution"
+    ],
+    [
+      "zram-generator.conf(5)",
+      "https://man.archlinux.org/man/zram-generator.conf.5.en"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "gnome"
+  ]
+}

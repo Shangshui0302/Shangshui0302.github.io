@@ -1,0 +1,61 @@
+{
+  "slug": "wine-proton-bottles-relationships",
+  "number": "153",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Wine、Proton 与 Bottles 的关系",
+  "deck": "用技术谱系、分层模型和场景矩阵判断兼容引擎与管理器的职责。",
+  "sections": [
+    [
+      "section-01",
+      "技术谱系：演化全景"
+    ],
+    [
+      "section-02",
+      "引擎与管理器的三层模型"
+    ],
+    [
+      "section-04",
+      "场景选择矩阵"
+    ],
+    [
+      "section-08",
+      "版本与支持范围怎样对照"
+    ],
+    [
+      "section-09",
+      "来源与核验边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>理解 Wine、Proton、Bottles 的边界与协作关系，为不同场景做出正确选择。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">技术谱系：演化全景</h2>\n<pre><code>graph TD\n    subgraph &quot;上游 (1993-)&quot;\n        WINE[&quot;Wine — Windows API 兼容层&quot;]\n    end\n    subgraph &quot;商业版&quot;\n        CX[&quot;CrossOver — CodeWeavers 商业支持&quot;]\n    end\n    subgraph &quot;游戏分支 (2018-)&quot;\n        PROTON[&quot;Proton — Valve Steam Play&quot;]\n        PROTON_GE[&quot;Proton-GE — 社区增强版&quot;]\n        PROTON_CACHY[&quot;Proton-CachyOS — CPU 优化构建&quot;]\n    end\n    subgraph &quot;管理层&quot;\n        BOTTLES[&quot;Bottles — GUI 前缀管理&quot;]\n        LUTRIS[&quot;Lutris — 游戏启动器 + 社区脚本&quot;]\n    end\n    subgraph &quot;组件层&quot;\n        DXVK[&quot;DXVK&quot;]\n        VKD3D[&quot;VKD3D-Proton&quot;]\n    end\n\n    WINE --&gt; CX\n    WINE --&gt; PROTON\n    PROTON --&gt; PROTON_GE\n    PROTON --&gt; PROTON_CACHY\n    WINE -.-&gt;|Runner 调用| BOTTLES\n    PROTON_GE -.-&gt;|需核对 umu 集成| BOTTLES\n    PROTON -.-&gt;|集成| DXVK\n    PROTON -.-&gt;|集成| VKD3D\n    PROTON_GE -.-&gt;|受支持的 umu 后端| LUTRIS\n    WINE -.-&gt;|Runner 调用| LUTRIS</code></pre>\n<p>关键认知：</p>\n<ol>\n<li><strong>Wine 是核心兼容引擎上游之一</strong>。Proton 同时集成 DXVK、VKD3D-Proton、运行时、媒体与其他项目；不能把整个 Proton 的每一行代码都追溯为 Wine。部分改进可回到上游，但需按具体提交核对。</li>\n<li><strong>Proton 是面向 Steam 游戏生态的 Wine 集成与补丁集合</strong>，包含专用运行环境。非游戏程序可能可运行，但不是其主要支持目标。Proton 的补丁可能引入非游戏应用的兼容性 bug。</li>\n<li><strong>Proton-GE/CachyOS</strong> 是社区维护的不同构建与补丁组合，所含 DXVK/VKD3D、硬件适配和游戏修复取决于具体 release；不能绕过游戏反作弊策略，但不为稳定运行 Office/Photoshop 设计。</li>\n<li><strong>Bottles 和 Lutris 是管理器</strong>，不参与 API 翻译，只是封装命令行接口。</li>\n</ol>\n<hr>\n<h2 id=\"section-02\">引擎与管理器的三层模型</h2>\n<pre><code>┌──────────────────────────────────────┐\n│        管理层 (Bottles / Lutris)       │  ← 用户交互、配置可视化、快照\n│   ┌────────────────────────────────┐  │\n│   │   运行器层 (Wine / Proton-GE)    │  │  ← API 翻译、进程管理\n│   │  ┌──────────────────────────┐  │  │\n│   │  │  图形层 (DXVK / VKD3D)   │  │  │  ← DirectX → Vulkan 翻译\n│   │  └──────────────────────────┘  │  │\n│   └────────────────────────────────┘  │\n│          操作系统 (Linux Kernel)        │\n└──────────────────────────────────────┘</code></pre>\n<h3 id=\"section-03\">类比</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">角色</th>\n<th scope=\"col\">比喻</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>Wine</strong></td>\n<td>通用发动机 — 能跑各种车，需自行调校</td>\n</tr>\n<tr>\n<td><strong>Proton</strong></td>\n<td>赛车发动机 — 为速度（帧率）设计，其他场景未必好用</td>\n</tr>\n<tr>\n<td><strong>Bottles</strong></td>\n<td>整车 — 发动机装好，给你方向盘和仪表盘</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-04\">场景选择矩阵</h2>\n<h3 id=\"section-05\">按用途选工具</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">使用场景</th>\n<th scope=\"col\">推荐引擎</th>\n<th scope=\"col\">推荐管理方式</th>\n<th scope=\"col\">说明</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Steam 游戏（库内）</td>\n<td>Proton / Proton-GE</td>\n<td>Steam 内置</td>\n<td>Steam 管理运行环境与每游戏兼容数据；仍可能需要游戏专项配置</td>\n</tr>\n<tr>\n<td>非 Steam 游戏 (.exe)</td>\n<td>支持该游戏的 Wine runner 或 GE-Proton</td>\n<td>Wine 管理器；GE 走 umu 集成</td>\n<td>分离配置不等于安全隔离</td>\n</tr>\n<tr>\n<td>办公软件 (Office 等)</td>\n<td>已验证的 Wine runner</td>\n<td>Bottles</td>\n<td>需要 .NET/VC Runtime 完整依赖链</td>\n</tr>\n<tr>\n<td>设计软件 (Photoshop)</td>\n<td>已验证的 Wine runner</td>\n<td>Bottles</td>\n<td>每软件独立 Bottle，避免 DLL 冲突</td>\n</tr>\n<tr>\n<td>老旧 Windows 工具</td>\n<td>兼容目标应用的架构与 Wine runner</td>\n<td>Bottles</td>\n<td>32 位程序未必要求纯 win32 Prefix；按 WoW64/构建与依赖核对</td>\n</tr>\n<tr>\n<td>游戏模组 (ReShade 等)</td>\n<td>与模组兼容的 Wine/Proton 版本</td>\n<td>Bottles / Steam</td>\n<td>核对 DLL 优先级、游戏版本与模组要求，不依赖未经核验的版本承诺</td>\n</tr>\n<tr>\n<td>开发测试 (CI/CD)</td>\n<td>Wine (nix 管理)</td>\n<td>命令行</td>\n<td>无 GUI 环境，需脚本化</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-06\">决策流程图</h3>\n<pre><code>graph TD\n    A{&quot;这是一个游戏吗？&quot;} --&gt;|是| B{&quot;在 Steam 库里吗？&quot;}\n    A --&gt;|否| C[&quot;用 已验证的 Wine runner — 通过 Bottles 管理&quot;]\n    B --&gt;|是| D[&quot;用官方 Proton — Steam 自动配置&quot;]\n    B --&gt;|否| E{&quot;需要特定游戏修复？&quot;}\n    E --&gt;|是| F[&quot;检查游戏支持，再用 GE-Proton — Steam 外核对 umu 后端&quot;]\n    E --&gt;|否| G[&quot;用支持目标游戏的 Wine runner — 通过管理器维护&quot;]\n    D --&gt; H{&quot;过场动画黑屏？&quot;}\n    H --&gt;|是| I[&quot;换 Proton-GE&quot;]\n    H --&gt;|否| J[&quot;保持官方 Proton&quot;]</code></pre>\n<h3 id=\"section-07\">原则</h3>\n<blockquote>\n<p><strong>游戏用 Proton（生态），应用用 Wine（通用性），管理用 Bottles（效率）。</strong></p>\n</blockquote>\n<hr>\n<h2 id=\"section-08\">版本与支持范围怎样对照</h2>\n<p>不要把稳定版、开发版、社区滚动版与管理器名称放进同一个“最新稳定版”栏。建立版本记录时分别查看：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">组件</th>\n<th scope=\"col\">需要记录的身份</th>\n<th scope=\"col\">不能由名称直接推断的能力</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Wine</td>\n<td>发布/开发版本、发行包构建、补丁与架构</td>\n<td>新 WoW64、NTSYNC、Wayland 是否在该构建实际可用</td>\n</tr>\n<tr>\n<td>官方 Proton</td>\n<td>Steam 选中的确切版本和 runtime</td>\n<td>当前游戏、GPU、媒体、反作弊是否支持</td>\n</tr>\n<tr>\n<td>GE-Proton</td>\n<td>官方 release、校验来源与下载的附加 DLL</td>\n<td>超分、帧生成、特定游戏修复是否生效；Steam 外是否走 umu</td>\n</tr>\n<tr>\n<td>Bottles runner</td>\n<td>名称、组件 manifest 与具体版本</td>\n<td>Soda/Caffe 等当前默认、Wine 基底与补丁范围</td>\n</tr>\n<tr>\n<td>DXVK/VKD3D</td>\n<td>runner 实际携带版本、驱动要求</td>\n<td>Vulkan 功能、光追、性能与多 GPU 路径</td>\n</tr>\n</tbody></table></div>\n<p>原材料中的 2025–2026 对照表没有足够发布证据支撑“最新”结论。WineHQ 发布页本次访问受限，具体 Wine 11.x 状态不作确认；官方 Proton 与 GE README 的核对也只说明访问时的项目文档，所选旧 release 仍应读其自身说明。</p>\n<p>版本更新会修改前缀或下载新的组件。保留可回退的 runner 和关闭状态前缀备份，按同一应用场景验证；单次成功不能替代长期稳定性或安全支持。</p>\n<h2 id=\"section-09\">来源与核验边界</h2>\n<p>以下参考定义相关机制与支持范围。安装、构建、激活、前缀状态与实际应用行为需要按目标环境分别核验；示例命令没有附带任何主机运行成功的结论。</p>\n<ul>\n<li><a href=\"https://www.winehq.org/\" target=\"_blank\" rel=\"noopener noreferrer\">Wine 项目</a></li>\n<li><a href=\"https://github.com/ValveSoftware/Proton\" target=\"_blank\" rel=\"noopener noreferrer\">官方 Proton README</a></li>\n<li><a href=\"https://github.com/GloriousEggroll/proton-ge-custom\" target=\"_blank\" rel=\"noopener noreferrer\">GE-Proton README</a></li>\n<li><a href=\"https://github.com/Open-Wine-Components/umu-launcher\" target=\"_blank\" rel=\"noopener noreferrer\">umu-launcher 与运行方法</a></li>\n<li><a href=\"https://docs.usebottles.com/components/runners\" target=\"_blank\" rel=\"noopener noreferrer\">Bottles runner 文档</a></li>\n</ul>\n",
+  "refs": [
+    [
+      "Wine 项目",
+      "https://www.winehq.org/"
+    ],
+    [
+      "官方 Proton README",
+      "https://github.com/ValveSoftware/Proton"
+    ],
+    [
+      "GE-Proton README",
+      "https://github.com/GloriousEggroll/proton-ge-custom"
+    ],
+    [
+      "umu-launcher 与运行方法",
+      "https://github.com/Open-Wine-Components/umu-launcher"
+    ],
+    [
+      "Bottles runner 文档",
+      "https://docs.usebottles.com/components/runners"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "wine",
+    "proton",
+    "bottles"
+  ]
+}

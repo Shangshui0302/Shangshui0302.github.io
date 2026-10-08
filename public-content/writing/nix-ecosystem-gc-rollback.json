@@ -1,0 +1,52 @@
+{
+  "slug": "nix-ecosystem-gc-rollback",
+  "number": "084",
+  "category": "LINUX / SYSTEMS",
+  "title": "垃圾回收、存储优化与回滚世代",
+  "deck": "区分删除世代引用、回收 store 对象和切换旧系统配置。",
+  "sections": [
+    [
+      "section-01",
+      "️ 为什么要清理？"
+    ],
+    [
+      "section-02",
+      "️ 第一阶段：手动清理"
+    ],
+    [
+      "section-05",
+      "第二阶段：自动化维护"
+    ],
+    [
+      "section-06",
+      "第三阶段：回滚的艺术"
+    ],
+    [
+      "section-09",
+      "给 Arch 用户的建议"
+    ],
+    [
+      "section-10",
+      "总结"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">️ 为什么要清理？</h2>\n<p>成功构建系统会在 <code>/nix/store</code> 产生系统闭包；切换系统 profile 后形成可选择的世代（generation）。旧世代的引用保护其依赖，后续可以选用旧配置。重复切换同一输出不应理解为一定生成不同的软件版本。</p>\n<ul>\n<li><strong>好处</strong>：你可以随时在启动菜单里选择旧版本回滚。</li>\n<li><strong>代价</strong>：硬盘空间会被迅速占满。</li>\n</ul>\n<h2 id=\"section-02\">️ 第一阶段：手动清理</h2>\n<h3 id=\"section-03\">1. 清理旧版本 (Generations)</h3>\n<pre><code># 查看目前的版本\nnixos-rebuild list-generations\n# 删除旧版本（保留当前版本）\nsudo nix-env --delete-generations old --profile /nix/var/nix/profiles/system</code></pre>\n<h3 id=\"section-04\">2. 垃圾回收 (Garbage Collection)</h3>\n<p>删除旧版本只是去掉了引用。要真正释放硬盘空间，需要执行：</p>\n<pre><code>sudo nix-collect-garbage\n# 另一个更激进的选择：会先删除找到的旧 profile 世代\n# sudo nix-collect-garbage -d</code></pre>\n<ul>\n<li><strong><code>-d</code></strong>：先删除找到的 profile 的旧世代，再对未被任何 GC root 引用的对象回收；不是简单地只清理当前系统之外的软件，也不会保留最近两三代。</li>\n</ul>\n<h2 id=\"section-05\">第二阶段：自动化维护</h2>\n<p>在 <code>configuration.nix</code> 里配置自动清理，再也不用手动运行命令。</p>\n<pre><code>{\n  # 自动垃圾回收\n  nix.gc = {\n    automatic = true;\n    dates = &quot;weekly&quot;;\n    options = &quot;--delete-older-than 7d&quot;;\n  };\n\n  # 自动优化存储 (将相同的文件硬链接到一起)\n  nix.settings.auto-optimise-store = true;\n}</code></pre>\n<h2 id=\"section-06\">第三阶段：回滚的艺术</h2>\n<h3 id=\"section-07\">1. 临时回滚 (不重启)</h3>\n<p>如果你发现刚装的配置有问题，不需要重启：</p>\n<pre><code>sudo nixos-rebuild switch --rollback</code></pre>\n<h3 id=\"section-08\">2. 启动菜单回滚</h3>\n<p>如果系统无法进入桌面，直接在 GRUB/systemd-boot 菜单里选择前一个版本启动。</p>\n<h2 id=\"section-09\">给 Arch 用户的建议</h2>\n<p>不要像在 Arch 里那样频繁清理缓存。Nix 的存储模型很特别，有时候保留最近的 2-3 个 Generation 能救你的命。</p>\n<h2 id=\"section-10\">总结</h2>\n<ol>\n<li><strong>Generation</strong>：系统配置闭包和 profile 的历史引用，不是用户文件、数据库或整块文件系统快照。</li>\n<li><strong>GC</strong>：释放未被 GC roots 保护的 store 对象，仍有引用的依赖会保留。</li>\n<li><strong>Optimize</strong>：节省重复文件的磁盘开销。</li>\n</ol>\n<h3 id=\"section-11\">回滚前提</h3>\n<p>删除旧世代可能使对应引导项失去所需 store 内容。配置回滚不会撤销应用写入的数据或数据库迁移；系统变更与数据备份应分别设计。<code>switch --rollback</code> 会即时激活旧配置，属于实际应用操作。</p>\n",
+  "refs": [
+    [
+      "Nix 垃圾回收命令",
+      "https://nix.dev/manual/nix/2.34/command-ref/nix-collect-garbage.html"
+    ],
+    [
+      "NixOS 回滚",
+      "https://nixos.org/manual/nixos/stable/#sec-rollback"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

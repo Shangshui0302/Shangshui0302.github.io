@@ -1,0 +1,66 @@
+{
+  "slug": "foot-terminal-controls",
+  "number": "049",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Foot：搜索、选择与配置的边界",
+  "deck": "区分键盘模式、primary selection、字号和配置生命周期，保留完整键位表。",
+  "sections": [
+    [
+      "section-01",
+      "通用快捷键"
+    ],
+    [
+      "section-02",
+      "滚动搜索模式"
+    ],
+    [
+      "section-07",
+      "URL 模式"
+    ],
+    [
+      "section-08",
+      "Unicode 输入模式"
+    ],
+    [
+      "section-09",
+      "鼠标操作"
+    ],
+    [
+      "section-10",
+      "鼠标选择对比表"
+    ],
+    [
+      "section-11",
+      "可自定义但默认未绑定的操作"
+    ],
+    [
+      "section-12",
+      "配置文件位置与重载"
+    ],
+    [
+      "section-14",
+      "小技巧"
+    ]
+  ],
+  "body": "<blockquote>\n<p>Foot 是 Wayland 原生、轻量快速的终端模拟器，快捷键通过 <code>foot.ini</code> 配置。本文键位按 Foot 1.28 手册核对；自定义配置可以覆盖默认值。终端快捷键和内部 Shell 的快捷键属于不同层。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">通用快捷键</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">快捷键</th>\n<th scope=\"col\">动作</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>Ctrl+Shift+c</code></td>\n<td>复制选中文本到剪贴板</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+v</code></td>\n<td>从剪贴板粘贴</td>\n</tr>\n<tr>\n<td><code>Shift+Insert</code></td>\n<td>从 primary selection 粘贴（先选中，随后用此键粘贴）</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+r</code></td>\n<td>进入滚动搜索模式</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+n</code></td>\n<td>新建终端窗口</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+o</code></td>\n<td>URL 模式：高亮所有 URL，按键跳转</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+u</code></td>\n<td>Unicode 输入模式（输入码点插入字符）</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+z</code></td>\n<td>跳转到上一个 shell 提示符</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+x</code></td>\n<td>跳转到下一个 shell 提示符</td>\n</tr>\n<tr>\n<td><code>Ctrl+plus</code> / <code>Ctrl+=</code> / <code>Ctrl+KP_Add</code></td>\n<td>增大字号</td>\n</tr>\n<tr>\n<td><code>Ctrl+minus</code> / <code>Ctrl+KP_Subtract</code></td>\n<td>减小字号</td>\n</tr>\n<tr>\n<td><code>Ctrl+0</code> / <code>Ctrl+KP_0</code></td>\n<td>重置字号</td>\n</tr>\n<tr>\n<td><code>Shift+Page_Up</code></td>\n<td>向上滚动一页</td>\n</tr>\n<tr>\n<td><code>Shift+Page_Down</code></td>\n<td>向下滚动一页</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p><code>Ctrl+Shift+z/x</code> 跳转提示符依赖 shell 配合。需要 Shell 发送正确的 OSC 133 提示符标记；不能仅因使用 Fish 就假定所有提示符函数都提供了相同标记。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-02\">滚动搜索模式</h2>\n<p><code>Ctrl+Shift+r</code> 进入后，搜索框出现在屏幕顶部。</p>\n<h3 id=\"section-03\">导航与编辑</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">快捷键</th>\n<th scope=\"col\">动作</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>Left</code> / <code>Ctrl+b</code></td>\n<td>光标左移</td>\n</tr>\n<tr>\n<td><code>Right</code> / <code>Ctrl+f</code></td>\n<td>光标右移</td>\n</tr>\n<tr>\n<td><code>Ctrl+Left</code> / <code>Alt+b</code></td>\n<td>光标左移一个单词</td>\n</tr>\n<tr>\n<td><code>Ctrl+Right</code> / <code>Alt+f</code></td>\n<td>光标右移一个单词</td>\n</tr>\n<tr>\n<td><code>Home</code> / <code>Ctrl+a</code></td>\n<td>光标移到搜索框开头</td>\n</tr>\n<tr>\n<td><code>End</code> / <code>Ctrl+e</code></td>\n<td>光标移到搜索框末尾</td>\n</tr>\n<tr>\n<td><code>BackSpace</code></td>\n<td>删除前一个字符</td>\n</tr>\n<tr>\n<td><code>Alt+BackSpace</code> / <code>Ctrl+BackSpace</code></td>\n<td>删除前一个单词</td>\n</tr>\n<tr>\n<td><code>Delete</code></td>\n<td>删除后一个字符</td>\n</tr>\n<tr>\n<td><code>Alt+d</code> / <code>Ctrl+Delete</code></td>\n<td>删除后一个单词</td>\n</tr>\n<tr>\n<td><code>Ctrl+u</code></td>\n<td>删除光标到开头</td>\n</tr>\n<tr>\n<td><code>Ctrl+k</code></td>\n<td>删除光标到末尾</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-04\">搜索与选择</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">快捷键</th>\n<th scope=\"col\">动作</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>Ctrl+r</code></td>\n<td>查找上一个匹配项</td>\n</tr>\n<tr>\n<td><code>Ctrl+s</code></td>\n<td>查找下一个匹配项</td>\n</tr>\n<tr>\n<td><code>Ctrl+w</code> / <code>Ctrl+Shift+Right</code></td>\n<td>选中到词尾（以非字母数字为界）</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+w</code></td>\n<td>选中到下一个空白（以空白字符为界）</td>\n</tr>\n<tr>\n<td><code>Shift+Left</code></td>\n<td>向左扩展选中一个字符</td>\n</tr>\n<tr>\n<td><code>Shift+Right</code></td>\n<td>向右扩展选中一个字符</td>\n</tr>\n<tr>\n<td><code>Ctrl+Shift+Left</code></td>\n<td>向左扩展到词首</td>\n</tr>\n<tr>\n<td><code>Shift+Up</code></td>\n<td>向上扩展选中一行</td>\n</tr>\n<tr>\n<td><code>Shift+Down</code></td>\n<td>向下扩展选中一行</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-05\">粘贴与退出</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">快捷键</th>\n<th scope=\"col\">动作</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>Ctrl+v</code> / <code>Ctrl+y</code> / <code>Ctrl+Shift+v</code></td>\n<td>粘贴到搜索框</td>\n</tr>\n<tr>\n<td><code>Shift+Insert</code></td>\n<td>从 primary selection 粘贴</td>\n</tr>\n<tr>\n<td><code>Return</code></td>\n<td>退出搜索，并将当前选择复制到 primary selection</td>\n</tr>\n<tr>\n<td><code>Escape</code> / <code>Ctrl+g</code> / <code>Ctrl+c</code></td>\n<td>取消搜索</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-06\">搜索时翻阅上下文</h3>\n<p>搜索框聚焦时仍可滚动终端内容：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">快捷键</th>\n<th scope=\"col\">动作</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>Shift+Page_Up</code></td>\n<td>向上翻一页</td>\n</tr>\n<tr>\n<td><code>Shift+Page_Down</code></td>\n<td>向下翻一页</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-07\">URL 模式</h2>\n<p><code>Ctrl+Shift+o</code> 进入后，所有检测到的 URL 会被高亮，每个 URL 分配一个跳转标签（label）。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">快捷键</th>\n<th scope=\"col\">动作</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>t</code></td>\n<td>切换 URL 可见性（闪烁/常亮）</td>\n</tr>\n<tr>\n<td><code>Escape</code> / <code>Ctrl+g</code> / <code>Ctrl+c</code> / <code>Ctrl+d</code></td>\n<td>退出 URL 模式</td>\n</tr>\n</tbody></table></div>\n<p>默认标签键位：<code>s</code> <code>a</code> <code>d</code> <code>f</code> <code>j</code> <code>k</code> <code>l</code> <code>e</code> <code>w</code> <code>c</code> <code>m</code> <code>p</code> <code>g</code> <code>h</code></p>\n<p>按下对应键即可用浏览器打开该 URL。</p>\n<hr>\n<h2 id=\"section-08\">Unicode 输入模式</h2>\n<p><code>Ctrl+Shift+u</code> 进入后，输入 Unicode 码点（十六进制）即插入对应字符。例如输入 <code>00e9</code> 得到 <code>é</code>。</p>\n<hr>\n<h2 id=\"section-09\">鼠标操作</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">鼠标操作</th>\n<th scope=\"col\">动作</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>左键拖动</td>\n<td>按字符选中文本（复制到 primary selection）</td>\n</tr>\n<tr>\n<td>双击左键</td>\n<td>选中整个单词</td>\n</tr>\n<tr>\n<td>三击左键</td>\n<td>选中引用字符串（被引号包围的内容）</td>\n</tr>\n<tr>\n<td>四击左键</td>\n<td>选中整行</td>\n</tr>\n<tr>\n<td><code>Ctrl</code> + 左键拖动</td>\n<td>块选择（矩形选区）</td>\n</tr>\n<tr>\n<td>右键点击</td>\n<td>扩展当前选中范围</td>\n</tr>\n<tr>\n<td><code>Ctrl</code> + 右键点击</td>\n<td>按字符级扩展（而非单词级）</td>\n</tr>\n<tr>\n<td>中键点击</td>\n<td>粘贴 primary selection</td>\n</tr>\n<tr>\n<td><code>Ctrl</code> + 滚轮上</td>\n<td>增大字号</td>\n</tr>\n<tr>\n<td><code>Ctrl</code> + 滚轮下</td>\n<td>减小字号</td>\n</tr>\n<tr>\n<td>滚轮上下</td>\n<td>滚动历史缓冲区</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p>按住 <code>Shift</code> 可覆盖终端内应用对鼠标的控制权（如 vim 的鼠标模式）。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-10\">鼠标选择对比表</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">操作</th>\n<th scope=\"col\">选中范围</th>\n<th scope=\"col\">示例（光标在 <code>hello_world</code> 上）</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>双击 (<code>BTN_LEFT-2</code>)</td>\n<td>整个单词（字母数字+下划线）</td>\n<td><code>hello_world</code></td>\n</tr>\n<tr>\n<td><code>Ctrl</code> + 双击</td>\n<td>空白分隔的词</td>\n<td><code>hello_world</code>（下划线不是空白；与普通按词选择的差异要用含标点的例子观察）</td>\n</tr>\n<tr>\n<td>三击 (<code>BTN_LEFT-3</code>)</td>\n<td>引号包围内容</td>\n<td><code>&quot;hello world&quot;</code></td>\n</tr>\n<tr>\n<td>四击 (<code>BTN_LEFT-4</code>)</td>\n<td>整行</td>\n<td>当前行全部内容</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-11\">可自定义但默认未绑定的操作</h2>\n<p>以下操作可在 <code>foot.ini</code> 的 <code>[key-bindings]</code> 中自定义绑定，但默认无快捷键：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">操作</th>\n<th scope=\"col\">说明</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>scrollback-up-half-page</code></td>\n<td>向上滚动半页</td>\n</tr>\n<tr>\n<td><code>scrollback-up-line</code></td>\n<td>向上滚动一行</td>\n</tr>\n<tr>\n<td><code>scrollback-down-half-page</code></td>\n<td>向下滚动半页</td>\n</tr>\n<tr>\n<td><code>scrollback-down-line</code></td>\n<td>向下滚动一行</td>\n</tr>\n<tr>\n<td><code>scrollback-home</code></td>\n<td>跳到缓冲区开头</td>\n</tr>\n<tr>\n<td><code>scrollback-end</code></td>\n<td>跳到缓冲区末尾（最新输出）</td>\n</tr>\n<tr>\n<td><code>minimize</code></td>\n<td>最小化窗口</td>\n</tr>\n<tr>\n<td><code>maximize</code></td>\n<td>最大化窗口</td>\n</tr>\n<tr>\n<td><code>fullscreen</code></td>\n<td>全屏</td>\n</tr>\n<tr>\n<td><code>pipe-visible</code></td>\n<td>将可见内容管道输出</td>\n</tr>\n<tr>\n<td><code>pipe-scrollback</code></td>\n<td>将全部缓冲区管道输出</td>\n</tr>\n<tr>\n<td><code>pipe-selected</code></td>\n<td>将选中内容管道输出</td>\n</tr>\n<tr>\n<td><code>pipe-command-output</code></td>\n<td>将命令输出管道输送到外部命令</td>\n</tr>\n<tr>\n<td><code>show-urls-copy</code></td>\n<td>URL 模式：复制而非打开</td>\n</tr>\n<tr>\n<td><code>show-urls-persistent</code></td>\n<td>URL 模式：持久模式</td>\n</tr>\n<tr>\n<td><code>regex-launch</code></td>\n<td>正则匹配并打开</td>\n</tr>\n<tr>\n<td><code>regex-copy</code></td>\n<td>正则匹配并复制</td>\n</tr>\n<tr>\n<td><code>color-theme-switch-dark/light</code></td>\n<td>切换配色方案</td>\n</tr>\n<tr>\n<td><code>color-theme-toggle</code></td>\n<td>切换配色（双方案间）</td>\n</tr>\n<tr>\n<td><code>quit</code></td>\n<td>退出终端</td>\n</tr>\n<tr>\n<td><code>noop</code></td>\n<td>空操作（用于覆盖不需要的默认绑定）</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-12\">配置文件位置与重载</h2>\n<pre><code># 主配置文件\n~/.config/foot/foot.ini\n\n# 验证配置\nfoot --check-config\n\n# 指定配置启动一个新实例\nfoot --config ~/.config/foot/foot.ini</code></pre>\n<p>一般配置改动应由新实例读取，server 模式还涉及 server 的配置生命周期。<code>SIGUSR1</code> / <code>SIGUSR2</code> 在 Foot 1.28 中切换深色/浅色方案，不是通用配置重载信号。不要向所有 Foot 进程发送信号来尝试“刷新”。</p>\n<h3 id=\"section-13\">NixOS / Home Manager 管理</h3>\n<pre><code># Home Manager\nprograms.foot = {\n  enable = true;\n  settings = {\n    main = {\n      font = &quot;Iosevka:size=11&quot;;\n      shell = &quot;fish&quot;;\n    };\n    key-bindings = {\n      scrollback-up-line = &quot;Control+Shift+Up&quot;;\n      scrollback-down-line = &quot;Control+Shift+Down&quot;;\n    };\n  };\n};</code></pre>\n<hr>\n<h2 id=\"section-14\">小技巧</h2>\n<p><strong>自定义单行滚屏</strong>（默认只有翻页）：</p>\n<pre><code>[key-bindings]\nscrollback-up-line=Control+Shift+Up\nscrollback-down-line=Control+Shift+Down</code></pre>\n<p><strong>把 Alt 键当 Meta 用</strong>（默认行为，发 ESC 前缀）：</p>\n<pre><code>[key-bindings]\n# Alt+h → 发送 ESC+h 序列（vim/nvim 中即识别为 Meta+h）\n# 这是默认行为，无需配置</code></pre>\n<p><strong>全屏切换</strong>：</p>\n<pre><code>[key-bindings]\nfullscreen=F11</code></pre>\n<hr>\n",
+  "refs": [
+    [
+      "Foot 上游仓库与手册",
+      "https://codeberg.org/dnkl/foot"
+    ],
+    [
+      "Foot 1.28 配置手册",
+      "https://codeberg.org/dnkl/foot/src/tag/1.28.0/doc/foot.ini.5.scd"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "terminal",
+    "foot",
+    "wayland"
+  ]
+}

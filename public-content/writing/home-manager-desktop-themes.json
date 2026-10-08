@@ -1,0 +1,60 @@
+{
+  "slug": "home-manager-desktop-themes",
+  "number": "035",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Home Manager 桌面与主题配置",
+  "deck": "明确系统会话与用户外观的分工，配置 Hyprland、Plasma 和 GTK。",
+  "sections": [
+    [
+      "section-01",
+      "架构分工：系统层 vs 用户层"
+    ],
+    [
+      "section-02",
+      "实战：Hyprland 配置 (声明式)"
+    ],
+    [
+      "section-03",
+      "样式统一：KDE Plasma"
+    ],
+    [
+      "section-04",
+      "字体与主题 (GTK/Qt)"
+    ],
+    [
+      "section-05",
+      "进阶建议"
+    ],
+    [
+      "section-06",
+      "模块与版本前提"
+    ]
+  ],
+  "body": "<hr>\n<h2 id=\"section-01\">架构分工：系统层 vs 用户层</h2>\n<ul>\n<li><strong>系统层 (NixOS)</strong>：负责安装基础包、开启显示管理器 (SDDM/GDM)、加载驱动。</li>\n<li><strong>用户层 (Home Manager)</strong>：负责设置壁纸、桌面快捷键、字体大小、任务栏布局。</li>\n</ul>\n<hr>\n<h2 id=\"section-02\">实战：Hyprland 配置 (声明式)</h2>\n<p>在 NixOS，你甚至不需要手动修改 <code>hyprland.conf</code>。</p>\n<pre><code>{\n  wayland.windowManager.hyprland = {\n    enable = true;\n    settings = {\n      # 这里就是原生的 hyprland 配置，只不过写成了 Nix 语法\n      monitor = &quot;,preferred,auto,auto&quot;;\n      &quot;$mod&quot; = &quot;SUPER&quot;;\n      bind = [\n        &quot;$mod, RETURN, exec, kitty&quot;\n        &quot;$mod, Q, killactive&quot;\n      ];\n      decoration = {\n        rounding = 10;\n        blur.enabled = true;\n      };\n    };\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-03\">样式统一：KDE Plasma</h2>\n<p>KDE 配置非常繁琐。如果你想把所有设置都纳入 Nix，可以使用 <a href=\"https://github.com/nix-community/plasma-manager\" target=\"_blank\" rel=\"noopener noreferrer\">plasma-manager</a>。</p>\n<pre><code># 先在 Flake 输入中引入 plasma-manager，\n# 并将 inputs.plasma-manager.homeManagerModules.plasma-manager 加入 HM imports/modules。\n# 在 home.nix 中：\n{\n  programs.plasma = {\n    enable = true;\n    workspace = {\n      theme = &quot;breeze-dark&quot;;\n      lookAndFeel = &quot;org.kde.breezedark.desktop&quot;;\n    };\n    panels = [\n      {\n        location = &quot;bottom&quot;;\n        height = 36;\n        widgets = [\n          &quot;org.kde.plasma.kickoff&quot;\n          &quot;org.kde.plasma.icontasks&quot;\n          &quot;org.kde.plasma.systemtray&quot;\n          &quot;org.kde.plasma.digitalclock&quot;\n        ];\n      }\n    ];\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-04\">字体与主题 (GTK/Qt)</h2>\n<p>统一 GTK 和 Qt 的外观是非常重要的。</p>\n<pre><code>{ pkgs, ... }: {\n  gtk = {\n    enable = true;\n    theme = {\n      name = &quot;Adwaita-dark&quot;;\n      package = pkgs.gnome-themes-extra;\n    };\n    cursorTheme = {\n      name = &quot;Adwaita&quot;;\n      package = pkgs.adwaita-icon-theme;\n    };\n  };\n\n  qt = {\n    enable = true;\n    platformTheme.name = &quot;gtk&quot;;\n    style.name = &quot;adwaita-dark&quot;;\n  };\n}</code></pre>\n<hr>\n<h2 id=\"section-05\">进阶建议</h2>\n<p>不要在这个阶段过于沉迷于配置每一个像素。建议先搭建一个可用的环境，然后在日常使用中逐步把各项设置“Nix 化”。</p>\n<h2 id=\"section-06\">模块与版本前提</h2>\n<p>Home Manager 的 Hyprland 配置不能替代系统的会话、权限和 portal 配置。桌面主题示例需按锁定的 Home Manager、Hyprland 和 plasma-manager 版本核验；GTK/Qt 的显示效果也需在实际会话中检查。</p>\n",
+  "refs": [
+    [
+      "Home Manager 手册",
+      "https://nix-community.github.io/home-manager/"
+    ],
+    [
+      "Home Manager 命令源码",
+      "https://github.com/nix-community/home-manager/blob/master/home-manager/home-manager"
+    ],
+    [
+      "Home Manager 文件选项源码",
+      "https://github.com/nix-community/home-manager/blob/master/modules/lib/file-type.nix"
+    ],
+    [
+      "plasma-manager 上游",
+      "https://github.com/nix-community/plasma-manager"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "home-manager"
+  ]
+}

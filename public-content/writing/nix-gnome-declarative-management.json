@@ -1,0 +1,69 @@
+{
+  "slug": "nix-gnome-declarative-management",
+  "number": "075",
+  "category": "LINUX / SYSTEMS",
+  "title": "GNOME 的声明式桌面管理",
+  "deck": "用模块分组组织桌面、登录、主题和输入法的配置责任。",
+  "sections": [
+    [
+      "section-01",
+      "声明式启用"
+    ],
+    [
+      "section-02",
+      "模块分组开关（services.gnome.*）"
+    ],
+    [
+      "section-03",
+      "GDM 与现有登录架构"
+    ],
+    [
+      "section-04",
+      "主题统一管理"
+    ],
+    [
+      "section-05",
+      "输入法（fcitx5）"
+    ],
+    [
+      "section-06",
+      "分组设计的实际价值"
+    ],
+    [
+      "section-07",
+      "关联"
+    ]
+  ],
+  "body": "<blockquote>\n<p>核验范围：2026 年 10 月查询的 nixpkgs <code>nixos-unstable</code> 模块与上游文档。分组列表、包数和服务默认值会随 revision 改变；部署时应以项目锁定的 nixpkgs 和 Home Manager 源码为准。本文没有构建、激活或桌面运行测试。</p>\n</blockquote>\n<h2 id=\"section-01\">声明式启用</h2>\n<pre><code>services.desktopManager.gnome.enable = true;\nservices.displayManager.gdm.enable = true;</code></pre>\n<p>但这组声明背后是一整套<strong>分组开关</strong>——GNOME 在 NixOS 里被拆成了可独立开关的包组。</p>\n<h2 id=\"section-02\">模块分组开关（services.gnome.*）</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">开关</th>\n<th scope=\"col\">默认</th>\n<th scope=\"col\">管什么</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>core-os-services</code></td>\n<td>强制 true</td>\n<td>服务底座：dconf、polkit、accounts-daemon、NetworkManager、xdg portal、power-profiles</td>\n</tr>\n<tr>\n<td><code>core-shell</code></td>\n<td>强制 true</td>\n<td>GNOME Shell 本体：gnome-session + gnome-shell（systemd 单元）、control-center、settings-daemon</td>\n</tr>\n<tr>\n<td><code>core-apps</code></td>\n<td>true</td>\n<td>默认应用套件（例如：nautilus、epiphany、calculator、weather、console…）</td>\n</tr>\n<tr>\n<td><code>games</code></td>\n<td>false</td>\n<td>小游戏（扫雷、数独、国际象棋…）</td>\n</tr>\n<tr>\n<td><code>core-developer-tools</code></td>\n<td>false</td>\n<td>开发者工具（gnome-builder、dconf-editor、sysprof…）</td>\n</tr>\n</tbody></table></div>\n<p>所以：</p>\n<ul>\n<li><strong>极简 GNOME</strong> = <code>core-apps.enable = false</code> + exclude <code>gnome-tour</code>/<code>gnome-user-docs</code>（这俩在 core-shell optionalPackages，不在 core-apps）</li>\n<li><strong>较完整的 GNOME</strong> = 启用 core-apps 与所需开发工具/游戏（games 可按需保持关闭）</li>\n</ul>\n<blockquote>\n<p>webkitgtk 大包\ncore-apps 里的 Epiphany（浏览器）依赖 webkitgtk——一个巨大的包，首次构建/下载很慢。极简配置省掉它；全量要接受这个代价。</p>\n</blockquote>\n<h2 id=\"section-03\">GDM 与现有登录架构</h2>\n<ul>\n<li>GDM 默认 Wayland，<strong>GNOME 50 起不可禁用 Wayland</strong>（选项被移除）</li>\n<li>GDM 与 kmscon <strong>不硬冲突</strong>：当前 nixpkgs 里 GDM 启用时 kmscon 自动不占 tty1（模块 <code>mkIf (!displayManager.enable)</code>）</li>\n<li>GDM 读取已注册的 <code>wayland-sessions/*.desktop</code>；Hyprland、niri 等模块提供 sessionPackages 时，才会出现在登录屏。安装单个二进制不保证注册会话。</li>\n<li>可用 specialisation 划分系统变体（见 <a href=\"/writing/nix-gnome-specialisation/\">NixOS Specialisation 系统变体</a>），kmscon 主流程不动</li>\n</ul>\n<h2 id=\"section-04\">主题统一管理</h2>\n<p>主题包、dconf 设置和深色模式调度需要明确的配置所有权，避免桌面模块、Home Manager 与外部调度程序反复写同一个键。例如：</p>\n<ul>\n<li><code>home/theme.nix</code> 统一管理 GTK 主题、图标和光标包，并声明需要在 activation 写入的 dconf 键。</li>\n<li>若使用 Noctalia 等调度器在运行时切换深色模式，应明确由它负责 <code>color-scheme</code>，或接受后续 Home Manager activation 会重新写回声明值。</li>\n<li>GNOME specialisation 若继承同一 Home Manager profile，可以共享主题；用户 HOME 和 dconf 状态也仍然共享。</li>\n</ul>\n<p>这样多桌面配置能复用主题声明，同时知道每次设置改变由哪一层触发。</p>\n<h2 id=\"section-05\">输入法（fcitx5）</h2>\n<ul>\n<li>GNOME Wayland 走 text-input-v3，<strong>不要设 <code>GTK_IM_MODULE</code></strong>（官方建议，GTK 用原生协议）；旧版 Qt 或不能用原生协议的应用使用 <code>QT_IM_MODULE=fcitx</code>；新版 Qt 的协议支持要按实际版本核对，XWayland 使用 <code>XMODIFIERS=@im=fcitx</code></li>\n<li>部分工具包/输入法模块路径的候选窗定位受 GNOME Shell 限制，可使用 <strong>kimpanel 扩展</strong>（<code>pkgs.gnomeExtensions.kimpanel</code>，装完在 Extensions 应用手动启用）</li>\n<li>GNOME 模块默认 <code>i18n.inputMethod.type = mkDefault &quot;ibus&quot;</code>，你显式写 <code>&quot;fcitx5&quot;</code> 会胜出</li>\n</ul>\n<h2 id=\"section-06\">分组设计的实际价值</h2>\n<p>GNOME 的桌面入口、服务模块和应用列表分开声明，可以按需求安装默认应用、开发工具或扩展。模块化方便追踪配置所有权和依赖，但不证明某个桌面一定比其他桌面更稳定。比较 GNOME、COSMIC 或其他桌面时，应记录具体版本、登录路径、功能需求和运行证据，而不是从仓库组织方式直接推断稳定性。</p>\n<h2 id=\"section-07\">关联</h2>\n<ul>\n<li><a href=\"/writing/nix-gnome-gsettings-dconf/\">NixOS GSettings 与 dconf 设置管理</a> — 设置的持久化</li>\n<li><a href=\"/writing/nix-gnome-specialisation/\">NixOS Specialisation 系统变体</a> — GNOME 以变体形式存在</li>\n</ul>\n",
+  "refs": [
+    [
+      "Nixpkgs GNOME 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/desktop-managers/gnome.nix"
+    ],
+    [
+      "Nixpkgs GNOME 文档",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/desktop-managers/gnome.md"
+    ],
+    [
+      "Fcitx Wayland 官方说明",
+      "https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland"
+    ],
+    [
+      "GDM 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/display-managers/gdm.nix"
+    ],
+    [
+      "kmscon 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/ttys/kmscon.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos",
+    "gnome"
+  ]
+}

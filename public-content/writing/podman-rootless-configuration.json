@@ -1,0 +1,52 @@
+{
+  "slug": "podman-rootless-configuration",
+  "number": "121",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Rootless 配置：映射、ICMP 与注册表",
+  "deck": "在已有权限边界文章基础上，补充管理员配置和 rootless 环境条件。",
+  "sections": [
+    [
+      "section-01",
+      "subordinate ID 的分配与变更"
+    ],
+    [
+      "section-02",
+      "低端口与 ICMP 的系统政策"
+    ],
+    [
+      "section-03",
+      "用户级存储和注册表配置"
+    ],
+    [
+      "section-04",
+      "何时需要 rootful 与额外能力"
+    ]
+  ],
+  "body": "<p>先阅读 <a href=\"/writing/podman-rootless-boundaries/\">Rootless 的权限边界</a>，理解 UID 翻译、挂载权限、存储和发布端口。本文保留进一步配置与特殊操作的细节。</p>\n<h2 id=\"section-01\">subordinate ID 的分配与变更</h2>\n<p><code>/etc/subuid</code> 与 <code>/etc/subgid</code> 授权用户使用额外 UID/GID；<code>newuidmap/newgidmap</code> 辅助设置命名空间。范围必须由管理员确认没有冲突，不能把一个固定区间视为通用答案。</p>\n<pre><code># 只读检查；把 user 换为实际用户名\ncat /etc/subuid\ncat /etc/subgid\n# 示意记录：user:100000:65536\n\n# 仅供非声明式发行版管理员在确认未重叠范围后使用\nsudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 user\n# 两项也可以分别设置\nsudo usermod --add-subuids 100000-165535 user\nsudo usermod --add-subgids 100000-165535 user</code></pre>\n<p>显式 <code>usermod --add-*</code> 是人工分配，不是自动分配；不必用 <code>touch</code> 创建文件来掩盖缺失的系统配置。改变已使用范围可能影响现有存储文件归属和长存命名空间，重新登录不保证完整迁移；维护时按所装版本查 <code>podman system migrate</code> 的影响并备份数据。NixOS 应声明 <code>subUidRanges</code>、<code>subGidRanges</code> 或合适的自动分配选项，不能直接修改受管理文件。没有 subordinate ID 时某些单 UID 情况仍可能运行，但多用户镜像解包或身份切换可失败，具体以错误阶段为准。</p>\n<h2 id=\"section-02\">低端口与 ICMP 的系统政策</h2>\n<p>低端口边界受系统配置影响，不能一律写成普通用户禁止 1024 以下端口：</p>\n<pre><code># 查询\nsysctl net.ipv4.ip_unprivileged_port_start\nsysctl net.ipv4.ping_group_range\n\n# 先用明确的高端口和 loopback 发布\npodman run -p 127.0.0.1:8080:80 docker.io/library/nginx:alpine\n\n# 以下会改变系统政策，只供管理员评估后在可变系统使用\nsudo sysctl net.ipv4.ip_unprivileged_port_start=80\n# 仅放行已确认的实际组 ID 范围，而不是所有组\nsudo sysctl net.ipv4.ping_group_range=&quot;1000 1000&quot;</code></pre>\n<p>ICMP 报错还可能来自容器没有 ping、user namespace、网络后端或过滤策略。原始 socket 权限与允许 ping socket 的组范围不同；不要仅凭 ping 失败断言应用网络断开。放宽低端口或 ping 组是全系统政策，NixOS 用 <code>boot.kernel.sysctl</code> 表达并保持管理员授权边界。示例组号需替换为实际授权组，不能直接照搬。</p>\n<h2 id=\"section-03\">用户级存储和注册表配置</h2>\n<pre><code># ~/.config/containers/storage.conf；不复制他人的固定 UID 路径\n[storage]\ndriver = &quot;overlay&quot;\n# runroot/graphroot 通常先保留工具推导的默认值\n\n# 仅在确认底层文件系统/驱动支持相应配额后考虑：\n# [storage.options.overlay]\n# size = &quot;20G&quot;</code></pre>\n<p>overlay 是驱动名，fuse-overlayfs 可能是其 mount_program；不能把二者简单列为两个驱动。<code>size</code> 不是全局镜像、卷和所有容器共用的 20GB 限额，依驱动和文件系统的配额能力决定。已有存储迁移、NFS home 与根目录调整的边界见权限文章。</p>\n<pre><code># ~/.config/containers/registries.conf\nunqualified-search-registries = [&quot;docker.io&quot;, &quot;ghcr.io&quot;]\n\n[[registry]]\nprefix = &quot;docker.io&quot;\nlocation = &quot;docker.io&quot;</code></pre>\n<p>搜索列表决定未限定短名的查找，prefix/location 可用于注册表映射；配置镜像源需要验证来源、认证和可用性。教程优先使用完整镜像名，避免不同机器搜索顺序造成结果差异。没有公开任何商业订阅或私人镜像源。</p>\n<h2 id=\"section-04\">何时需要 rootful 与额外能力</h2>\n<p>低端口政策不可改变、特定设备/内核功能或不支持 rootless 的工作流可能需要管理员级运行；并非给 rootless 容器加 <code>SYS_ADMIN</code> 就能获得宿主 root 权限。加载宿主内核模块应由宿主管理员完成，不宜为了方便交给普通容器。</p>\n<pre><code># 仅在确有需求并确认端口与授权后，管理员使用 rootful 存储视图\nsudo podman run -p 127.0.0.1:8080:80 docker.io/library/nginx:alpine\n# 当前用户与 root 分别管理不同资源\npodman ps\nsudo podman ps</code></pre>\n<p>rootless 容器也能读取或破坏已授权的个人文件。不要用挂载整个 <code>/</code> 并读取 <code>/etc/shadow</code> 的演示来验证安全；查询 rootless 标志、实际 userns 映射与受限演示目录更合适。</p>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "Podman system migrate",
+      "https://docs.podman.io/en/stable/markdown/podman-system-migrate.1.html"
+    ],
+    [
+      "containers/storage 配置",
+      "https://github.com/containers/storage/blob/main/docs/containers-storage.conf.5.md"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers"
+  ]
+}

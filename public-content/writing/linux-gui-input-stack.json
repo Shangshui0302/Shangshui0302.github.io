@@ -1,0 +1,54 @@
+{
+  "slug": "linux-gui-input-stack",
+  "number": "051",
+  "category": "LINUX / SYSTEMS",
+  "title": "一个候选框，经过了哪些层？",
+  "deck": "把工具包、窗口协议、合成器、Shell 和 Fcitx5 的通信与绘制责任分开。",
+  "sections": [
+    [
+      "section-01",
+      "Qt、GTK 与显示协议负责不同层"
+    ],
+    [
+      "section-02",
+      "输入法的通信路径与候选框"
+    ],
+    [
+      "section-03",
+      "环境变量要和具体应用匹配"
+    ],
+    [
+      "section-04",
+      "合成器、桌面 Shell 与状态栏"
+    ],
+    [
+      "section-05",
+      "应用渲染路线与性能判断"
+    ],
+    [
+      "section-06",
+      "按层定位外观和输入问题"
+    ]
+  ],
+  "body": "<p>桌面、工具包、合成器与输入法都会影响最终看到的窗口。排查时先确定消息经过哪条路径，再判断某个外观由谁绘制，避免把所有问题归结为“换一个主题”。</p>\n<h2 id=\"section-01\">Qt、GTK 与显示协议负责不同层</h2>\n<p>Qt 和 GTK 是应用工具包，负责控件、事件与应用接口。Wayland 和 X11 是窗口系统的协议与机制；同一个工具包可以选择不同显示后端。Qt 程序不等于 X11 程序，GTK 程序也不等于某个桌面环境的一部分。</p>\n<pre><code>应用 → 工具包 / 渲染框架 → Wayland 客户端或 X11 客户端\n                           ↓\n                  合成器 / X server → 输出设备</code></pre>\n<p>XWayland 为 Wayland 会话中的 X11 应用提供兼容。进程处在 Wayland 会话中，不证明那个窗口正在使用原生 Wayland 后端。先核对窗口实际后端，再解释环境变量为什么生效或没有生效。</p>\n<h2 id=\"section-02\">输入法的通信路径与候选框</h2>\n<p>输入引擎负责把输入转换成候选；前端负责把应用、工具包或合成器的输入协议接入 Fcitx5；用户界面再呈现候选与状态。Rime、拼音等引擎和候选窗主题不是同一层。</p>\n<pre><code>按键 / 文本输入上下文 ↔ 前端协议 ↔ Fcitx5 核心与输入引擎\n                                      ↓\n                              候选列表与界面实现</code></pre>\n<p>应用可以通过 GTK / Qt 输入法模块与 Fcitx5 通信，也可以通过 Wayland text-input，由合成器衔接输入法。原笔记中“Wayland 原生输入一定由应用自己绘制候选框”的判断过于绝对：协议路径与候选面板实现必须分别确认。Classic UI、面板集成和回退路径会受环境支持影响；不能只凭 Qt6、GTK4 或终端名称断言主题必然可用或必然失效。</p>\n<h2 id=\"section-03\">环境变量要和具体应用匹配</h2>\n<p><code>XMODIFIERS</code> 主要涉及 X11 / XWayland；<code>GTK_IM_MODULE</code> 与 <code>QT_IM_MODULE</code> 影响对应工具包的选择。它们不是“设置越多越兼容”。强制输入法模块可能绕过原本希望使用的 Wayland text-input 路径，也可能用于不支持该路径的特定程序。</p>\n<p>KDE Plasma、GNOME 与 wlroots 类合成器对输入法协议的支持并不一致。Qt 版本、应用是否捆绑输入法模块、XWayland 是否开启，也会改变结果。按 Fcitx5 上游的应用/合成器矩阵选择设置；对特殊程序局部覆盖，避免未经确认把整组变量全局写入。</p>\n<p>排查时记录应用版本、显示后端、工具包版本、合成器、相关环境变量与 Fcitx5 日志。随后在同一环境中比较一个可用应用和一个异常应用，缩小差异。</p>\n<h2 id=\"section-04\">合成器、桌面 Shell 与状态栏</h2>\n<p>Hyprland、Niri 主要负责窗口管理、输入、输出布局和合成。桌面 Shell 提供面板、启动器、通知与控制中心等界面。Quickshell 是可用来实现这些界面的框架，不能把它与某个具体 Shell 视为同一产品。</p>\n<p>Noctalia、DMS、Waybar 与完整桌面各有职责和集成方式。Waybar 主要是状态栏；Quickshell 让开发者定义界面和逻辑；KDE Plasma / GNOME 提供较完整的桌面协作。它们不是必须依次升级的等级，也不天然保证某一种组合更快。</p>\n<h2 id=\"section-05\">应用渲染路线与性能判断</h2>\n<p>Qt / GTK、Electron、Flutter 等框架在控件、渲染和系统集成上有不同选择。应用最终仍要通过窗口系统呈现。不能画成“应用依次经过桌面 Shell 才进入 GPU”的单一路径；Shell 本身也是参与桌面合成的客户端或桌面组件。</p>\n<p>性能要看进程、帧耗时、资源和实际交互。一个静态界面是否节省内存，不能仅由“原生”或“GPU UI”标签推导；模糊、动画、图片解码和刷新频率都可能改变负载。</p>\n<h2 id=\"section-06\">按层定位外观和输入问题</h2>\n<ol>\n<li>确认程序正在运行的显示后端与版本，而不是只看会话名称。</li>\n<li>核对输入法引擎是否产生候选、应用是否收到预编辑和提交文本。</li>\n<li>确认候选面板由哪套 UI 实现呈现，再检查它的主题、字体与缩放。</li>\n<li>核对合成器协议与工具包输入法模块，最后处理特定应用回退。</li>\n<li>每次只改一层，用相同输入复现，保留可逆配置与日志。</li>\n</ol>\n<p>进一步学习可沿 Wayland text-input、工具包输入上下文、合成器 input-method 支持、Rime 引擎和 QML 界面分别展开。先分清接口，再决定应当修改哪份配置。</p>\n",
+  "refs": [
+    [
+      "Fcitx5：Wayland 应用与合成器支持",
+      "https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland"
+    ],
+    [
+      "Wayland 架构",
+      "https://wayland.freedesktop.org/architecture.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "wayland",
+    "fcitx5",
+    "desktop"
+  ]
+}

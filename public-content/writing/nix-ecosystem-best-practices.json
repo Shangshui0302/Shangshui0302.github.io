@@ -1,0 +1,68 @@
+{
+  "slug": "nix-ecosystem-best-practices",
+  "number": "087",
+  "category": "LINUX / SYSTEMS",
+  "title": "NixOS 配置组织、维护与排错实践",
+  "deck": "保留版本管理、模块组织、更新备份、安全开发和故障恢复的完整工作清单。",
+  "sections": [
+    [
+      "section-01",
+      "1. 版本管理"
+    ],
+    [
+      "section-04",
+      "2. 配置组织"
+    ],
+    [
+      "section-07",
+      "3. 日常维护"
+    ],
+    [
+      "section-11",
+      "4. 安全建议"
+    ],
+    [
+      "section-12",
+      "5. 开发环境"
+    ],
+    [
+      "section-15",
+      "6. 性能优化"
+    ],
+    [
+      "section-16",
+      "7. 故障排查"
+    ],
+    [
+      "section-20",
+      "8. 推荐工具"
+    ],
+    [
+      "section-21",
+      "9. 学习资源"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">1. 版本管理</h2>\n<p>版本范围：原笔记示例围绕 NixOS 24.05、Python 3.11、Node 20 等版本编写。下面保留历史 pin 便于理解；24.05 不应被当作当前安全受支持分支。迁移时选择仍受支持的输入并评估锁定源码和选项变更。</p>\n<h3 id=\"section-02\">固定 Nixpkgs 版本</h3>\n<p>避免配置漂移，确保可复现性：</p>\n<pre><code># 使用 flake.nix（推荐）\n{\n  inputs = {\n    nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-24.05&quot;;\n  };\n  # ...\n}\n\n# 固定 commit 可在 flake input 中指定具体修订，并提交 flake.lock。\n# autoUpgrade 是自动应用更新的独立选择，不是固定版本的方法。\n{\n  system.autoUpgrade = {\n    enable = true;\n    flake = &quot;/etc/nixos&quot;;\n    flags = [ &quot;--update-input&quot; &quot;nixpkgs&quot; ]; # 兼容旧 CLI；核对本机版本\n    allowReboot = false;\n  };\n}</code></pre>\n<h3 id=\"section-03\">启用 Flakes</h3>\n<pre><code>{ pkgs, ... }: {\n# 在 configuration.nix 中添加\nnix = {\n  package = pkgs.nixVersions.stable;\n  extraOptions = &#39;&#39;\n    experimental-features = nix-command flakes\n  &#39;&#39;;\n};\n}</code></pre>\n<h2 id=\"section-04\">2. 配置组织</h2>\n<h3 id=\"section-05\">推荐目录结构</h3>\n<pre><code>~/.config/nixos/\n├── flake.nix              # Flake 入口\n├── flake.lock             # 锁定文件\n├── hosts/\n│   ├── desktop/           # 桌面主机\n│   │   └── default.nix\n│   └── server/            # 服务器主机\n│       └── default.nix\n├── modules/\n│   ├── common/            # 通用模块\n│   ├── desktop/           # 桌面环境\n│   ├── development/       # 开发环境\n│   └── services/          # 服务配置\n└── pkgs/                  # 自定义包</code></pre>\n<h3 id=\"section-06\">模块化示例</h3>\n<pre><code># modules/desktop/gnome.nix\n{ config, lib, pkgs, ... }:\n\n{\n  options.my.desktop.gnome.enable = lib.mkEnableOption &quot;GNOME desktop&quot;;\n  \n  config = lib.mkIf config.my.desktop.gnome.enable {\n    services.xserver.enable = true;\n    services.displayManager.gdm.enable = true;\n    services.desktopManager.gnome.enable = true;\n    \n    environment.systemPackages = with pkgs; [\n      gnome-tweaks\n      gnomeExtensions.dash-to-dock\n    ];\n  };\n}</code></pre>\n<h2 id=\"section-07\">3. 日常维护</h2>\n<h3 id=\"section-08\">系统更新</h3>\n<pre><code># 更新 Flake 锁定\nnix flake update\n\n# 先做求值与构建检查\nnix flake check --no-build\nnixos-rebuild build --flake .#workstation\n# 确認目标并准备好回滚后，再实际激活\nsudo nixos-rebuild switch --flake .#workstation\n\n# 或者直接更新 channel\nsudo nix-channel --update\nsudo nixos-rebuild switch --upgrade</code></pre>\n<h3 id=\"section-09\">磁盘清理</h3>\n<pre><code># 先检查历史；-d 删除找到的所有旧世代，不会保留最近三代\nnix-env --profile /nix/var/nix/profiles/system --list-generations\n# 如确认只保留各 profile 当前世代，才考虑：\n# sudo nix-collect-garbage -d\n\n# 删除特定版本之前的所有版本\nsudo nix-collect-garbage --delete-older-than 30d\n\n# 优化存储（去重）\nnix store optimise</code></pre>\n<h3 id=\"section-10\">备份策略</h3>\n<pre><code>{ pkgs, ... }: {\n# 在 configuration.nix 中启用自动备份\nservices.borgbackup.jobs.homeBackup = {\n  paths = [ &quot;/home&quot; ];\n  exclude = [ &quot;*/Downloads&quot; &quot;*/.cache&quot; ];\n  repo = &quot;/backup/borg&quot;;\n  compression = &quot;auto,zstd&quot;;\n  startAt = &quot;daily&quot;;\n};\n}</code></pre>\n<h2 id=\"section-11\">4. 安全建议</h2>\n<pre><code>{\n  # 启用防火墙\n  networking.firewall.enable = true;\n  \n  # SSH 安全\n  services.openssh = {\n    enable = true;\n    settings = {\n      PermitRootLogin = &quot;no&quot;;\n      PasswordAuthentication = false;\n      KbdInteractiveAuthentication = false;\n    };\n  };\n  \n  # 自动安全更新\n  system.autoUpgrade = {\n    enable = true;\n    allowReboot = false;\n  };\n  \n  # Fail2ban\n  services.fail2ban = {\n    enable = true;\n    maxretry = 3;\n  };\n}</code></pre>\n<h2 id=\"section-12\">5. 开发环境</h2>\n<h3 id=\"section-13\">使用 direnv</h3>\n<pre><code>{ pkgs, ... }: {\n# 启用 direnv\nprograms.direnv = {\n  enable = true;\n  enableZshIntegration = true;\n  nix-direnv.enable = true;\n};\n}</code></pre>\n<h3 id=\"section-14\">项目特定的开发环境</h3>\n<pre><code># shell.nix\n{ pkgs ? import &lt;nixpkgs&gt; {} }:\n\npkgs.mkShell {\n  packages = with pkgs; [\n    nodejs_20\n    yarn\n    git\n  ];\n  \n  shellHook = &#39;&#39;\n    echo &quot;Node.js development environment loaded!&quot;\n    node --version\n  &#39;&#39;;\n}</code></pre>\n<h2 id=\"section-15\">6. 性能优化</h2>\n<pre><code>{\n  # 只启用 Btrfs 支持；压缩还需在目标 fileSystems 挂载选项设置 compress=zstd\n  boot.supportedFilesystems = [ &quot;btrfs&quot; ];\n  \n  # 垃圾回收设置\n  nix.gc = {\n    automatic = true;\n    dates = &quot;weekly&quot;;\n    options = &quot;--delete-older-than 30d&quot;;\n  };\n  \n  # 自动优化\n  nix.settings.auto-optimise-store = true;\n  \n  # 使用缓存\n  nix.settings.substituters = [\n    &quot;https://cache.nixos.org&quot;\n    &quot;https://nix-community.cachix.org&quot;\n  ];\n  # 从缓存服务的官方页面核验对应签名公钥，再写入 trusted-public-keys。\n  # 不复制未经核验或已过期的示例密钥。\n}</code></pre>\n<h2 id=\"section-16\">7. 故障排查</h2>\n<h3 id=\"section-17\">配置错误无法启动</h3>\n<pre><code># 进入前一个版本\n在启动菜单中选择之前的版本\n\n# 或者从 Live USB 修复\n# 先用 lsblk / blkid 核对实际根分区与文件系统\n# /dev/disk/by-label/ROOT 是占位，按实际布局选择并挂载引导等其他分区\nsudo mount /dev/disk/by-label/ROOT /mnt\nsudo nixos-enter\n# 修复配置\nsudo nixos-rebuild switch</code></pre>\n<h3 id=\"section-18\">清空交换空间</h3>\n<p>只有确认空闲内存足以接纳已换出的页面、没有关键负载时才停用交换；否则可能导致内存不足。它不是通用性能修复手段。</p>\n<pre><code>sudo swapoff -a\nsudo swapon -a</code></pre>\n<h3 id=\"section-19\">查看系统日志</h3>\n<pre><code># 查看启动日志\njournalctl -b\n\n# 查看特定服务日志\njournalctl -u sshd\n\n# 实时日志\njournalctl -f</code></pre>\n<h2 id=\"section-20\">8. 推荐工具</h2>\n<pre><code>{ pkgs, ... }: {\nenvironment.systemPackages = with pkgs; [\n  # 系统管理\n  fastfetch     # 系统信息；原笔记 neofetch 已停止维护\n  htop          # 进程管理\n  btop          # 系统监控\n  iotop         # IO 监控\n  \n  # 网络工具\n  nmap          # 端口扫描\n  nettools      # netstat 等\n  iperf3        # 网络测速\n  \n  # 文件管理\n  fd            # 快速文件查找\n  ripgrep       # 快速文本搜索\n  fzf           # 模糊查找\n  bat           # 增强版 cat\n  eza           # 增强版 ls；原 exa 示例的延续项目\n  \n  # 开发工具\n  git\n  vim\n  wget\n  curl\n  jq            # JSON 处理\n];\n}</code></pre>\n<h2 id=\"section-21\">9. 学习资源</h2>\n<ul>\n<li><a href=\"https://nixos.org/manual/nixos/stable/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 手册</a></li>\n<li><a href=\"https://nix.dev/\" target=\"_blank\" rel=\"noopener noreferrer\">nix.dev</a></li>\n<li><a href=\"https://nixos-cn.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS 中文社区</a></li>\n<li><a href=\"https://wiki.nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Wiki</a></li>\n<li><a href=\"https://discourse.nixos.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Discourse</a></li>\n</ul>\n<h3 id=\"section-22\">可复现、更新与备份的边界</h3>\n<p><code>flake.lock</code> 固定输入，自动更新则主动改变输入和系统状态。<code>allowReboot = false</code> 只约束自动重启，不意味着不会应用服务变更。Borg 配置还要核对仓库初始化、权限、加密和恢复演练；系统回滚不能替代 <code>/home</code> 数据备份。</p>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix GC 参数",
+      "https://nix.dev/manual/nix/2.34/command-ref/nix-collect-garbage.html"
+    ],
+    [
+      "Nixpkgs",
+      "https://github.com/NixOS/nixpkgs"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

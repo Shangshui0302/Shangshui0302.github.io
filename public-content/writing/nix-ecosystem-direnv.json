@@ -1,0 +1,48 @@
+{
+  "slug": "nix-ecosystem-direnv",
+  "number": "082",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Nix-shell、devShell 与 direnv 的递进用法",
+  "deck": "把临时工具、项目锁定环境和目录自动加载分成三个明确步骤。",
+  "sections": [
+    [
+      "section-01",
+      "️ 传统方案的痛苦"
+    ],
+    [
+      "section-02",
+      "️ 第一阶段：nix-shell"
+    ],
+    [
+      "section-03",
+      "第二阶段：Flake 驱动的 devShells"
+    ],
+    [
+      "section-04",
+      "第三阶段：Direnv 自动化"
+    ],
+    [
+      "section-07",
+      "为什么这很酷？"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">️ 传统方案的痛苦</h2>\n<p>在 Arch Linux 中，如果你为了编译一个 Python 项目安装了 <code>gcc</code>, <code>libxml2</code>, <code>libxslt</code>，这些包会留在全局环境中，直到显式移除，并可能给不同项目带来版本冲突。\n<strong>在 NixOS</strong>：你可以在项目目录下定义环境，退出后恢复外层 shell；store 内对象仍需等垃圾回收释放。</p>\n<h2 id=\"section-02\">️ 第一阶段：nix-shell</h2>\n<p>临时进入一个环境。</p>\n<pre><code>nix-shell -p python311 python311Packages.requests gcc\n# 此时你进入了一个包含这些包的子 shell\n# 退出后，这些包依然在 /nix/store，但你的 PATH 会被恢复原状</code></pre>\n<h2 id=\"section-03\">第二阶段：Flake 驱动的 devShells</h2>\n<p>在现代工作流中，我们会在项目的 <code>flake.nix</code> 里定义环境：</p>\n<pre><code>{\n  inputs.nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-unstable&quot;;\n  outputs = { self, nixpkgs, ... }:\n  let\n    pkgs = nixpkgs.legacyPackages.x86_64-linux;\n  in {\n    devShells.x86_64-linux.default = pkgs.mkShell {\n      # 运行时依赖\n      buildInputs = [ pkgs.python3 ];\n      # 构建时环境变量\n      shellHook = &#39;&#39;\n        echo &quot;欢迎进入 Python 开发环境！&quot;\n        export MY_VAR=&quot;foo&quot;\n      &#39;&#39;;\n    };\n  };\n}</code></pre>\n<p>运行 <code>nix develop</code> 即可进入。</p>\n<h2 id=\"section-04\">第三阶段：Direnv 自动化</h2>\n<p>每次手动运行 <code>nix develop</code> 很繁琐。配合 <code>direnv</code>，你只需进入目录，环境就会自动加载。</p>\n<h3 id=\"section-05\">1. 开启 direnv</h3>\n<p>在 Home Manager 中：</p>\n<pre><code>{\n  programs.direnv = {\n    enable = true;\n    nix-direnv.enable = true;\n  };\n}</code></pre>\n<h3 id=\"section-06\">2. 在项目中使用</h3>\n<p>在项目根目录创建 <code>.envrc</code>：</p>\n<pre><code>use flake</code></pre>\n<p>运行一次 <code>direnv allow</code>。下次你 <code>cd</code> 进这个目录，终端会自动提示 <code>direnv: loading...</code>，所有的工具和环境变量就全部就绪了！</p>\n<h2 id=\"section-07\">为什么这很酷？</h2>\n<ol>\n<li><strong>版本隔离</strong>：项目 A 用 Python 3.9，项目 B 用 Python 3.12，互不干扰。</li>\n<li><strong>团队同步</strong>：把 <code>flake.nix</code>、<code>flake.lock</code> 和 <code>.envrc</code> 一起交给同事，并匹配目标平台；锁定文件固定输入修订，而运行服务、外部下载和系统状态仍可能影响实际结果。</li>\n</ol>\n<h3 id=\"section-08\">授权与 shell 集成</h3>\n<p><code>direnv allow</code> 会授权当前目录的 <code>.envrc</code> 执行 shell 代码，先阅读其内容。Home Manager 配置要配合相应 shell 集成；目录切换恢复的是环境变量，不会自动停止 shellHook 启动的数据库。</p>\n",
+  "refs": [
+    [
+      "声明式 shell 教程",
+      "https://nix.dev/tutorials/first-steps/declarative-shell"
+    ],
+    [
+      "nix-direnv",
+      "https://github.com/nix-community/nix-direnv"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

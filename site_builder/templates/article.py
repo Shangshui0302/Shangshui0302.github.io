@@ -1,13 +1,20 @@
 """Paper field notes with a shared reading surface and explicit source links."""
 from html import escape as esc, unescape
+from html.parser import HTMLParser
 from math import ceil
 import re
 
 
+class ArticleMarkup(HTMLParser):
+    def handle_starttag(self, tag, attrs):
+        # Inspect markup, not code text such as systemd's OnCalendar=.
+        if tag == 'script' or any(re.fullmatch(r'on\w+', name, re.I) for name, _ in attrs):
+            raise ValueError('Executable content is not allowed')
+
+
 def render_article(post, posts, related_work, taxonomy_html='', topic_links='', continuation=''):
     body = post['body']
-    if re.search(r'<script|\son\w+\s*=', body, re.I):
-        raise ValueError('Executable content is not allowed')
+    ArticleMarkup().feed(body)
     plain = unescape(re.sub(r'<[^>]+>', '', body))
     minutes = max(1, ceil(len(re.sub(r'\s+', '', plain)) / 350))
     toc = ''.join(f'<a href="#{anchor}"><span>{i:02d}</span>{esc(label)}</a>'

@@ -1,0 +1,64 @@
+{
+  "slug": "arch-performance-maintenance",
+  "number": "060",
+  "category": "LINUX / SYSTEMS",
+  "title": "性能选择与日常维护清单",
+  "deck": "以测量选择内核、压缩交换和电源管理，并建立滚动更新后的检查流程。",
+  "sections": [
+    [
+      "section-01",
+      "内核、压缩交换与内存压力"
+    ],
+    [
+      "section-05",
+      "每周维护"
+    ],
+    [
+      "section-06",
+      "每月维护"
+    ],
+    [
+      "section-10",
+      "电源管理选择"
+    ],
+    [
+      "section-11",
+      "性能异常的排查顺序"
+    ],
+    [
+      "section-12",
+      "更新与恢复关系"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">内核、压缩交换与内存压力</h2>\n<h3 id=\"section-02\">linux-zen</h3>\n<p><code>linux-zen</code> 是偏重桌面使用体验的内核选项，收益要结合实际负载测试，不能从名称推断任何时点的调度器或保证更流畅。</p>\n<pre><code>sudo pacman -S linux-zen linux-zen-headers</code></pre>\n<p>保留已验证的备用内核，检查引导条目及 DKMS 模块对每个内核的支持。</p>\n<h3 id=\"section-03\">zram-generator</h3>\n<p>zram 把交换页压缩到内存中，适合缓解内存压力；它仍占用 CPU 和 RAM，不能提供持久存储或休眠目标。</p>\n<pre><code>sudo pacman -S zram-generator</code></pre>\n<p><code>/etc/systemd/zram-generator.conf</code> 示例：</p>\n<pre><code>[zram0]\nzram-size = min(ram / 2, 8192)\ncompression-algorithm = zstd</code></pre>\n<p>按工作负载调整大小与算法，生成配置生效后用 <code>zramctl</code>、<code>swapon --show</code> 检查。需要休眠时可保留独立磁盘交换空间。</p>\n<p>在 <code>/etc/sysctl.d/99-zram.conf</code> 中试验：</p>\n<pre><code>vm.swappiness=180</code></pre>\n<p>较高 swappiness 可让压缩交换被更积极使用，但应观察延迟、压缩比和 CPU 开销，不是所有系统都需要 180。</p>\n<h3 id=\"section-04\">systemd-oomd</h3>\n<pre><code>sudo systemctl enable --now systemd-oomd.service</code></pre>\n<p>oomd 根据 PSI 等压力信息和受管理 cgroup 策略选择终止对象，并非仅寻找“内存泄漏进程”。检查桌面会话集成及 <code>ManagedOOM*</code> 策略；被选中的应用可能丢失未保存内容。</p>\n<h2 id=\"section-05\">每周维护</h2>\n<ul>\n<li>更新前阅读 <a href=\"https://archlinux.org/news/\" target=\"_blank\" rel=\"noopener noreferrer\">Arch News</a>，然后完成 <code>sudo pacman -Syu</code>。</li>\n<li>更新内核或重要库后重启相应进程，必要时重启系统。</li>\n<li><code>paccache -r</code> 默认保留最近 <strong>3</strong> 个缓存版本；若想保留 2 个，使用 <code>sudo paccache -rk2</code>。可检查并启用 <code>paccache.timer</code>。</li>\n<li><code>systemctl --failed</code> 检查失败服务，再查看对应日志。</li>\n</ul>\n<h2 id=\"section-06\">每月维护</h2>\n<h3 id=\"section-07\">配置合并</h3>\n<p>使用 <code>pacdiff</code> 或差异工具审阅 <code>.pacnew</code>、<code>.pacsave</code>。这些文件需要把新默认值和本机必要配置合并，不能直接覆盖原文件。</p>\n<h3 id=\"section-08\">孤儿包</h3>\n<pre><code>pacman -Qdt</code></pre>\n<p>先检查哪些仍需保留；必要时调整安装原因。删除时显式选择已确认不需要的包：</p>\n<pre><code>sudo pacman -Rns &lt;CONFIRMED_ORPHAN_PACKAGE&gt;</code></pre>\n<p><code>-n</code> 让受 pacman 管理的配置不保存为 <code>.pacsave</code>，不会删除家目录下的所有配置。避免把未经检查的查询结果直接传给删除命令。</p>\n<h3 id=\"section-09\">日志空间</h3>\n<pre><code>sudo journalctl --vacuum-size=100M</code></pre>\n<p>它删除归档 journal 直到满足空间限制，活动日志不一定计入本次清理。需要保留事故调查资料时先导出相应日志，再按容量政策设置长期保留。</p>\n<h2 id=\"section-10\">电源管理选择</h2>\n<p>GNOME 的 power-profiles-daemon 和 TLP 提供不同策略。选择一个主要管理器，并核对冲突；不要禁用整个桌面电源/会话组件。</p>\n<p>TLP 方案示例：</p>\n<pre><code>sudo pacman -S tlp\nsudo systemctl enable --now tlp.service</code></pre>\n<p>是否改用 TLP，应根据耗电、休眠和硬件支持测试，而非把一个工具视为全部笔记本的默认首选。</p>\n<h2 id=\"section-11\">性能异常的排查顺序</h2>\n<pre><code>top\nsystemctl --failed\njournalctl -p 3 -xb\nsudo dmesg -W</code></pre>\n<p>先定位 CPU、内存、存储或设备错误，再改变参数。把测试前后的响应时间、功耗或负载记录下来，避免同时修改内核、交换和电源管理而无法判断原因。</p>\n<h2 id=\"section-12\">更新与恢复关系</h2>\n<pre><code>graph TD\n    Prepare[读新闻并检查恢复入口] --&gt; Update[完成 pacman -Syu]\n    Update --&gt; Config[审阅 pacnew 并检查服务]\n    Config --&gt; Verify[重启后验证内核与关键应用]\n    Verify --&gt; Maintain[按需清理缓存日志和孤儿包]</code></pre>\n",
+  "refs": [
+    [
+      "ArchWiki：System maintenance",
+      "https://wiki.archlinux.org/title/System_maintenance"
+    ],
+    [
+      "ArchWiki：Zram",
+      "https://wiki.archlinux.org/title/Zram"
+    ],
+    [
+      "ArchWiki：Systemd/oomd",
+      "https://wiki.archlinux.org/title/Systemd/oomd"
+    ],
+    [
+      "ArchWiki：Power management",
+      "https://wiki.archlinux.org/title/Power_management"
+    ],
+    [
+      "paccache(8)",
+      "https://man.archlinux.org/man/paccache.8.en"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux"
+  ]
+}

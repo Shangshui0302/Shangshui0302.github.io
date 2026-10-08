@@ -1,0 +1,69 @@
+{
+  "slug": "podman-nixos-management",
+  "number": "125",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "NixOS 上的 Podman 管理",
+  "deck": "通过系统模块、Home Manager 或 quadlet-nix 声明容器运行环境。",
+  "sections": [
+    [
+      "section-01",
+      "路径选择：三条路"
+    ],
+    [
+      "section-02",
+      "路径一：系统级 Podman（最简单）"
+    ],
+    [
+      "section-03",
+      "路径二：Home Manager Rootless Podman（推荐）"
+    ],
+    [
+      "section-08",
+      "路径三：quadlet-nix（先进，原生 Quadlet）"
+    ],
+    [
+      "section-10",
+      "NixOS 25.05 已知问题"
+    ],
+    [
+      "section-13",
+      "快速对照表"
+    ]
+  ],
+  "body": "<blockquote>\n<p>保留 NixOS 25.05 的历史问题范围，并以当前官方模块校正配置接口。实际使用前检查项目锁定的 nixpkgs、Home Manager 和 quadlet-nix revision；本篇没有评估或激活任何系统。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">路径选择：三条路</h2>\n<p>NixOS 上管理 Podman 有三条路径，复杂度递增：</p>\n<pre><code>graph TD\n    A[&quot;想在 NixOS 上用 Podman&quot;] --&gt; B{&quot;如何管理容器？&quot;}\n    B --&gt;|&quot;临时运行&quot;| C[&quot;virtualisation.podman&lt;br/&gt;系统级配置&quot;]\n    B --&gt;|&quot;持久服务&quot;| D{&quot;偏好哪种配置方式？&quot;}\n    D --&gt;|&quot;Home Manager&quot;| E[&quot;services.podman&lt;br/&gt;Home Manager 模块&quot;]\n    D --&gt;|&quot;纯 Nix 声明式&quot;| F[&quot;quadlet-nix&lt;br/&gt;第三方 Flake&quot;]</code></pre>\n<hr>\n<h2 id=\"section-02\">路径一：系统级 Podman（最简单）</h2>\n<p>直接加到 <code>configuration.nix</code>：</p>\n<pre><code>{ config, pkgs, ... }:\n\n{\n  # 启用容器支持\n  virtualisation.containers.enable = true;\n\n  virtualisation.podman = {\n    enable = true;\n    # Docker CLI 兼容（创建 docker → podman 软链接）\n    dockerCompat = true;\n    # DNS 解析\n    defaultNetwork.settings.dns_enabled = true;\n  };\n\n}</code></pre>\n<pre><code># 配置完成后先评估/构建；是否激活由管理员单独决定\nnix flake check --no-build\nnixos-rebuild dry-build --flake .#workstation\n# 激活后的独立检查\npodman --version</code></pre>\n<p>系统模块启用 Podman 并不强制 rootful：普通用户可 rootless 运行，是否需要 sudo 取决于目标工作流。podman 组不是 rootless 前提；启用系统 Docker-compatible socket 时，其组访问可能赋予 root 级管理能力，不能随意添加。</p>\n<hr>\n<h2 id=\"section-03\">路径二：Home Manager Rootless Podman（推荐）</h2>\n<h3 id=\"section-04\">2.1 系统级先启用 Podman</h3>\n<pre><code># configuration.nix\n{\n  virtualisation.containers.enable = true;\n  virtualisation.podman.enable = true;\n  virtualisation.podman.dockerCompat = true;\n  virtualisation.podman.defaultNetwork.settings.dns_enabled = true;\n\n  # 不全局重写用户PATH；由所用模块/生成unit提供程序及newuidmap等依赖\n}</code></pre>\n<h3 id=\"section-05\">2.2 用户设置</h3>\n<pre><code># 在 users.users 中\nusers.users.user = {\n  isNormalUser = true;\n  linger = true;  # ← 关键！允许用户服务在登录前启动\n  # subUidRanges/subGidRanges — 为用户分配 UID 范围（rootless 的前提）\n  subUidRanges = [{ startUid = 100000; count = 65536; }];\n  subGidRanges = [{ startGid = 100000; count = 65536; }];\n};</code></pre>\n<h3 id=\"section-06\">2.3 Home Manager 配置</h3>\n<pre><code># home.nix 或 home-manager 模块\n{ pkgs, ... }: {\n  services.podman = {\n    enable = true;\n    # 启用自动更新定时器\n    autoUpdate.enable = true;\n  };\n\n  # 声明式网络\n  services.podman.networks = {\n    webnet = {\n      driver = &quot;bridge&quot;;\n      subnet = &quot;192.0.2.0/24&quot;; # 文档示例；实际选不冲突的容器网段\n    };\n  };\n}</code></pre>\n<pre><code># standalone Home Manager先build；NixOS集成模式随系统配置构建\nhome-manager build\n# 经授权激活后另查运行时timer\nsystemctl --user status podman-auto-update.timer</code></pre>\n<h3 id=\"section-07\">2.4 声明式容器</h3>\n<pre><code>services.podman.containers = {\n  myweb = {\n    image = &quot;docker.io/library/nginx:alpine&quot;;\n    autoStart = true;\n    autoUpdate = &quot;registry&quot;;\n    ports = [ &quot;127.0.0.1:8080:80&quot; ];\n    volumes = [\n      &quot;/path/to/dedicated-data:/usr/share/nginx/html:ro,Z&quot;\n    ];\n    environment = {\n      MYVAR = &quot;hello&quot;;\n    };\n  };\n};</code></pre>\n<hr>\n<h2 id=\"section-08\">路径三：quadlet-nix（先进，原生 Quadlet）</h2>\n<p><a href=\"https://github.com/SEIAROTg/quadlet-nix\" target=\"_blank\" rel=\"noopener noreferrer\">quadlet-nix</a> 是一个 Nix Flake，把 Podman 的 Quadlet 功能映射为 Nix 声明式语法。</p>\n<h3 id=\"section-09\">基本用法</h3>\n<pre><code># flake.nix：standalone Home Manager示例；不是nixosSystem构造homeConfigurations\n{\n  inputs = {\n    nixpkgs.url = &quot;github:NixOS/nixpkgs/nixos-unstable&quot;;\n    home-manager.url = &quot;github:nix-community/home-manager&quot;;\n    home-manager.inputs.nixpkgs.follows = &quot;nixpkgs&quot;;\n    quadlet-nix.url = &quot;github:SEIAROTg/quadlet-nix&quot;;\n  };\n  outputs = { nixpkgs, home-manager, quadlet-nix, ... }: {\n    homeConfigurations.user = home-manager.lib.homeManagerConfiguration {\n      pkgs = import nixpkgs { system = &quot;x86_64-linux&quot;; };\n      modules = [\n        quadlet-nix.homeManagerModules.quadlet\n        ({ config, ... }: {\n          home.username = &quot;user&quot;;\n          home.homeDirectory = &quot;/home/user&quot;;\n          home.stateVersion = &quot;25.05&quot;; # 使用账户实际首次配置版本，不随升级随意改\n          virtualisation.quadlet = {\n            containers.echo-server = {\n              autoStart = true;\n              containerConfig = {\n                image = &quot;docker.io/mendhak/http-https-echo:31&quot;;\n                publishPorts = [ &quot;127.0.0.1:8080:8080&quot; ];\n                userns = &quot;keep-id&quot;;\n                networks = [ config.virtualisation.quadlet.networks.mynet.ref ];\n              };\n            };\n            networks.mynet.networkConfig.driver = &quot;bridge&quot;;\n            volumes.mydata = { };\n          };\n        })\n      ];\n    };\n  };\n}</code></pre>\n<p>效果：quadlet-nix 自动生成对应的 <code>.container</code>/<code>.network</code>/<code>.volume</code> Quadlet 文件，由 systemd 管理。</p>\n<hr>\n<h2 id=\"section-10\">NixOS 25.05 已知问题</h2>\n<h3 id=\"section-11\">oci-containers + podman.user 有 bug</h3>\n<p>NixOS 25.05 的 <code>virtualisation.oci-containers.containers.&lt;name&gt;.podman.user</code> 功能有已知问题（<a href=\"https://github.com/NixOS/nixpkgs/issues/410857\" target=\"_blank\" rel=\"noopener noreferrer\">nixpkgs #410857</a>）：</p>\n<ul>\n<li>systemd 服务可能报 <code>Failed with result &#39;protocol&#39;</code></li>\n<li>部分场景下容器仍以 root 运行</li>\n</ul>\n<p>该问题是 25.05 版本/场景的历史记录，不能推出当前所有 <code>oci-containers</code> rootless 都失效。先对照锁定分支的实现与问题状态；需要用户级管理时可评估 Home Manager 或 quadlet-nix，保留已有方案和恢复路径。</p>\n<h3 id=\"section-12\">卷权限问题</h3>\n<p>Rootless 容器挂载卷时，目录所有权可能出现问题：</p>\n<pre><code># 先核对容器应用UID映射和宿主目录权限\n# 可用Home Manager的systemd.user.tmpfiles.rules管理专用目录，但不替代UID映射核对</code></pre>\n<hr>\n<h2 id=\"section-13\">快速对照表</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">需求</th>\n<th scope=\"col\">用哪个路径</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>快速跑一次容器</td>\n<td><code>podman run</code>（装了就行）</td>\n</tr>\n<tr>\n<td>开发环境</td>\n<td><strong>路径一</strong> + <code>podman-compose</code></td>\n</tr>\n<tr>\n<td>稳定 rootless 容器服务</td>\n<td><strong>路径二</strong>（Home Manager <code>services.podman</code>）</td>\n</tr>\n<tr>\n<td>纯 Nix 声明式 + Quadlet 全功能</td>\n<td><strong>路径三</strong>（quadlet-nix）</td>\n</tr>\n<tr>\n<td>已经在用 Docker Compose</td>\n<td>保持 compose 文件，用 <code>podman-compose</code></td>\n</tr>\n</tbody></table></div>\n<hr>\n<hr>\n<p>系统启用模块、Home Manager配置生成、构建、激活与实际容器行为是不同验证层。示例假定宿主已提供 user namespace/newuidmap 条件；独立 Home Manager不能替代所有系统前置。subUID/GID范围须检查冲突，已有存储迁移不要直接换范围；linger只在需登录前运行时设置。当前 Home Manager Podman模块可生成Quadlet资源，因此不要把“Home Manager”与“Quadlet”当作永远互斥的架构。生成服务名以实际产物为准。以上没有自动执行switch或容器部署。</p>\n<p>当前上游 Home Manager 的 autoUpdate 服务还会在更新后执行 image prune -f；启用前检查锁定版本生成的 ExecStart/ExecStartPost、定时周期和镜像保留需求。</p>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "NixOS 25.05 Podman模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-25.05/nixos/modules/virtualisation/podman/default.nix"
+    ],
+    [
+      "Home Manager Podman模块",
+      "https://github.com/nix-community/home-manager/tree/master/modules/services/podman"
+    ],
+    [
+      "quadlet-nix 官方说明",
+      "https://github.com/SEIAROTg/quadlet-nix"
+    ],
+    [
+      "NixOS 25.05历史问题",
+      "https://github.com/NixOS/nixpkgs/issues/410857"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers",
+    "nixos"
+  ]
+}

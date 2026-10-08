@@ -1,0 +1,54 @@
+{
+  "slug": "hyprland-special-workspaces",
+  "number": "052",
+  "category": "LINUX / SYSTEMS",
+  "title": "Hyprland 特殊工作区：给窗口一只抽屉",
+  "deck": "把切换、启动和窗口匹配分开，完整配置多组命名特殊工作区。",
+  "sections": [
+    [
+      "section-01",
+      "先给抽屉一个名字，再绑定显示动作"
+    ],
+    [
+      "section-02",
+      "把已有窗口送入指定工作区"
+    ],
+    [
+      "section-03",
+      "会话启动时，把应用放进去"
+    ],
+    [
+      "section-04",
+      "用窗口规则覆盖以后重新打开的实例"
+    ],
+    [
+      "section-05",
+      "分三步验证，不把问题堆到一起"
+    ]
+  ],
+  "body": "<p>特殊工作区可以像抽屉一样，在当前普通工作区上方显示或收起一组窗口。它不是暂停进程、权限隔离或另一套桌面会话：隐藏之后，应用仍然运行。</p>\n<p>本篇根据 Ed 的特殊工作区教程重新整理，去除网页导航与个人信息，并以 Hyprland 0.54 的版本化文档校对旧式 Hyprlang 示例。上游后续配置接口会变化，使用其他版本时先核对对应版本文档，不混用 Lua 配置和这里的 Hyprlang 语法。</p>\n<h2 id=\"section-01\">先给抽屉一个名字，再绑定显示动作</h2>\n<p>命名使多个特殊工作区彼此独立。快捷键触发 <code>togglespecialworkspace</code>，其参数是名称本身，不加 <code>special:</code> 前缀。</p>\n<pre><code># Hyprland 0.54 / Hyprlang 示例\nbind = ALT, X, togglespecialworkspace, chat\nbind = ALT, E, togglespecialworkspace, mail\nbind = ALT, B, togglespecialworkspace, notes\nbind = ALT, T, togglespecialworkspace, tasks\nbind = ALT, P, togglespecialworkspace, gallery\nbind = ALT, V, togglespecialworkspace, media</code></pre>\n<p>动作依次包含修饰键、按键、dispatcher 和目标名称。名字只是标签，不会自动启动同名程序。空工作区被打开时看不到窗口，并不表示快捷键失效。</p>\n<p>原剪藏声称数量无限，这是不准确的；0.54 文档给出的同时存在上限为 97。通常只应为有实际用途的窗口组建立固定入口。</p>\n<h2 id=\"section-02\">把已有窗口送入指定工作区</h2>\n<p>显示/隐藏与移动窗口是两种动作。移动命令接受一般工作区，因此目标要写成 <code>special:名称</code>。</p>\n<pre><code>bind = SUPER SHIFT, S, movetoworkspace, special:notes\nbind = SUPER, S, togglespecialworkspace, notes</code></pre>\n<p>前一条作用于当前窗口，后一条显示或隐藏 notes。需要静默移动时核对该版本的 <code>movetoworkspacesilent</code>。多显示器环境也要观察工作区出现在哪个输出，避免把“窗口移动”和“当前焦点改变”混成一件事。</p>\n<h2 id=\"section-03\">会话启动时，把应用放进去</h2>\n<p><code>exec-once</code> 负责启动命令；执行规则给新窗口指定目标工作区。以下应用仅作通用示例，需要对应可执行文件已安装。</p>\n<pre><code>exec-once = [workspace special:chat silent] ferdium\nexec-once = [workspace special:notes silent] logseq\nexec-once = [workspace special:mail silent] betterbird\nexec-once = [workspace special:tasks silent] com.todoist.Todoist\nexec-once = [workspace special:gallery silent] allusion\nexec-once = [workspace special:media silent] youtube-music</code></pre>\n<p><code>silent</code> 旨在不把当前视图立即切过去。<code>exec-once</code> 在会话启动时执行，不会因为普通配置重载就再次执行；验证窗口规则无需重启整台机器，可以手动启动一个测试实例并检查归属。</p>\n<p>这条机制依赖启动进程与窗口的关联。如果命令转交给已经运行的单实例进程，或者经过包装与派生进程，执行规则未必能抓住最终窗口。因此还需要下一层基于窗口属性的规则。</p>\n<h2 id=\"section-04\">用窗口规则覆盖以后重新打开的实例</h2>\n<p>先读取真实窗口属性，而不是把程序文件名猜成窗口 class。<code>xprop</code> 只适用于 X11 / XWayland 窗口；原生 Wayland 窗口应使用合成器提供的信息。</p>\n<pre><code>hyprctl version\nhyprctl clients\nhyprctl -j clients</code></pre>\n<p>以下按 0.54 的窗口规则格式示意：</p>\n<pre><code>windowrule {\n  name = notes-special\n  match:class = ^(Logseq)$\n  workspace = special:notes silent\n}\n\nwindowrule {\n  name = mail-special\n  match:class = ^(betterbird)$\n  workspace = special:mail silent\n}</code></pre>\n<p>程序名、class、initialClass、窗口 title 的用途不同。用现场输出确认大小写和匹配对象；对话框是否也被规则捕获，需要单独检查。旧教程的 <code>windowrule = workspace ..., ^(...)$</code> 不能不加版本判断直接复制进新配置。</p>\n<h2 id=\"section-05\">分三步验证，不把问题堆到一起</h2>\n<ol>\n<li>先只测试快捷键能否打开和收起空工作区。</li>\n<li>手动把一个窗口送入工作区，确认显示动作和移动动作的目标名称相同。</li>\n<li>最后加入自动启动和窗口规则，关闭并重新打开测试程序，检查新窗口是否仍进入目标。</li>\n</ol>\n<p>如果只有自动启动正确、以后重开失败，优先检查窗口规则；如果规则完全无效，先检查实际 class 和版本语法。隐藏的窗口仍消耗资源，是否常驻应由用途决定。删除规则前可把窗口移回普通工作区，再清理对应快捷键和启动项。</p>\n",
+  "refs": [
+    [
+      "Ed：原始特殊工作区教程",
+      "https://medium.com/@mynameised/how-to-create-multiple-special-workspaces-in-hyprland-b4de8bc2ddd7"
+    ],
+    [
+      "Hyprland 0.54 Dispatchers",
+      "https://wiki.hypr.land/0.54.0/Configuring/Dispatchers/"
+    ],
+    [
+      "Hyprland 0.54 Window Rules",
+      "https://wiki.hypr.land/0.54.0/Configuring/Window-Rules/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "wayland",
+    "hyprland",
+    "desktop"
+  ]
+}

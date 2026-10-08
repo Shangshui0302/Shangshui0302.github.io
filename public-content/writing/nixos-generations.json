@@ -1,0 +1,56 @@
+{
+  "slug": "nixos-generations",
+  "number": "018",
+  "category": "LINUX / SYSTEMS",
+  "title": "NixOS 世代管理与垃圾回收",
+  "deck": "按查看、激活、删除历史和回收存储理解 generation 生命周期。",
+  "sections": [
+    [
+      "section-01",
+      "一、Generation 生命周期总览"
+    ],
+    [
+      "section-02",
+      "二、常用命令速查表"
+    ],
+    [
+      "section-03",
+      "三、清理 /nix/store 空间"
+    ],
+    [
+      "section-04",
+      "四、在 configuration.nix 中配置自动维护"
+    ],
+    [
+      "section-05",
+      "五、进阶技巧"
+    ]
+  ],
+  "body": "<p>NixOS 中管理 generation（系统世代）主要通过 <code>nixos-rebuild</code>、<code>nix-env</code> 和 <code>nix-collect-garbage</code> 三组命令完成，核心操作是<strong>查看、切换、删除、清理</strong>，配合 <code>configuration.nix</code> 中的自动维护选项可实现无人值守。以下是维护示例，执行前确认目标 profile 和回滚窗口。</p>\n<h2 id=\"section-01\">一、Generation 生命周期总览</h2>\n<pre><code>flowchart LR\n    A[&quot;修改 configuration.nix&lt;br/&gt;或 flake.nix&quot;] --&gt; B[&quot;nixos-rebuild switch&quot;]\n    B --&gt; C[&quot;生成新 Generation&lt;br/&gt;旧版本保留在 /nix/store&quot;]\n    C --&gt; D{系统是否正常?}\n    D -- 正常 --&gt; E[&quot;继续使用&quot;]\n    D -- 异常 --&gt; F[&quot;nixos-rebuild switch --rollback&lt;br/&gt;或 GRUB 菜单选择旧世代&quot;]\n    F --&gt; E\n    E --&gt; G[&quot;定期清理旧世代&lt;br/&gt;nix-collect-garbage&quot;]\n    G --&gt; H[&quot;nix-store --gc&lt;br/&gt;回收未引用的 store 对象&quot;]</code></pre>\n<p><code>switch</code>/<code>boot</code> 更新系统 profile 时可以记录新 generation；仅 <code>build</code> 或 <code>test</code> 不等于建立新的系统 profile 世代，旧 generation 通常保留，直到手动或自动维护删除；能否回滚取决于保留的 profile 和产物；只有显式删除 generation 并执行垃圾回收后，对应的 <code>/nix/store</code> 路径才会被真正释放。</p>\n<h2 id=\"section-02\">二、常用命令速查表</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">操作</th>\n<th scope=\"col\">命令</th>\n<th scope=\"col\">说明</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>列出所有系统世代</td>\n<td><code>sudo nixos-rebuild list-generations</code></td>\n<td>NixOS 较新版本自带，输出最清晰</td>\n</tr>\n<tr>\n<td>列出所有系统世代（通用）</td>\n<td><code>sudo nix-env --list-generations --profile /nix/var/nix/profiles/system</code></td>\n<td>传统 profile 的通用接口</td>\n</tr>\n<tr>\n<td>列出当前用户环境世代</td>\n<td><code>nix-env --list-generations</code></td>\n<td>用户级 profile</td>\n</tr>\n<tr>\n<td>回滚到上一个世代</td>\n<td><code>sudo nixos-rebuild switch --rollback</code></td>\n<td>立即切换，无需重启</td>\n</tr>\n<tr>\n<td>切换到指定世代（如 204）</td>\n<td>先 <code>sudo nix-env --profile /nix/var/nix/profiles/system --switch-generation 204</code>，再 <code>sudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch</code></td>\n<td>更改 profile 与激活是两个步骤</td>\n</tr>\n<tr>\n<td>删除指定世代</td>\n<td><code>sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations 205 206</code></td>\n<td>删除 205、206 号</td>\n</tr>\n<tr>\n<td>只保留最近 5 个</td>\n<td><code>sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5</code></td>\n<td><code>+N</code> 表示保留最新 N 个</td>\n</tr>\n<tr>\n<td>删除 30 天前的世代</td>\n<td><code>sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations 30d</code></td>\n<td>按时间清理</td>\n</tr>\n<tr>\n<td>删除旧世代并回收空间</td>\n<td><code>sudo nix-collect-garbage -d</code></td>\n<td>删除所有旧世代 + GC，最常用</td>\n</tr>\n<tr>\n<td>按时间清理并回收</td>\n<td><code>sudo nix-collect-garbage --delete-older-than 30d</code></td>\n<td>保留近 30 天，更安全</td>\n</tr>\n<tr>\n<td>仅回收未被引用的 store 对象</td>\n<td><code>sudo nix-store --gc</code></td>\n<td>不删世代，只清未引用路径</td>\n</tr>\n<tr>\n<td>预览将被删除的内容</td>\n<td><code>sudo nix-store --gc --print-dead</code></td>\n<td>列出&quot;死&quot;对象，不实际删除</td>\n</tr>\n<tr>\n<td>开机时通过 GRUB 回滚</td>\n<td>启动菜单选 &quot;NixOS - All configurations&quot;</td>\n<td>选择任意历史世代启动</td>\n</tr>\n</tbody></table></div>\n<blockquote>\n<p>提示：<code>nix-collect-garbage -d</code> 相当于先对工具找到的 profiles 执行 <code>nix-env --delete-generations old</code>，再执行 <code>nix-store --gc</code>，执行后将<strong>无法回滚</strong>到已被删除的世代。</p>\n</blockquote>\n<h2 id=\"section-03\">三、清理 /nix/store 空间</h2>\n<p><strong>1. 标准两步清理流程</strong></p>\n<pre><code># 第一步：删除 14 天前的系统世代\nsudo nix-env --delete-generations --profile /nix/var/nix/profiles/system 14d\n# 第二步：只回收未引用的 store 对象，不再扩大历史删除范围\nsudo nix-store --gc</code></pre>\n<p>此流程将历史删除范围限定在指定系统 profile，先删世代再 GC，否则被世代引用的包不会被回收。</p>\n<p><strong>2. 优化存储（硬链接去重）</strong></p>\n<pre><code>sudo nix-store --optimise</code></pre>\n<p>对相同的 store 文件内容进行硬链接去重，节省量取决于重复内容，可配合 GC 定期执行。</p>\n<h2 id=\"section-04\">四、在 configuration.nix 中配置自动维护</h2>\n<p>把这些选项写进 <code>/etc/nixos/configuration.nix</code>，rebuild 后即可实现自动清理，无需手动跑命令：</p>\n<pre><code>{ config, pkgs, ... }:\n{\n  # 限制 GRUB 启动菜单中保留的世代数量（建议 10-20）\n  boot.loader.grub.configurationLimit = 20;\n  # 自动垃圾回收\n  nix.gc = {\n    automatic = true;\n    dates = &quot;weekly&quot;;              # 每周执行，也可用 &quot;03:30&quot; 指定时间\n    options = &quot;--delete-older-than 30d&quot;;  # 只删 30 天前的世代\n  };\n  # 自动优化存储（硬链接去重）\n  nix.settings.auto-optimise-store = true;\n  # 设置构建时尝试自动 GC 的可用空间阈值（不是 store 容量硬限制）\n  nix.extraOptions = &#39;&#39;\n    min-free = ${toString (5 * 1024 * 1024 * 1024)}\n    max-free = ${toString (10 * 1024 * 1024 * 1024)}\n  &#39;&#39;;\n}</code></pre>\n<p><code>nix.gc.automatic</code> 是官方推荐做法，可以避免 <code>/nix/store</code> 无限膨胀；<code>boot.loader.grub.configurationLimit</code> 则从源头限制 GRUB 菜单条目数量，避免启动列表过长。</p>\n<h2 id=\"section-05\">五、进阶技巧</h2>\n<p><strong>1. 用 <code>nh</code> 简化操作</strong></p>\n<p><code>nh</code>（nix helper）是社区流行的封装工具，提供 <code>nh os switch</code>、<code>nh os generations</code> 等更友好的命令，并能在 rebuild 后显示配置 diff。</p>\n<p><strong>2. 新一代 <code>nix</code> 命令</strong></p>\n<p>新 CLI 提供用 <code>nix profile</code> 系列命令管理世代：</p>\n<pre><code>sudo nix profile history --profile /nix/var/nix/profiles/system          # 查看历史\nsudo nix profile wipe-history --profile /nix/var/nix/profiles/system --older-than 7d  # 清理 7 天前</code></pre>\n<p>社区配置仓库中常见这种写法。</p>\n<p><strong>3. 系统无法启动时的回滚</strong></p>\n<p>即使系统进不去桌面，NixOS 默认在 GRUB 菜单保留 &quot;NixOS - All configurations&quot; 子菜单，列出未删除且在启动菜单保留范围内的历史世代，直接选择即可回到上一个可用状态；这是最后一道保险。</p>\n<p><strong>4. 安全清理建议</strong></p>\n<ul>\n<li>执行 <code>nix-collect-garbage -d</code> 前确认当前世代稳定，因为删除后无法回滚。</li>\n<li>生产服务器建议用 <code>--delete-older-than 30d</code> 而非 <code>-d</code>，保留一段时间的回滚窗口。</li>\n<li>大版本升级后先验证运行和回滚方案，再按保留策略清理；菜单条目限制不会自动删除 profile 历史或释放全部 store 空间。</li>\n</ul>\n<p>把上述命令和配置组合起来，基本能覆盖从日常回滚到长期磁盘维护的全部场景：<code>nixos-rebuild list-generations</code> 看状态、<code>--rollback</code> 救急、<code>nix-collect-garbage --delete-older-than</code> 定期清，再配 <code>nix.gc.automatic</code> 自动兜底。</p>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ],
+    [
+      "Nix：垃圾回收与 profile 范围",
+      "https://nix.dev/manual/nix/stable/command-ref/nix-collect-garbage.html"
+    ],
+    [
+      "Nix：wipe-history",
+      "https://nix.dev/manual/nix/stable/command-ref/new-cli/nix3-profile-wipe-history.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

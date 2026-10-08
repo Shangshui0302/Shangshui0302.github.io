@@ -1,0 +1,60 @@
+{
+  "slug": "nix-flake-lock-rollback",
+  "number": "032",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "flake.lock 回退与手动编辑",
+  "deck": "保留已有改动后恢复锁文件，并区分依赖回退与系统代际回退。",
+  "sections": [
+    [
+      "section-01",
+      "flake.lock 的本质"
+    ],
+    [
+      "section-02",
+      "回退方式一：git checkout（保留当前改动后使用）"
+    ],
+    [
+      "section-03",
+      "回退方式二：系统代际回退"
+    ],
+    [
+      "section-04",
+      "GC 警示"
+    ],
+    [
+      "section-05",
+      "手动编辑的坑"
+    ],
+    [
+      "section-06",
+      "操作对照表"
+    ]
+  ],
+  "body": "<blockquote>\n<p>系统更新翻车后的自救：回退 flake.lock 是恢复可复现状态的常见手段，但不等于系统已经回滚。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">flake.lock 的本质</h2>\n<p><code>flake.lock</code> 是给 nix 读的纯文本 JSON——<strong>nix 只认内容不认来源</strong>。你可以：</p>\n<ol>\n<li>手动编辑（改 rev、改 URL、改 narHash）</li>\n<li><code>git checkout</code> 回退（优先考虑）</li>\n<li>从别处复制一个 lock 文件</li>\n</ol>\n<p>只要 narHash 和 rev 对得上、包能构建，nix 就会采用。</p>\n<hr>\n<h2 id=\"section-02\">回退方式一：git checkout（保留当前改动后使用）</h2>\n<p>配置仓库本身是 git 仓库时，回退 flake.lock 可优先从已知好的 Git 版本恢复：</p>\n<pre><code># 1. 查看提交历史，找到更新前的 commit\ncd ~/nixos-config\ngit status --short\n# 先备份当前锁文件，保留尚未提交的更新\ncp flake.lock /tmp/flake.lock.before-rollback\ngit log --oneline -5 flake.lock\n\n# 2. 回退 flake.lock 到某个 commit 的版本（&lt;known-good-commit&gt; 是更新前）\ngit restore --source=&lt;known-good-commit&gt; -- flake.lock\n\n# 3. 验证配置能评估（不实际构建）\nnix flake check --no-build\nnixos-rebuild dry-build --flake .#my-host\n\n# 4. 检查差异；dry-build 不会构建或激活系统\ngit diff -- flake.lock\n# 确认需要保存本次回退后再提交\ngit add flake.lock\ngit commit -m &quot;revert(flake): roll back flake.lock to &lt;known-good-commit&gt;&quot;</code></pre>\n<p>为什么它最安全：</p>\n<ul>\n<li>指定 commit 是<strong>已知能工作</strong>的版本（更新前）</li>\n<li>不用猜 narHash</li>\n<li>有 git 历史可追溯</li>\n</ul>\n<hr>\n<h2 id=\"section-03\">回退方式二：系统代际回退</h2>\n<p>如果问题出在系统本身（不只是依赖锁定），可以回退整个 generation：</p>\n<pre><code># 列出所有历史系统代际（按时间倒序）\nls -l /nix/var/nix/profiles/system-*-link\n\n# 回到上一个代际（立即生效）\nsudo nixos-rebuild switch --rollback\n\n# 回到指定代际（如第 5 个）\nsudo /nix/var/nix/profiles/system-5-link/bin/switch-to-configuration switch</code></pre>\n<blockquote>\n<p>完整教程见 <a href=\"/writing/nixos-generations/\">Generation 管理指南</a>。新系统完全进不去时，重启在 GRUB 菜单选旧代际（&quot;NixOS - All configurations&quot;）即可。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-04\">GC 警示</h2>\n<p>NixOS 代际是&quot;堆叠&quot;的：每次 switch 生成新代际，旧的不会自动删除，直到显式删除代际。GC 只回收不再被根引用的 Store 路径。<strong>重要配置更新前别跑 <code>nix-collect-garbage</code></strong>——普通 GC 不会删除仍被代际引用的路径；<code>nix-collect-garbage -d</code> 会删除旧代际并回收不再引用的内容，可能失去回退路径。</p>\n<hr>\n<h2 id=\"section-05\">手动编辑的坑</h2>\n<ol>\n<li><strong>narHash 必须准确</strong>：nix 用 narHash 校验下载内容。rev 改了但 narHash 是旧的 → 报 <code>hash mismatch</code>。手动改 rev 通常要配新的 narHash。</li>\n<li><strong>有专门命令，不一定要手改</strong>：<ul>\n<li>回退到指定 commit：<code>在 flake.nix 中将 nixpkgs.url 固定到 github:NixOS/nixpkgs/&lt;rev&gt;，再运行 nix flake update nixpkgs</code></li>\n<li>但通过声明输入并由 Nix 生成 lock 通常比手改 JSON 更容易检查，因为配置本身就是 git 仓库。</li>\n</ul>\n</li>\n<li><strong>flake.lock 是版本锁定文件</strong>：锁住每个 input 的确切版本，保证可复现。手动编辑 = 手动改变锁定版本，完全合法。</li>\n</ol>\n<hr>\n<h2 id=\"section-06\">操作对照表</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">操作</th>\n<th scope=\"col\">方式</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>回退到已知好的旧版本</td>\n<td><code>git restore --source=&lt;commit&gt; -- flake.lock</code>（会覆盖工作树中的该文件，先备份）</td>\n</tr>\n<tr>\n<td>更新到最新</td>\n<td><code>nix flake update</code></td>\n</tr>\n<tr>\n<td>更新单个 input</td>\n<td><code>nix flake update nixpkgs</code></td>\n</tr>\n<tr>\n<td>手动改特定 rev</td>\n<td>手编辑，但需配 narHash（麻烦，少用）</td>\n</tr>\n</tbody></table></div>\n<p><strong>核心</strong>：只要配置是 git 仓库，回退 flake.lock 可优先从已知好的 Git 版本恢复，不用手改。手动编辑更像&quot;高级技巧&quot;，多数时候不需要。</p>\n<hr>\n",
+  "refs": [
+    [
+      "Nix Flake 手册",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake"
+    ],
+    [
+      "Nix flake update",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-update"
+    ],
+    [
+      "Nix flake check",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-check"
+    ],
+    [
+      "NixOS 系统回退",
+      "https://nixos.org/manual/nixos/stable/#sec-rollback"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nix-flakes"
+  ]
+}

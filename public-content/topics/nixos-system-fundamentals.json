@@ -1,0 +1,26 @@
+{
+  "slug": "nixos-system-fundamentals",
+  "title": "NixOS 系统基础与配置",
+  "deck": "从安装到配置组织，再到激活、世代和变体维护。",
+  "description": "安装与初始化建立基础，系统与 Home Manager 分工组织配置，CLI、generation 和 specialisation 说明运行及维护边界，最后检查声明环境与可写数据的区别。",
+  "articles": [
+    "nixos-introduction",
+    "nixos-installation",
+    "nixos-configuration-basics",
+    "nixos-system-home-management",
+    "nixos-cli-guide",
+    "nixos-generations",
+    "nixos-specialisation",
+    "declarative-and-state"
+  ],
+  "reading_guide": [
+    "先理解 store、声明式配置和原子 profile 切换的适用范围。",
+    "安装前核对设备、备份和启动模式，分清 Live 环境与目标系统。",
+    "按引导、网络、账户、软件和服务检查自己的模块定义。",
+    "用 Flake 锁定输入，拆开系统、用户和项目开发环境。",
+    "按系统、profile 与临时环境选择命令，确认是否会激活。",
+    "先列出并验证回滚点，再限定 profile 范围清理历史和存储。",
+    "学习继承与覆盖规则，检查哪些变体变化需要重启。",
+    "对每类偏好、缓存和数据明确管理者、写入时机与恢复路径。"
+  ]
+}

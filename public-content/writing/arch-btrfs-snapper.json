@@ -1,0 +1,57 @@
+{
+  "slug": "arch-btrfs-snapper",
+  "number": "058",
+  "category": "LINUX / SYSTEMS",
+  "title": "Btrfs 子卷布局与 Snapper 快照",
+  "deck": "为系统、用户数据和日志分别规划状态边界，再配置可恢复的快照流程。",
+  "sections": [
+    [
+      "section-01",
+      "子卷布局：平铺与独立状态"
+    ],
+    [
+      "section-02",
+      "挂载参数与性能权衡"
+    ],
+    [
+      "section-03",
+      "Snapper 配置"
+    ],
+    [
+      "section-06",
+      "月度检查"
+    ],
+    [
+      "section-09",
+      "故障恢复与快照启动"
+    ],
+    [
+      "section-10",
+      "存储结构"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">子卷布局：平铺与独立状态</h2>\n<p>平铺布局方便分别挂载和恢复；嵌套子卷也合法。关键是理解：Btrfs 快照不会递归包含其他子卷，目录路径上的嵌套不等于快照里的嵌套。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">子卷</th>\n<th scope=\"col\">挂载点</th>\n<th scope=\"col\">用途</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>@</code></td>\n<td><code>/</code></td>\n<td>系统文件与 pacman 数据库，保持一起回滚</td>\n</tr>\n<tr>\n<td><code>@home</code></td>\n<td><code>/home</code></td>\n<td>用户数据，通常独立于系统回滚，也可另建快照配置</td>\n</tr>\n<tr>\n<td><code>@snapshots</code></td>\n<td><code>/.snapshots</code></td>\n<td>保存 Snapper 快照及元数据</td>\n</tr>\n<tr>\n<td><code>@var_log</code></td>\n<td><code>/var/log</code></td>\n<td>回滚后保留排障日志</td>\n</tr>\n<tr>\n<td><code>@pacman_pkg</code></td>\n<td><code>/var/cache/pacman/pkg</code></td>\n<td>把包缓存排除在系统快照之外</td>\n</tr>\n</tbody></table></div>\n<p>快照共享未变化的数据块，缓存不会因为每次快照必然复制一份。独立子卷的主要价值是控制保留与回滚范围。<code>/var/lib/pacman</code> 应与系统包文件保持一致，不能随意排除。</p>\n<h2 id=\"section-02\">挂载参数与性能权衡</h2>\n<p>可从简洁配置开始：</p>\n<pre><code>rw,noatime,compress=zstd:3</code></pre>\n<ul>\n<li><code>compress=zstd:3</code>：压缩率与 CPU 开销的折中；负压缩等级支持需要核对内核及工具版本。</li>\n<li><code>ssd</code>、<code>space_cache=v2</code> 等可能已由现代内核自动采用，不必为了“优化”重复添加。</li>\n<li><code>discard=async</code>：异步 TRIM；核对内核默认值、设备支持以及与定期 <code>fstrim</code> 的策略。</li>\n<li><code>commit=120</code>：延长事务提交间隔，会增加突然断电时尚未持久化状态的窗口。它不是无代价的通用推荐，通常保留默认值更简单。</li>\n</ul>\n<h2 id=\"section-03\">Snapper 配置</h2>\n<h3 id=\"section-04\">安装及初次初始化</h3>\n<pre><code>sudo pacman -S snapper snap-pac\nsudo snapper -c root create-config /</code></pre>\n<p><code>create-config</code> 要求目标子卷存在，并会创建 <code>.snapshots</code>。下面的替换步骤仅适用于<strong>初次配置、没有快照数据、已规划独立 <code>@snapshots</code></strong> 的情况；已有配置不得照抄删除。</p>\n<pre><code># 先检查挂载、子卷与内容，确认这里是刚生成且空的 .snapshots\nfindmnt /.snapshots\nsudo btrfs subvolume show /.snapshots\nsudo btrfs subvolume list /\n# 确认未挂载其他快照卷且没有需要保留的快照后，删除刚生成的子卷\nsudo btrfs subvolume delete /.snapshots\nsudo mkdir /.snapshots\n# /dev/EXAMPLE_BTRFS_PARTITION 为含 @snapshots 的文件系统\nsudo mount -o subvol=@snapshots /dev/EXAMPLE_BTRFS_PARTITION /.snapshots\nsudo chmod 750 /.snapshots</code></pre>\n<p>随后添加或验证 <code>/etc/fstab</code> 的相应挂载。若 <code>/.snapshots</code> 已存在且正在使用，先按实际布局迁移，不能用 <code>rm -rf /.snapshots</code> 处理。</p>\n<h3 id=\"section-05\">保留策略</h3>\n<p>在 <code>/etc/snapper/configs/root</code> 中例如：</p>\n<pre><code>TIMELINE_LIMIT_HOURLY=&quot;5&quot;\nTIMELINE_LIMIT_DAILY=&quot;7&quot;\nTIMELINE_LIMIT_WEEKLY=&quot;0&quot;\nNUMBER_LIMIT=&quot;10&quot;</code></pre>\n<p>时间线快照、编号快照与清理规则是不同机制。检查对应 timer 是否启用，并定期检查空间；这些数值不等于对所有快照的硬性数量保证。</p>\n<h2 id=\"section-06\">月度检查</h2>\n<h3 id=\"section-07\">Scrub：检测校验错误</h3>\n<pre><code>sudo btrfs scrub start -B /\nsudo btrfs scrub status /</code></pre>\n<p>Scrub 能验证带校验和的数据和元数据；只有存在有效冗余副本时才可能自动修复。单副本数据损坏通常仍需备份恢复。自动定时运行时，应核对发行版提供的 timer 模板与挂载点转义名称。</p>\n<h3 id=\"section-08\">配额：qgroups 与 simple quotas</h3>\n<pre><code>sudo btrfs quota enable --simple /</code></pre>\n<p>这个示例需要内核与 btrfs-progs 支持 squotas，且现有 qgroups 状态必须先检查。squotas 按首次分配数据块的子卷计费，不等同于共享/独占空间统计，启用前已有数据的归属也有局限。不要把它视为 Snapper 空间感知功能的直接替代，更不能保证删除快照毫无性能影响。</p>\n<h2 id=\"section-09\">故障恢复与快照启动</h2>\n<p>systemd-boot 默认发现 UKI，并不会自动显示 Btrfs 快照。<code>grub-btrfs</code> 可生成 GRUB 快照菜单，但从快照启动、可写恢复和持久回滚是不同操作。</p>\n<p>平铺 <code>@</code> 布局通常需要从安装介质进入恢复环境，将选定只读快照恢复为新的可写 <code>@</code>，然后检查 fstab、引导配置并重建 initramfs。<code>snapper rollback</code> 改变默认子卷，而显式 <code>subvol=@</code> 的挂载不一定跟随默认子卷，不能保证一条命令完成恢复。</p>\n<p>恢复前确认目标快照和备份，保留旧 <code>@</code> 以便退回。ESP 若独立挂载，不包含在根快照中，内核/UKI 与恢复系统版本也需要对齐。</p>\n<h2 id=\"section-10\">存储结构</h2>\n<pre><code>graph LR\n    Disk[物理磁盘] --&gt; Btrfs[Btrfs 文件系统]\n    Btrfs --&gt; Root[@ 根子卷]\n    Btrfs --&gt; Home[@home 用户数据]\n    Btrfs --&gt; Snap[@snapshots 快照目录]\n    Root -- 创建快照 --&gt; Snap</code></pre>\n",
+  "refs": [
+    [
+      "ArchWiki：Btrfs",
+      "https://wiki.archlinux.org/title/Btrfs"
+    ],
+    [
+      "ArchWiki：Snapper",
+      "https://wiki.archlinux.org/title/Snapper"
+    ],
+    [
+      "btrfs-scrub(8)",
+      "https://btrfs.readthedocs.io/en/latest/btrfs-scrub.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "filesystem"
+  ]
+}

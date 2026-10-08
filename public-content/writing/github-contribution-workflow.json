@@ -1,0 +1,105 @@
+{
+  "slug": "github-contribution-workflow",
+  "number": "105",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "GitHub 贡献工作流",
+  "deck": "从 Issue 和分支进入 PR 审查、检查与合并后的同步清理。",
+  "sections": [
+    [
+      "section-01",
+      "1. 先选贡献模型：shared repository 还是 fork-and-pull"
+    ],
+    [
+      "section-05",
+      "2. 从 Issue 到 topic branch"
+    ],
+    [
+      "section-11",
+      "3. 创建 Pull Request"
+    ],
+    [
+      "section-15",
+      "4. Review、Request changes 与更新 PR"
+    ],
+    [
+      "section-19",
+      "5. Required Checks、CI 与合并"
+    ],
+    [
+      "section-22",
+      "6. 合并后同步与清理"
+    ],
+    [
+      "section-23",
+      "7. Fork PR 与 Actions 的安全边界"
+    ],
+    [
+      "section-24",
+      "8. 常见误区速查"
+    ],
+    [
+      "section-25",
+      "官方资料"
+    ]
+  ],
+  "body": "<blockquote>\n<p>一次可靠的贡献，不是“把代码推上去”就结束，而是让问题、改动、审查、CI 结果和合并决策都能被别人复现和理解。</p>\n</blockquote>\n<p>本文只讲 GitHub 上的仓库贡献路径：Issue、topic branch、Fork、Pull Request（PR）、Review、Required Checks 和合并后的清理。Git 的对象模型、分支基础和远程同步细节复用 <a href=\"/writing/git-branching/\">Git 分支管理</a> 与 <a href=\"/writing/git-remotes/\">Git 远程协同</a>，不在此重复 Git internals。</p>\n<h2 id=\"section-01\">1. 先选贡献模型：shared repository 还是 fork-and-pull</h2>\n<p>GitHub 的 Pull Request 并不限定一种组织方式。常见模型有两种：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">模型</th>\n<th scope=\"col\">本地与远程关系</th>\n<th scope=\"col\">谁创建 topic branch</th>\n<th scope=\"col\">适合场景</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Shared repository</td>\n<td><code>origin</code> 指向共同仓库，贡献者拥有推送权限</td>\n<td>贡献者在共同仓库创建并推送分支</td>\n<td>小团队、组织内私有项目</td>\n</tr>\n<tr>\n<td>Fork-and-pull</td>\n<td><code>upstream</code> 指向原仓库，<code>origin</code> 指向自己的 fork</td>\n<td>贡献者在自己的 fork 创建并推送分支</td>\n<td>开源项目、没有原仓库写权限的外部贡献者</td>\n</tr>\n</tbody></table></div>\n<p>两种模型都应当遵守同一条边界：不要直接在默认分支上开发。topic branch 将改动隔离出来，使 CI 和审查可以在合并前运行。</p>\n<h3 id=\"section-02\">1.1 base、head 与 PR 的方向</h3>\n<p>PR 不是“把两个仓库合在一起”，而是请求把 <strong>head</strong> 分支的提交合入 <strong>base</strong> 分支：</p>\n<ul>\n<li><code>base</code>：目标仓库和目标分支，通常是维护者仓库的 <code>main</code>。</li>\n<li><code>head</code>：包含待审查改动的分支；可以是同仓库分支，也可以是 fork 中的分支。</li>\n<li>PR 页面显示的 <code>base &lt;- head</code> 方向必须先确认，再创建。</li>\n</ul>\n<p>例如，外部贡献者向教学示例项目提交修复时，方向通常是：</p>\n<pre><code>base: OWNER/example-theme-project:main\nhead: YOUR_GITHUB_LOGIN/example-theme-project:fix/123-compositor-note</code></pre>\n<p>把方向选反，可能会把维护者仓库的 <code>main</code> 当成待合入内容，或把 PR 发到错误的 fork。提交前先在网页比较页面和 <code>gh pr create</code> 参数中各确认一次。</p>\n<h3 id=\"section-03\">1.2 贡献前先读仓库的真实规则</h3>\n<p>贡献入口按以下顺序检查：</p>\n<ol>\n<li>README：项目目标、支持范围、运行方法、已知限制和当前请求。</li>\n<li><code>CONTRIBUTING.md</code> 或文档中的开发章节：命名、测试、提交和审查要求。</li>\n<li><code>.github/ISSUE_TEMPLATE/</code> 与 <code>.github/PULL_REQUEST_TEMPLATE*</code>：表单或 PR 描述要求。</li>\n<li><code>CODEOWNERS</code>：哪些文件会自动请求谁审查。</li>\n<li>Workflow 与分支规则：Required Checks、权限、是否必须保持分支最新。</li>\n</ol>\n<p>仓库没有这些文件时，不要猜测隐藏流程；在 Issue 或 PR 描述中写清楚自己的假设、验证环境和未验证边界。</p>\n<h3 id=\"section-04\">1.3 示例：贡献桌面兼容性说明</h3>\n<p>假设一个主题项目欢迎贡献者补充尚未实测的 compositor 兼容性，README 要求报告 Fcitx5、compositor 版本与复现现象。这是教学情境，没有对应的个人仓库、版本快照或测试结论。</p>\n<p>如果项目没有 CONTRIBUTING、Issue/PR 模板或 CODEOWNERS，贡献者应以 README 和 PR 中可复核的事实为准，不猜测隐藏流程。某一个 compositor 已实测，也不能推断其他桌面已实测。对这类兼容性贡献，先在 Issue 中记录环境、现象和经脱敏的截图/日志，再决定是否提交代码，通常比直接开大 PR 更容易审查。</p>\n<h2 id=\"section-05\">2. 从 Issue 到 topic branch</h2>\n<h3 id=\"section-06\">2.1 先把问题变成可审查的任务</h3>\n<p>Issue 或贡献计划至少说明：现状与复现、期望行为、改动边界、相关 Issue，以及命令/版本/平台/截图/日志等验证方式。文档、主题和 CI 改动同样要写可重复的证明；“看起来更好”不能代替检查。</p>\n<h3 id=\"section-07\">2.2 Shared repository：在共同仓库开分支</h3>\n<p>下面假设共同仓库远程名为 <code>origin</code>，默认分支为 <code>main</code>：</p>\n<pre><code>git switch main\ngit fetch origin\ngit pull --ff-only origin main\ngit switch -c fix/123-compositor-note\n\n# 编辑文件、运行项目规定的本地检查\ngit status --short\ngit diff --check\ngit add path/to/changed-file\ngit commit -m &quot;docs: clarify compositor contribution status&quot;\ngit push -u origin HEAD</code></pre>\n<p><code>git switch -c</code> 会从当前提交创建并切换到 topic branch；因此，执行它前必须确认 <code>main</code> 已经同步到计划使用的 base。<code>git push -u origin HEAD</code> 将当前分支推送到 <code>origin</code>，并建立同名追踪关系，不需要手写一遍分支名。</p>\n<h3 id=\"section-08\">2.3 Fork-and-pull：区分 origin 与 upstream</h3>\n<p>外部贡献者先 fork 原仓库，再克隆自己的 fork。建议从一开始就把两个远程命名清楚：</p>\n<pre><code>git clone https://github.com/YOUR_GITHUB_LOGIN/REPOSITORY.git\ncd REPOSITORY\ngit remote -v\ngit remote add upstream https://github.com/OWNER/REPOSITORY.git\ngit fetch upstream\ngit switch main\ngit merge --ff-only upstream/main\ngit push origin main\ngit switch -c fix/123-compositor-note</code></pre>\n<p>此处：</p>\n<ul>\n<li><code>origin</code> 是自己的 fork，topic branch 应推到这里；</li>\n<li><code>upstream</code> 是原仓库，用来获取维护者的最新 base；</li>\n<li><code>upstream/main</code> 是本地记录的原仓库 <code>main</code>，不是一个凭据或特殊服务器。</li>\n</ul>\n<p>若自己的 fork 的 <code>main</code> 没有独有提交，<code>git merge --ff-only upstream/main</code> 会快进式对齐；存在分叉时它会拒绝整合；若 fork 的 <code>main</code> 有本地提交，先检查这些提交是否应保留，再决定 rebase、merge 或重新创建 fork。同步 fork 也可以使用网页上的 <strong>Sync fork</strong> 或：</p>\n<pre><code>gh repo sync YOUR_GITHUB_LOGIN/REPOSITORY -b main</code></pre>\n<p>命令同步 fork 中指定的 <code>main</code> 分支；topic branch 仍需单独更新。</p>\n<h3 id=\"section-09\">2.4 什么时候不要 rebase</h3>\n<p><code>git rebase upstream/main</code> 适合个人、尚未被别人依赖的 topic branch，或尚未发布的本地分支。它会重写被重放提交的哈希，因此下列情况不要直接做：</p>\n<ul>\n<li>不要 rebase 公共 <code>main</code>、受保护分支或别人正在使用的分支。</li>\n<li>同一个 PR 的 head branch 已允许维护者或其他协作者提交时，先沟通再 rebase。</li>\n<li>项目明确要求保留分支合流历史时，不要为了“线性”擅自改用 rebase。</li>\n<li>只为绕过 CI 或审查而反复 rebase，会让评论对应的提交变得难以追踪。</li>\n</ul>\n<p>如果你确认 topic branch 只有自己使用，rebase 后通常需要安全地更新远程：</p>\n<pre><code>git fetch upstream\ngit switch fix/123-compositor-note\ngit rebase upstream/main\n\n# 解决冲突后：git add &lt;file&gt; &amp;&amp; git rebase --continue\ngit push --force-with-lease -u origin HEAD</code></pre>\n<p><code>--force-with-lease</code> 会检查远程分支是否在上次获取后被别人更新；不要把 <code>git push --force</code> 当作普通同步命令，也不要对 <code>main</code> 使用强制推送。</p>\n<h3 id=\"section-10\">2.5 提交前的最小检查</h3>\n<p>在开 PR 前，至少完成以下检查：</p>\n<pre><code>git status --short\ngit diff --stat upstream/main...HEAD\ngit diff --check upstream/main...HEAD\ngit log --oneline --decorate upstream/main..HEAD</code></pre>\n<p>Shared repository 可以把上述 <code>upstream/main</code> 替换为 <code>origin/main</code>；关键是比较当前 head 与 PR 的实际 base，而不是与一个过时的本地分支比较。再运行 README 或仓库 CI 中明确要求的测试、构建和格式检查。</p>\n<h2 id=\"section-11\">3. 创建 Pull Request</h2>\n<h3 id=\"section-12\">3.1 Web 界面创建</h3>\n<p>网页创建适合第一次贡献、需要上传截图或仔细检查 base/head：先选 base 和 head 仓库/分支，再决定是否 Draft；标题写结果，正文写问题、验证、风险和未完成事项，最后检查 Files changed、Checks 与 Reviewers。</p>\n<p>PR 正文至少写 Summary、Validation、Risk/limitations 和相关 Issue；可用 <code>Fixes #123</code> 建立合并后的自动关闭关系。若项目没有 PR 模板，贡献者应主动提供 compositor 兼容性、Fcitx5 版本、截图和“尚未实测”的平台。</p>\n<h3 id=\"section-13\">3.2 使用 gh pr create</h3>\n<p>已在仓库目录、当前分支已推送时，可用 <code>gh</code> 创建 PR。shared repository 的 head 只写分支名；fork-and-pull 则要指出 fork 所有者：</p>\n<pre><code>gh pr create \\\n  --repo OWNER/REPOSITORY \\\n  --base main \\\n  --head YOUR_GITHUB_LOGIN:fix/123-compositor-note \\\n  --title &quot;docs: clarify compositor contribution status&quot; \\\n  --body $&#39;## Summary\\n- Clarify tested and untested compositor paths.\\n\\n## Validation\\n- Reviewed README and local documentation.\\n\\nFixes #123&#39;</code></pre>\n<p>创建后用以下命令检查 PR 和 CI：</p>\n<pre><code>gh pr checks 123 --watch</code></pre>\n<h3 id=\"section-14\">3.3 PR 的可审查边界</h3>\n<p>一个 PR 最好只解决一个可说明的逻辑问题：</p>\n<ul>\n<li>不把格式化、重命名、依赖升级和功能修复混在一起。</li>\n<li>不把与 Issue 无关的本地配置、凭据、构建产物或临时调试文件带入 diff。</li>\n<li>改 workflow、权限、Action 版本或构建发布路径时，必须在正文中单独标明。</li>\n<li>文档贡献也要给出链接、命令和核验日期；不要把未经验证的桌面支持写成事实。</li>\n</ul>\n<h2 id=\"section-15\">4. Review、Request changes 与更新 PR</h2>\n<h3 id=\"section-16\">4.1 Review 的三种结果</h3>\n<p>审查者可以对整体 PR 或具体行发表评论，并提交三种状态：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">状态</th>\n<th scope=\"col\">含义</th>\n<th scope=\"col\">作者下一步</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Comment</td>\n<td>提供意见，不表达合并批准或阻止</td>\n<td>讨论、记录决定，必要时修改</td>\n</tr>\n<tr>\n<td>Approve</td>\n<td>认可当前改动可以合并</td>\n<td>等待其他要求满足</td>\n</tr>\n<tr>\n<td>Request changes</td>\n<td>指出合并前必须处理的事项</td>\n<td>修复、解释或与审查者达成明确结论</td>\n</tr>\n</tbody></table></div>\n<p><code>Request changes</code> 是否真正阻止合并，取决于仓库的 branch protection 或 ruleset；不要只看一个 review 状态就断言“平台一定禁止合并”。Required reviews、Required Checks 和分支最新状态要一起看。</p>\n<h3 id=\"section-17\">4.2 用 gh pr review 提交审查</h3>\n<p>审查者可以在终端提交整体意见：</p>\n<pre><code># 只评论，不批准也不阻止\ngh pr review 123 --comment --body &quot;请补充失败路径的验证结果。&quot;\n\n# 修改已完成且满足审查范围\ngh pr review 123 --approve --body &quot;已检查 diff 与本地验证。&quot;\n\n# 合并前必须处理的问题\ngh pr review 123 --request-changes --body &quot;请先修复 workflow 权限，再重新请求 review。&quot;</code></pre>\n<p>具体行评论通常更适合网页的 Files changed 页面；终端命令适合整体结论或自动化辅助。审查应针对可验证的行为、回归风险和维护成本，不要以个人编码风格替代项目规则。</p>\n<h3 id=\"section-18\">4.3 作者如何回应反馈</h3>\n<p>把每个评论分类：需要修改、需要解释、超出当前范围或应另开 Issue。修改后推送到同一 head branch，PR 会自动更新并重新运行相关 checks：</p>\n<pre><code>git switch fix/123-compositor-note\n# 编辑并运行本地检查\ngit diff --check\ngit add path/to/changed-file\ngit commit -m &quot;docs: address review feedback&quot;\ngit push\ngh pr view 123 --comments</code></pre>\n<p>完成一轮较大修改后，可以在网页中 <strong>Re-request review</strong>。对话已解决不等于代码已经验证；在回复中写出“改了什么、用什么命令验证、哪个检查仍失败”。</p>\n<p>如果需要把 topic branch 重新对齐 base：</p>\n<pre><code>git fetch upstream\ngit rebase upstream/main\n# 解决冲突、运行检查后\ngit push --force-with-lease -u origin HEAD</code></pre>\n<p>只有在 head branch 的使用者知情且远程确实属于自己时才这样做。若维护者已经在分支上提交，应优先使用合并或请维护者决定同步方式。</p>\n<h2 id=\"section-19\">5. Required Checks、CI 与合并</h2>\n<h3 id=\"section-20\">5.1 把 CI 当作合并条件，而不是装饰</h3>\n<p>PR 的 Checks 页面显示自动化测试、构建、格式检查和安全扫描。Required Checks 是 base 分支规则要求必须通过的状态；本地检查通过不代表 GitHub 上的检查已经通过，也不代表权限、矩阵任务和合并队列条件已满足。</p>\n<p>在合并前确认：PR 非 Draft，所需 review 已满足，Required Checks 成功，base/head 无冲突且满足“必须最新”规则；同时确认 fork workflow 没有因权限、审批或取消而未完成，并重新检查 PR diff 是否仍对应 Issue。</p>\n<p>命令行检查示例：</p>\n<pre><code>gh pr checks 123 --required\ngh pr checks 123 --watch\ngh pr view 123 --json state,isDraft,mergeable,reviewDecision,statusCheckRollup,baseRefName,headRefName</code></pre>\n<p>如果 CI 失败，先区分三类原因：代码或测试失败、workflow 配置失败、Runner/依赖的暂时性故障。不要用重跑掩盖确定性失败，也不要为“变绿”删除检查或放宽权限。</p>\n<h3 id=\"section-21\">5.2 选择合并方式</h3>\n<p>最终合并方式由仓库规则和维护者决定：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">方式</th>\n<th scope=\"col\">结果</th>\n<th scope=\"col\">常见适用情形</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Merge commit</td>\n<td>保留 PR 内各提交，并增加合并点</td>\n<td>需要保留完整分支历史</td>\n</tr>\n<tr>\n<td>Squash and merge</td>\n<td>将 PR 压成 base 上一个提交</td>\n<td>一个 PR 对应一个逻辑变更</td>\n</tr>\n<tr>\n<td>Rebase and merge</td>\n<td>将各提交线性放到 base 上</td>\n<td>提交已经清晰且项目要求线性历史</td>\n</tr>\n</tbody></table></div>\n<p>不要因为个人偏好绕过仓库设置。拥有合并权限且确认要求全部满足时，<code>gh pr merge</code> 可以明确选择方式：</p>\n<pre><code># 由维护者确认后执行；会压缩并删除 head branch\ngh pr merge 123 --squash --delete-branch\n\n# 满足规则后自动合并（仓库允许且项目方明确使用时）\ngh pr merge 123 --auto --squash --delete-branch</code></pre>\n<p>若只是贡献者而没有写权限，提交 PR 后等待维护者合并；不要尝试 <code>--admin</code> 绕过规则。合并后的 PR、评论和提交历史仍然保留，即使 head branch 被删除。</p>\n<h2 id=\"section-22\">6. 合并后同步与清理</h2>\n<p>确认 PR 已合并后，再清理本地和远程 topic branch。shared repository 使用 <code>origin/main</code> 更新；fork-and-pull 通常这样处理：</p>\n<pre><code>git switch main\ngit fetch upstream\ngit merge --ff-only upstream/main\ngit push origin main\n# 先确认 PR 已合并且分支提交不再需要；squash/rebase 合并后 -d 可能拒绝。\ngit branch -d fix/123-compositor-note\ngit push origin --delete fix/123-compositor-note</code></pre>\n<p>有些仓库会在合并后自动删除远程 head branch，此时最后一个删除命令可能提示分支不存在；先用 <code>git branch -r</code> 或 GitHub 页面确认，不要为了消除提示而强制操作。若 PR 被关闭而没有合并，先保留分支和提交，确认不再需要后再删除。</p>\n<h2 id=\"section-23\">7. Fork PR 与 Actions 的安全边界</h2>\n<p>Fork PR 的代码来自当前仓库控制范围之外，维护者必须把它当作不可信输入。对公开仓库触发 <code>pull_request</code> 的 fork workflow，通常没有普通仓库 Secrets，<code>GITHUB_TOKEN</code> 权限也应按只读理解；具体权限仍取决于仓库和事件配置。首次贡献者的 workflow 还可能需要维护者批准后才运行。</p>\n<p>贡献者和维护者都应遵守以下边界：</p>\n<ul>\n<li>不在 PR、Issue、命令参数或日志中提交 PAT、SSH 私钥、云密钥或其他凭据。</li>\n<li>不为了让 fork PR 发布制品而把写权限 token 或生产 Secrets 注入普通测试 job。</li>\n<li>审查 <code>.github/workflows/</code> 的改动，特别是 <code>run:</code>、第三方 Action、权限声明和 artifact 处理。</li>\n<li>谨慎使用 <code>pull_request_target</code>：它在 base 仓库上下文运行，可能拥有 Secrets 或更高权限；不要在这种特权 workflow 中 checkout 并执行不可信的 fork 代码。</li>\n<li>需要发布、部署或写入仓库的流程应与不可信 PR 的测试流程分开，并在受控事件或环境中运行。</li>\n</ul>\n<p>安全性不应被简化成“fork 没有 Secrets，所以可以随便跑”。工作流本身、依赖安装、构建脚本和上传的 artifact 都可能执行贡献者提供的内容；权限最小化和事件选择要一起审查。</p>\n<h2 id=\"section-24\">8. 常见误区速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">误区</th>\n<th scope=\"col\">后果</th>\n<th scope=\"col\">修正</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>直接修改 <code>main</code></td>\n<td>无法隔离审查，可能触发错误发布</td>\n<td>从最新 base 创建 topic branch</td>\n</tr>\n<tr>\n<td>忘记确认 base/head</td>\n<td>PR 发到错误仓库或错误分支</td>\n<td>创建前检查仓库、分支和 diff</td>\n</tr>\n<tr>\n<td>Fork 只配置 <code>origin</code></td>\n<td>不知道如何获取原仓库更新</td>\n<td><code>origin</code> 指 fork，<code>upstream</code> 指原仓库</td>\n</tr>\n<tr>\n<td>用 <code>git pull</code> 随意合入</td>\n<td>产生意外 merge commit 或覆盖未提交工作</td>\n<td>先 <code>fetch</code>，按项目策略使用 <code>--ff-only</code>、merge 或 rebase</td>\n</tr>\n<tr>\n<td>对公共分支 <code>push --force</code></td>\n<td>覆盖他人提交</td>\n<td>公共分支禁止；个人 PR 分支也只用 <code>--force-with-lease</code></td>\n</tr>\n<tr>\n<td>PR 混入无关格式化</td>\n<td>审查噪音大，难以定位回归</td>\n<td>拆成独立 PR 或独立提交</td>\n</tr>\n<tr>\n<td>只写“已测试”</td>\n<td>别人无法复现验证</td>\n<td>写命令、版本、平台、结果和限制</td>\n</tr>\n<tr>\n<td>CI 失败就删除检查</td>\n<td>质量门失效</td>\n<td>先定位代码、workflow 或基础设施原因</td>\n</tr>\n<tr>\n<td>把 Request changes 当成绝对锁</td>\n<td>误解平台规则</td>\n<td>同时检查 branch protection/ruleset 和 review 权限</td>\n</tr>\n<tr>\n<td>把 <code>pull_request_target</code> 当作普通 PR 事件</td>\n<td>不可信代码可能接触特权上下文</td>\n<td>不在特权 workflow 中执行 fork 代码</td>\n</tr>\n</tbody></table></div>\n<h2 id=\"section-25\">官方资料</h2>\n<ul>\n<li><a href=\"https://docs.github.com/en/get-started/using-github/github-flow\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Flow</a></li>\n<li><a href=\"https://docs.github.com/en/pull-requests/reference/pull-requests\" target=\"_blank\" rel=\"noopener noreferrer\">Pull requests</a></li>\n<li><a href=\"https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/about-pull-request-reviews\" target=\"_blank\" rel=\"noopener noreferrer\">About pull request reviews</a></li>\n<li><a href=\"https://docs.github.com/en/pull-requests/reference/pull-request-merges\" target=\"_blank\" rel=\"noopener noreferrer\">Pull request merges</a></li>\n<li><a href=\"https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request\" target=\"_blank\" rel=\"noopener noreferrer\">Merging a pull request</a></li>\n<li><a href=\"https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork\" target=\"_blank\" rel=\"noopener noreferrer\">Syncing a fork</a></li>\n<li><a href=\"https://docs.github.com/en/actions/reference/security/secure-use\" target=\"_blank\" rel=\"noopener noreferrer\">Secure use reference for GitHub Actions</a></li>\n<li><a href=\"https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets\" target=\"_blank\" rel=\"noopener noreferrer\">Using secrets in GitHub Actions</a></li>\n<li><a href=\"https://cli.github.com/manual/gh_pr_create\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh pr create</code></a></li>\n<li><a href=\"https://cli.github.com/manual/gh_pr_review\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh pr review</code></a></li>\n<li><a href=\"https://cli.github.com/manual/gh_pr_merge\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh pr merge</code></a></li>\n<li><a href=\"https://cli.github.com/manual/gh_pr_checks\" target=\"_blank\" rel=\"noopener noreferrer\"><code>gh pr checks</code></a></li>\n</ul>\n",
+  "refs": [
+    [
+      "GitHub Flow",
+      "https://docs.github.com/en/get-started/using-github/github-flow"
+    ],
+    [
+      "Pull requests",
+      "https://docs.github.com/en/pull-requests/reference/pull-requests"
+    ],
+    [
+      "About pull request reviews",
+      "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/about-pull-request-reviews"
+    ],
+    [
+      "Pull request merges",
+      "https://docs.github.com/en/pull-requests/reference/pull-request-merges"
+    ],
+    [
+      "Merging a pull request",
+      "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request"
+    ],
+    [
+      "Syncing a fork",
+      "https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork"
+    ],
+    [
+      "Secure use reference for GitHub Actions",
+      "https://docs.github.com/en/actions/reference/security/secure-use"
+    ],
+    [
+      "Using secrets in GitHub Actions",
+      "https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets"
+    ],
+    [
+      "gh pr create",
+      "https://cli.github.com/manual/gh_pr_create"
+    ],
+    [
+      "gh pr review",
+      "https://cli.github.com/manual/gh_pr_review"
+    ],
+    [
+      "gh pr merge",
+      "https://cli.github.com/manual/gh_pr_merge"
+    ],
+    [
+      "gh pr checks",
+      "https://cli.github.com/manual/gh_pr_checks"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "github",
+    "git",
+    "collaboration"
+  ]
+}

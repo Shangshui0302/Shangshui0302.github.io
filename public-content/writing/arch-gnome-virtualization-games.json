@@ -1,0 +1,61 @@
+{
+  "slug": "arch-gnome-virtualization-games",
+  "number": "067",
+  "category": "LINUX / SYSTEMS",
+  "title": "Arch Linux 的 KVM、GPU 直通与游戏",
+  "deck": "建立虚拟机与设备直通环境，并区分 Steam、Wine 和 Waydroid 的运行边界。",
+  "sections": [
+    [
+      "section-01",
+      "虚拟化与直通的前提"
+    ],
+    [
+      "section-02",
+      "KVM 虚拟机"
+    ],
+    [
+      "section-07",
+      "在 linux 上玩游戏"
+    ],
+    [
+      "section-15",
+      "官方核对入口"
+    ]
+  ],
+  "body": "<p>本文整理自 <a href=\"https://github.com/shorinkiwata/archlinuxinstall\" target=\"_blank\" rel=\"noopener noreferrer\">shorinkiwata/archlinuxinstall</a>，保留原教程的操作深度并进行匿名化与风险校正。安装包名、扩展、驱动和界面可能随滚动更新变化，以下命令均为阅读示例，没有在此任务中执行或验证。</p>\n<h2 id=\"section-01\">虚拟化与直通的前提</h2>\n<p>先确认 CPU 虚拟化、固件 IOMMU 和内核支持。下面的 monolithic <code>libvirtd</code> 示例是一种管理模式；当前 libvirt 也提供模块化 daemon，按实际安装选择，不同时混用服务启动方案。</p>\n<p>GPU 直通需要独立、合适的 IOMMU group，宿主还要保留可用显示和输入。只看到 IOMMU 日志不证明设备分组能安全直通。修改 vfio 绑定后核对 <code>lspci -nnk</code> 的驱动绑定，回退时也要重建 initramfs。不要将宿主正在使用的唯一 GPU/USB 控制器盲目绑定给客体。</p>\n<p>Waydroid 需要 Wayland 会话、内核 Binder 支持及可用图形路径。ARM 转译和额外镜像脚本属于第三方来源，执行之前审阅代码和许可，尤其是带 sudo 的安装流程。容器中的 Android 应用不是自动获得完整游戏、DRM 和反作弊兼容性。</p>\n<h2 id=\"section-02\">KVM 虚拟机</h2>\n<p><a href=\"https://cn.linux-terminal.com/?p=4593\" target=\"_blank\" rel=\"noopener noreferrer\">[已解决] KVM Libvirt 中无法访问存储文件，权限被拒绝错误</a> <a href=\"https://phoenixnap.com/kb/ubuntu-install-kvm\" target=\"_blank\" rel=\"noopener noreferrer\">How to Install KVM on Ubuntu | phoenixNAP KB</a> <a href=\"https://zhuanlan.zhihu.com/p/645234144\" target=\"_blank\" rel=\"noopener noreferrer\">如何在 Linux 主机和 KVM 中的 Windows 客户机之间共享文件夹 | Linux 中国 - 知乎</a></p>\n<ul>\n<li>安装 qemu，图形界面， TPM</li>\n</ul>\n<pre><code>sudo pacman -S qemu-full virt-manager swtpm\n</code></pre>\n<ul>\n<li>开启 libvirtd 系统服务</li>\n</ul>\n<pre><code>sudo systemctl enable --now libvirtd\n</code></pre>\n<ul>\n<li>开启 NAT default 网络</li>\n</ul>\n<pre><code>sudo virsh net-start default\nsudo virsh net-autostart default\n</code></pre>\n<ul>\n<li>添加组权限 需要登出</li>\n</ul>\n<pre><code>sudo usermod -a -G libvirt &lt;username&gt; # 仅当当前授权方案使用此组\n</code></pre>\n<ul>\n<li>检查虚拟机存储访问权限</li>\n</ul>\n<pre><code>sudo vim /etc/libvirt/qemu.conf\n</code></pre>\n<pre><code># 把user = &quot;libvirt-qemu&quot;改为user = &quot;用户名&quot;\n# 把group = &quot;libvirt-qemu&quot;改为group = &quot;libvirt&quot;\n# 取消这两行的注释\n</code></pre>\n<ul>\n<li>重启服务</li>\n</ul>\n<pre><code>sudo systemctl restart libvirtd\n</code></pre>\n<h3 id=\"section-03\">嵌套虚拟化</h3>\n<p>先检查当前模块的 nested 参数；加载参数只在模块尚未加载时生效。已有虚拟机运行时不要为了改参数卸载 KVM 模块，持久配置可在安排重启后验证。\nintel 的话用 kvm_intel 临时生效</p>\n<pre><code>sudo modprobe kvm_amd nested=1\n</code></pre>\n<p>永久生效</p>\n<pre><code>sudo vim /etc/modprobe.d/kvm_amd.conf\n</code></pre>\n<p>写入</p>\n<pre><code>options kvm_amd nested=1\n</code></pre>\n<p>重新生成</p>\n<pre><code>sudo mkinitcpio -P\n</code></pre>\n<h3 id=\"section-04\">配置桥接网络</h3>\n<p>有线接口可加入普通网桥；多数 Wi-Fi station 连接不能直接用同样方式桥接。切换连接会中断网络，先保存当前配置。</p>\n<ul>\n<li>启动高级网络配置工具</li>\n</ul>\n<pre><code>nm-connection-editor\n</code></pre>\n<pre><code># 添加虚拟网桥，接口填bridge0或者别的\n</code></pre>\n<pre><code># 添加网桥连接，选择以太网，选择网络设备\n</code></pre>\n<pre><code># 保存后将网络连接改为刚才创建的以太网网桥连接\n</code></pre>\n<h3 id=\"section-05\">安装 Windows 11 虚拟机</h3>\n<p><a href=\"https://www.bilibili.com/video/BV16h4y1B7md/\" target=\"_blank\" rel=\"noopener noreferrer\">手把手教你给笔记本重装系统（Windows篇）_哔哩哔哩_bilibili</a> <a href=\"https://zhuanlan.zhihu.com/p/1000648759\" target=\"_blank\" rel=\"noopener noreferrer\">太突然！Win11 LTSC 官方精简版，终于来了 - 知乎</a></p>\n<ul>\n<li>下载 win11 iot LTS iso 镜像</li>\n</ul>\n<pre><code>https://go.microsoft.com/fwlink/?linkid=2270353&amp;clcid=0x409&amp;culture=en-us&amp;country=us\n</code></pre>\n<ul>\n<li>下载 virtiowin11 iso</li>\n</ul>\n<pre><code>https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.271-1/virtio-win-0.1.271.iso\n</code></pre>\n<pre><code>按获得授权的安装介质和当前虚拟机向导安装，选择 UEFI 与所需 TPM 设备。\n</code></pre>\n<p>显示协议、VirtIO 显卡和 OpenGL 加速要结合宿主及客体驱动支持；不要把 virtio 3D 对 Windows 的能力视为保证，也不以 GPU 品牌作绝对判断。需要高性能 Windows 图形时可研究 GPU 直通。</p>\n<ul>\n<li>跳过联网 确保机器没有连接到网络，按下 shift+f10 ，鼠标点选窗口，输入</li>\n</ul>\n<pre><code>oobe\\bypassnro # 历史版本的可选 OOBE 操作，当前 Windows 版本可能已移除\n</code></pre>\n<ul>\n<li>和本机进行文件分享 <a href=\"https://zhuanlan.zhihu.com/p/645234144\" target=\"_blank\" rel=\"noopener noreferrer\">如何在 Linux 主机和 KVM 中的 Windows 客户机之间共享文件夹 | Linux 中国 - 知乎</a></li>\n</ul>\n<pre><code>确认开启共享内存\n</code></pre>\n<pre><code>打开文件管理器，复制要共享的文件夹的路径\n</code></pre>\n<pre><code>在虚拟机管理器内添加共享文件夹,粘贴刚才复制的路径，取个名字\n</code></pre>\n<pre><code>虚拟机内win11安装winFSP\nhttps://winfsp.dev/rel/\n</code></pre>\n<pre><code>搜索service（服务），启用VirtIO-FS Service，设置为自动\n</code></pre>\n<h3 id=\"section-06\">显卡直通</h3>\n<p><a href=\"https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF\" target=\"_blank\" rel=\"noopener noreferrer\">PCI passthrough via OVMF - ArchWiki</a></p>\n<ul>\n<li>确认 iommu 是否开启，有输出说明开启</li>\n</ul>\n<pre><code>sudo dmesg | grep -e DMAR -e IOMMU\n</code></pre>\n<ul>\n<li>获取显卡的硬件 id，如果是显卡所在 group 的所有设备的 id 都记下。如果 group 里有 cpu 的话去看 wiki。</li>\n</ul>\n<pre><code>for d in /sys/kernel/iommu_groups/*/devices/*; do\n    n=${d#*/iommu_groups/*}; n=${n%%/*}\n    printf &#39;IOMMU Group %s &#39; &quot;$n&quot;\n    lspci -nns &quot;${d##*/}&quot;\ndone\n</code></pre>\n<ul>\n<li>隔离 GPU</li>\n</ul>\n<pre><code>sudo vim /etc/modprobe.d/vfio.conf\n</code></pre>\n<p>写入如下内容</p>\n<pre><code>options vfio-pci ids=EXAMPLE_GPU_ID,EXAMPLE_AUDIO_ID\n</code></pre>\n<ul>\n<li>让 vfio-pci 抢先加载</li>\n</ul>\n<pre><code>sudo vim /etc/mkinitcpio.conf\n</code></pre>\n<p>MODULES=（）里面写入 vfio_pci vfio vfio_iommu_type1</p>\n<pre><code>MODULES=(... vfio_pci vfio vfio_iommu_type1  ...)\n</code></pre>\n<p>HOOKS=() 里面写入 modconf</p>\n<pre><code>HOOKS=(... modconf ...)\n</code></pre>\n<ul>\n<li>重新生成</li>\n</ul>\n<pre><code>sudo mkinitcpio -P\n</code></pre>\n<p>重启电脑\n安装 ovmf</p>\n<pre><code>sudo pacman -S edk2-ovmf\n</code></pre>\n<p>编辑配置文件</p>\n<pre><code>sudo vim /etc/libvirt/qemu.conf\n</code></pre>\n<pre><code># 在 virt-manager 中选择 edk2-ovmf 提供的 UEFI 固件\n# 不复制旧发行版 OVMF 文件路径；为每台客体保留独立 NVRAM VARS\n</code></pre>\n<p>重启服务</p>\n<pre><code>sudo systemctl restart libvirtd\n</code></pre>\n<p>virt-manager 的虚拟机页面内添加设备，PCI Host Device 里找到要直通的显卡。 然后 USB hostDevice 里面把鼠标键盘也直通进去。</p>\n<ul>\n<li>取消显卡直通</li>\n</ul>\n<pre><code>sudo vim /etc/modprobe.d/vfio.conf\n</code></pre>\n<p>注释掉里面的内容</p>\n<pre><code>sudo mkinitcpio -P\n</code></pre>\n<pre><code>重启\n</code></pre>\n<h2 id=\"section-07\">在 linux 上玩游戏</h2>\n<p>这一节不仅适用于 windows 的游戏程序，还适用于 windows 的软件。 首选用 steam 玩游戏，steam 没有的游戏通过 lutris 管理，使用 proton 或者 wine 运行。安卓手游用 waydroid 运行。如果都不行，用配置了显卡直通的 win11 虚拟机玩</p>\n<h3 id=\"section-08\">玩 steam 游戏</h3>\n<p><a href=\"https://wiki.archlinux.org/title/Steam\" target=\"_blank\" rel=\"noopener noreferrer\">Steam - ArchWiki</a></p>\n<pre><code>sudo pacman -S steam\n</code></pre>\n<p>在设置→兼容性里面选择默认兼容性工具即可运行大部分无反作弊的游戏</p>\n<h3 id=\"section-09\">玩安卓手游</h3>\n<h3 id=\"section-10\">waydroid</h3>\n<p><a href=\"https://docs.waydro.id/usage/install-on-desktops\" target=\"_blank\" rel=\"noopener noreferrer\">Install Instructions | Waydroid</a> <a href=\"https://wiki.archlinuxcn.org/wiki/Waydroid\" target=\"_blank\" rel=\"noopener noreferrer\">Waydroid - Arch Linux 中文维基</a> Android 使用 Linux 内核，但图形、Binder、架构和硬件集成仍会限制兼容性与性能。waydroid 是 linux 上的安卓容器，相当于一个完整的安卓系统。</p>\n<ul>\n<li>安装</li>\n</ul>\n<pre><code>sudo pacman -S waydroid\n</code></pre>\n<p>可选：从 archlinuxcn 安装 waydroid-image（要求添加 cn 仓库，按照流程，在本文档的 yay 安装部分已经添加）</p>\n<pre><code>sudo pacman -S waydroid-image\n# 带谷歌play的\nsudo pacman -S waydroid-image-gapps\n</code></pre>\n<ul>\n<li>初始化</li>\n</ul>\n<pre><code>sudo waydroid init\n# 带谷歌的\nsudo waydroid init -s GAPPS\n</code></pre>\n<ul>\n<li>启动服务</li>\n</ul>\n<pre><code>sudo systemctl enable --now waydroid-container.service\n</code></pre>\n<ul>\n<li>安装 arm 转移 <a href=\"https://github.com/casualsnek/waydroid_script\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub - casualsnek/waydroid_script: Python Script to add OpenGapps, Magisk, libhoudini translation library and libndk translation library to waydroid !</a> 在 x86_64 系统运行仅含 ARM 原生代码的应用时可能需要转译。转译工具是额外的第三方组件，兼容性和许可条件需要核对，不按 CPU 品牌作固定选择。</li>\n</ul>\n<pre><code># 第三方转译安装示例，先审阅项目及依赖；不是 Waydroid 必需步骤\nsudo pacman -S lzip\ngit clone https://github.com/casualsnek/waydroid_script\ncd waydroid_script\npython3 -m venv venv\nvenv/bin/pip install -r requirements.txt\nsudo venv/bin/python3 main.py\n按照窗口的指引进行安装\n</code></pre>\n<ul>\n<li>开启</li>\n</ul>\n<pre><code>waydroid session start\n</code></pre>\n<p>然后应该就能在桌面看到一大堆图标了</p>\n<ul>\n<li>安装软件</li>\n</ul>\n<pre><code>waydroid app install /path/to/example.apk\n</code></pre>\n<ul>\n<li>软件默认是全屏打开，可以设置窗口化打开软件</li>\n</ul>\n<h3 id=\"section-11\">卸载 waydroid</h3>\n<pre><code>waydroid session stop\nsudo systemctl disable --now waydroid-container.service\nsudo pacman -Rns waydroid #如果下载了waydroid-image的话需要一并删除\n# 可选清理：这些目录含应用数据，确认已备份且路径正确后才删除\n# sudo rm -rf -- /var/lib/waydroid\n# rm -rf -- ~/.local/share/waydroid\n# 逐个检查并删除对应 desktop 入口，避免未经检查的通配符\n\n</code></pre>\n<h3 id=\"section-12\">wine/proton 兼容层运行</h3>\n<p>wine 是在 linux 下运行 windows 程序的兼容层，proton 是 steam 的母公司 v 社基于 wine 开发的专门用来玩游戏的兼容层。原理是把 window 程序发出的请求翻译成 linux 系统下的等效请求。通常使用最新的 wine 或者 proton 版本即可。</p>\n<h3 id=\"section-13\">lutris</h3>\n<p><a href=\"https://lutris.net/downloads\" target=\"_blank\" rel=\"noopener noreferrer\">Download Lutris</a> lutris 是一个专为玩游戏设计的工具，可以很方便地管理需要用 wine 或者 proton 兼容层运行的软件。Lutris 可管理独立游戏及运行器；与 Steam 的非 Steam 游戏入口有不同集成功能。</p>\n<ul>\n<li>安装</li>\n</ul>\n<pre><code>sudo pacman -S lutris\n</code></pre>\n<ul>\n<li>第一次打开会自动下载各种需要的组件</li>\n<li>卸载</li>\n</ul>\n<pre><code>sudo pacman -Rns lutris\n</code></pre>\n<pre><code># 可选清理会删除设置、运行器与本地游戏管理数据，先备份并逐项检查\n# rm -rf -- ~/.config/lutris ~/.cache/lutris ~/.local/share/lutris\n# 在 ~/.local/share/applications/ 中只删除已确认属于 Lutris 的入口\n</code></pre>\n<p>steam 下载 proton 之后可以在 lutris 里面设置 wine 版本为 proton</p>\n<h3 id=\"section-14\">用显卡直通玩游戏</h3>\n<p>显卡直通让客体直接使用专用 GPU，但兼容性仍受驱动、复位、IOMMU、反作弊和许可要求影响。不要保证所有游戏都会运行，测试时保留宿主可用的显示与输入设备。</p>\n<h2 id=\"section-15\">官方核对入口</h2>\n<p><a href=\"https://wiki.archlinux.org/title/Libvirt\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Libvirt</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：PCI passthrough via OVMF</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/Waydroid\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Waydroid</a>。</p>\n<p><a href=\"https://wiki.archlinux.org/title/Steam\" target=\"_blank\" rel=\"noopener noreferrer\">ArchWiki：Steam</a>。</p>\n<p><a href=\"https://docs.waydro.id/usage/install-on-desktops\" target=\"_blank\" rel=\"noopener noreferrer\">Waydroid 官方安装说明</a>。</p>\n",
+  "refs": [
+    [
+      "原教程：shorinkiwata/archlinuxinstall",
+      "https://github.com/shorinkiwata/archlinuxinstall"
+    ],
+    [
+      "ArchWiki：Libvirt",
+      "https://wiki.archlinux.org/title/Libvirt"
+    ],
+    [
+      "ArchWiki：PCI passthrough via OVMF",
+      "https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF"
+    ],
+    [
+      "ArchWiki：Waydroid",
+      "https://wiki.archlinux.org/title/Waydroid"
+    ],
+    [
+      "ArchWiki：Steam",
+      "https://wiki.archlinux.org/title/Steam"
+    ],
+    [
+      "Waydroid 官方安装说明",
+      "https://docs.waydro.id/usage/install-on-desktops"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "gnome"
+  ]
+}

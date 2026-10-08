@@ -1,0 +1,61 @@
+{
+  "slug": "arch-kernel-uki",
+  "number": "056",
+  "category": "LINUX / SYSTEMS",
+  "title": "内核管理、systemd-boot 与 UKI",
+  "deck": "把内核、initramfs 和命令行组合成 UKI，并理解签名与 TPM 测量的边界。",
+  "sections": [
+    [
+      "section-01",
+      "核心架构：什么是 UKI？"
+    ],
+    [
+      "section-03",
+      "UKI 生成工作流"
+    ],
+    [
+      "section-07",
+      "systemd-boot 的初始化与检查"
+    ],
+    [
+      "section-08",
+      "Secure Boot 签名流程"
+    ],
+    [
+      "section-10",
+      "TPM2 测量与磁盘解锁"
+    ],
+    [
+      "section-11",
+      "引导流程"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">核心架构：什么是 UKI？</h2>\n<p>UKI（Unified Kernel Image）把 UEFI 启动桩、Linux 内核、初始化内存盘及可选资源组合成单一 <code>.efi</code> 可执行文件。微码、命令行、系统标识和启动画面可包含其中。</p>\n<h3 id=\"section-02\">选择 UKI 的理由</h3>\n<ul>\n<li><strong>签名覆盖组件</strong>：签名且经 Secure Boot 验证的 UKI 可保护其中的内核和 initramfs。保护范围仍取决于信任的证书、固件策略和启动链，不能保证任意配置文件都不可被利用。</li>\n<li><strong>版本绑定</strong>：内核与 initramfs 放在一起，减少分离文件不一致的问题；生成和升级失败仍然需要恢复入口。</li>\n<li><strong>自动发现</strong>：systemd-boot 能发现 ESP 或 XBOOTLDR 的 <code>/EFI/Linux/</code> 下符合规范的 UKI。</li>\n</ul>\n<h2 id=\"section-03\">UKI 生成工作流</h2>\n<h3 id=\"section-04\">工具选择</h3>\n<p><code>mkinitcpio</code> 能生成 UKI；安装 <code>systemd-ukify</code> 时可由 ukify 组装。选择一条生成流水线即可，避免多个工具互相覆盖。</p>\n<pre><code>sudo pacman -S systemd-ukify sbctl tpm2-tools</code></pre>\n<p>这些是采用本文方案时的工具示例，并不意味着所有 Arch 安装都必须使用 TPM。</p>\n<h3 id=\"section-05\">内核命令行</h3>\n<p>例如 <code>/etc/kernel/cmdline</code>：</p>\n<pre><code>root=UUID=&lt;ROOT_FILESYSTEM_UUID&gt; rw quiet loglevel=3</code></pre>\n<p>替换占位符并按加密、子卷布局添加所需参数。<code>loader.conf</code> 仍控制菜单、默认条目等引导器设置；它不是 UKI 内嵌命令行的配置文件。</p>\n<h3 id=\"section-06\">mkinitcpio 预设</h3>\n<p>保留已安装内核提供的完整 preset 中的内核路径等字段，调整 UKI 输出，例如：</p>\n<pre><code>PRESETS=(&#39;default&#39; &#39;fallback&#39;)\ndefault_uki=&quot;/efi/EFI/Linux/arch-linux.efi&quot;\ndefault_options=&quot;--splash /usr/share/systemd/bootctl/splash-arch.bmp&quot;\nfallback_uki=&quot;/efi/EFI/Linux/arch-linux-fallback.efi&quot;\nfallback_options=&quot;-S autodetect&quot;</code></pre>\n<p><code>/efi</code> 是此例的 ESP 挂载点。确认它已挂载、目录存在，且对应 preset 已禁用不需要的重复 initramfs 输出。不是所有版本都生成 fallback preset，应按实际版本选择。</p>\n<pre><code>sudo mkinitcpio -P</code></pre>\n<p>生成成功不等于已经从该镜像启动，重启后还需检查运行内核及引导条目。</p>\n<h2 id=\"section-07\">systemd-boot 的初始化与检查</h2>\n<p>在 UEFI 环境、正确挂载 ESP 且具备恢复介质的前提下：</p>\n<pre><code>sudo bootctl install\nbootctl list</code></pre>\n<p>安装会写入 ESP 和可能的固件启动项。自动更新还应检查实际的 <code>systemd-boot-update.service</code> 启用状态与签名流程，不能把执行 <code>bootctl install</code> 当作全部维护配置完成。</p>\n<h2 id=\"section-08\">Secure Boot 签名流程</h2>\n<h3 id=\"section-09\">创建、注册与保存签名路径</h3>\n<p>先阅读设备固件说明，备份现有密钥和恢复方式。固件需允许进入 Setup Mode；若替换密钥不当，某些设备的 Option ROM、显示或其他系统可能无法启动。</p>\n<pre><code>sudo sbctl create-keys\nsudo sbctl enroll-keys -m\nsudo sbctl sign -s /efi/EFI/Linux/arch-linux.efi\nsudo sbctl verify</code></pre>\n<p><code>-m</code> 加入微软证书，是兼容性与信任范围的权衡。<code>sign -s</code> 保存文件路径以供后续签名流程使用；更新后的自动重签还依赖 sbctl 的 mkinitcpio、kernel-install 或 pacman hook 实际生效。</p>\n<h2 id=\"section-10\">TPM2 测量与磁盘解锁</h2>\n<p>systemd-stub 会将 UKI 组件测量到 PCR 11。静态 PCR 绑定将密钥解封与选定测量值绑定；它不是笼统地证明“系统从未被篡改”。</p>\n<pre><code># 示例：必须替换设备并先保留可用的 LUKS 口令或恢复密钥\nsudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7+11 /dev/EXAMPLE_LUKS_PARTITION</code></pre>\n<p>直接绑定 PCR 11 可能在更新 UKI 后失效，且启动阶段测量值会继续变化。应按实际 systemd 版本设计签名 PCR policy 或其他受支持策略，并测试更新、固件变更和恢复路径。TPM 自动解锁也不能取代运行中的访问控制。</p>\n<h2 id=\"section-11\">引导流程</h2>\n<pre><code>graph TD\n    UEFI[UEFI 固件] --&gt; SB{验证启动文件签名}\n    SB -- 成功 --&gt; UKI[运行 UKI]\n    SB -- 失败 --&gt; HALT[拒绝此启动文件]\n    UKI --&gt; TPM[扩展 TPM PCR 测量]\n    TPM --&gt; POLICY{解锁策略匹配}\n    POLICY -- 成功 --&gt; LUKS[解锁 LUKS]\n    POLICY -- 失败 --&gt; RECOVERY[口令或恢复密钥]\n    LUKS --&gt; OS[进入系统]</code></pre>\n",
+  "refs": [
+    [
+      "ArchWiki：Unified kernel image",
+      "https://wiki.archlinux.org/title/Unified_kernel_image"
+    ],
+    [
+      "ArchWiki：Systemd-boot",
+      "https://wiki.archlinux.org/title/Systemd-boot"
+    ],
+    [
+      "ArchWiki：Unified Extensible Firmware Interface/Secure Boot",
+      "https://wiki.archlinux.org/title/Unified_Extensible_Firmware_Interface/Secure_Boot"
+    ],
+    [
+      "ArchWiki：Trusted Platform Module",
+      "https://wiki.archlinux.org/title/Trusted_Platform_Module"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "boot"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "slug": "linux-command-process-jobs",
+  "number": "040",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "进程与作业管理",
+  "deck": "用进程快照、信号和前后台作业理解程序的运行与退出。",
+  "sections": [
+    [
+      "section-01",
+      "查看进程"
+    ],
+    [
+      "section-05",
+      "终止进程"
+    ],
+    [
+      "section-09",
+      "前后台与作业管理"
+    ],
+    [
+      "section-16",
+      "配合 systemctl"
+    ],
+    [
+      "section-18",
+      "日常场景速查"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">查看进程</h2>\n<h3 id=\"section-02\">ps — 进程快照</h3>\n<pre><code>ps              # 当前终端启动的进程，极少用\nps aux          # 全系统所有进程，最常用\nps aux | grep nginx   # 筛选含 nginx 的进程</code></pre>\n<p><code>ps aux</code> 每一列的含义：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">列</th>\n<th scope=\"col\">含义</th>\n<th scope=\"col\">怎么看</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>USER</td>\n<td>进程所属用户</td>\n<td>root 还是你的用户名</td>\n</tr>\n<tr>\n<td>PID</td>\n<td>进程唯一 ID</td>\n<td>后面 kill 要用</td>\n</tr>\n<tr>\n<td>%CPU</td>\n<td>CPU 占用率</td>\n<td>哪个在吃 CPU</td>\n</tr>\n<tr>\n<td>%MEM</td>\n<td>内存占用率</td>\n<td>哪个在吃内存</td>\n</tr>\n<tr>\n<td>VSZ/RSS</td>\n<td>虚拟/物理内存</td>\n<td>通常只看 RSS</td>\n</tr>\n<tr>\n<td>STAT</td>\n<td>进程状态</td>\n<td>S=睡眠 R=运行 Z=僵尸</td>\n</tr>\n<tr>\n<td>COMMAND</td>\n<td>启动命令</td>\n<td>这就是你在跑的东西</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-03\">top — 实时进程监控</h3>\n<pre><code>top              # 进入交互界面，按 q 退出</code></pre>\n<p>进入 top 后的常用按键：</p>\n<ul>\n<li><code>P</code> — 按 CPU 占用排序</li>\n<li><code>M</code> — 按内存占用排序</li>\n<li><code>k</code> — 输入 PID 杀掉进程</li>\n<li><code>q</code> — 退出</li>\n</ul>\n<h3 id=\"section-04\">htop — top 的彩色升级版</h3>\n<pre><code>htop             # 更直观，支持鼠标点击</code></pre>\n<hr>\n<h2 id=\"section-05\">终止进程</h2>\n<h3 id=\"section-06\">kill — 向进程发信号</h3>\n<pre><code>kill PID            # 礼貌地请进程退出（SIGTERM，信号 15）\nkill -9 PID         # 强制杀死（SIGKILL，信号 9）\nkill -l             # 列出所有信号类型</code></pre>\n<p>流程：先用 <code>ps aux | grep 进程名</code> 找到 PID，再用 <code>kill PID</code> 处理。不响应才用 <code>kill -9</code>。</p>\n<h3 id=\"section-07\">pkill — 按名字杀进程</h3>\n<pre><code>pkill nginx          # 杀掉所有名字匹配 nginx 的进程\npkill -9 -f &quot;python script.py&quot;   # 强制杀，匹配完整命令行</code></pre>\n<p>不用先查 PID，比 <code>kill</code> 更直接。</p>\n<h3 id=\"section-08\">killall — 按精确名字杀</h3>\n<pre><code>killall firefox      # 杀所有 firefox 进程</code></pre>\n<hr>\n<h2 id=\"section-09\">前后台与作业管理</h2>\n<p>这是新手最迷惑的地方，但理解模型很简单：</p>\n<pre><code>前台 = 霸占终端，运行期间你不能敲别的命令\n后台 = Shell 不等待它结束；仍可能向终端输出，也可能因读取终端而暂停</code></pre>\n<h3 id=\"section-10\">&amp; — 启动时放到后台</h3>\n<pre><code>python train.py &amp;       # 直接在后台启动\nsleep 100 &amp;             # 后台睡 100 秒</code></pre>\n<p>启动后会打印 <code>[作业号] PID</code>，比如 <code>[1] 12345</code>。</p>\n<h3 id=\"section-11\">jobs — 查看当前终端的后台作业</h3>\n<pre><code>jobs                # 列出所有后台作业\njobs -l             # 附带 PID</code></pre>\n<p>输出示例：</p>\n<pre><code>[1]  - running    python train.py\n[2]  + running    sleep 100</code></pre>\n<p><code>+</code> 表示最近操作的作业（<code>fg</code> 不带参数时默认调它）。</p>\n<h3 id=\"section-12\">fg — 把后台作业调到前台</h3>\n<pre><code>fg          # 调回最近的那个\nfg %1       # 调回作业号 1\nfg %sleep   # 调回名字含 sleep 的</code></pre>\n<h3 id=\"section-13\">bg — 把暂停的作业放到后台继续跑</h3>\n<pre><code>bg %1       # 把作业 1 放到后台继续</code></pre>\n<h3 id=\"section-14\">Ctrl+Z — 暂停当前前台任务</h3>\n<p>在终端里按 <code>Ctrl+Z</code>，当前任务会暂停并回到 Shell。然后你可以：</p>\n<pre><code>bg          # 让它在后台继续跑\nfg          # 或者调回前台继续</code></pre>\n<h3 id=\"section-15\">nohup — 忽略挂断信号</h3>\n<pre><code>nohup python train.py &amp;     # 忽略 SIGHUP，通常可在终端关闭后继续；不保证跨注销策略存活\nnohup python train.py &gt; output.log 2&gt;&amp;1 &amp;   # 输出写到文件</code></pre>\n<hr>\n<h2 id=\"section-16\">配合 systemctl</h2>\n<p><code>systemctl</code> 管理 systemd 的 unit 和系统状态；默认连接系统管理器，<code>systemctl --user</code> 连接用户管理器。用户程序也可作为 user service 管理：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">场景</th>\n<th scope=\"col\">用这个</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>用户自己跑的程序</td>\n<td><code>ps</code> / <code>kill</code> / <code>jobs</code> / <code>&amp;</code></td>\n</tr>\n<tr>\n<td>系统服务（nginx/ssh/docker）</td>\n<td><code>systemctl start/stop/status</code></td>\n</tr>\n<tr>\n<td>想开机自启</td>\n<td><code>systemctl enable 服务名</code></td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-17\">系统电源管理</h3>\n<p>systemctl 也负责关机、重启、挂起等系统级操作：</p>\n<pre><code>systemctl poweroff    # 关机（等价于直接敲 poweroff）\nsystemctl reboot      # 重启（等价于直接敲 reboot）\nsystemctl suspend     # 挂起/睡眠\nsystemctl hibernate   # 休眠（写盘后断电）</code></pre>\n<p><code>poweroff</code> 和 <code>reboot</code> 之所以可以直接敲（不需要 <code>systemctl</code> 前缀），是因为它们是系统历史上就存在的独立命令。systemd 保留了它们作为兼容入口——在 systemd 系统中通常由兼容入口处理；具体文件或链接布局取决于发行版。</p>\n<p>这里使用 <code>systemctl suspend</code> 和 <code>systemctl hibernate</code>；独立入口及兼容命令因发行版和所安装工具而异。休眠还需要内核、交换空间与恢复配置支持。</p>\n<p>系统服务详解见 <a href=\"/writing/login-and-session/\">Linux 登录与会话</a>。</p>\n<hr>\n<h2 id=\"section-18\">日常场景速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">我想...</th>\n<th scope=\"col\">命令</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>看谁在吃 CPU</td>\n<td><code>top</code> 或 <code>htop</code></td>\n</tr>\n<tr>\n<td>看某个程序在不在跑</td>\n<td><code>ps aux | grep 关键词</code></td>\n</tr>\n<tr>\n<td>杀死卡死的程序</td>\n<td><code>pkill 程序名</code>，不行就 <code>pkill -9</code></td>\n</tr>\n<tr>\n<td>后台跑脚本</td>\n<td><code>./script.sh &amp;</code></td>\n</tr>\n<tr>\n<td>关了终端继续跑</td>\n<td><code>nohup ./script.sh &amp;</code></td>\n</tr>\n<tr>\n<td>看看后台有什么</td>\n<td><code>jobs</code></td>\n</tr>\n<tr>\n<td>把后台的调到前台</td>\n<td><code>fg</code></td>\n</tr>\n<tr>\n<td>暂停当前程序</td>\n<td><code>Ctrl+Z</code></td>\n</tr>\n</tbody></table></div>\n<hr>\n<hr>\n",
+  "refs": [
+    [
+      "GNU Coreutils 手册",
+      "https://www.gnu.org/software/coreutils/manual/coreutils.html"
+    ],
+    [
+      "GNU Findutils 手册",
+      "https://www.gnu.org/software/findutils/manual/html_mono/find.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "cli"
+  ]
+}

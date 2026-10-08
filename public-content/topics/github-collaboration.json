@@ -1,0 +1,16 @@
+{
+  "slug": "github-collaboration",
+  "title": "GitHub 仓库与协作",
+  "deck": "从远程托管进入仓库治理，再完成一次可以审查的贡献。",
+  "description": "Git 管理提交、分支与历史；GitHub 管理托管、Issue、PR、Review、权限与规则，gh 提供终端入口。本专题沿“会使用 → 会维护 → 会贡献”组织。已有 Git 分支和远程基础可直接阅读贡献流程；维护者还应继续阅读 Actions 专题，把质量门落实为平台检查。",
+  "articles": [
+    "github-fundamentals",
+    "github-repository-management",
+    "github-contribution-workflow"
+  ],
+  "reading_guide": [
+    "先分清 clone、fork、branch 与 origin/upstream，再对照完整命令流确认推送和创建 PR 的不同边界。",
+    "从社区文件与权限开始，再核对 Rulesets、Required Checks 与 Release 的平台状态，避免把文档声明当作规则已生效。",
+    "按 Issue、topic branch、PR、Review、检查与清理顺序阅读，特别核对 base/head、共享分支与历史重写的边界。"
+  ]
+}

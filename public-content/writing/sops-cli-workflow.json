@@ -1,0 +1,76 @@
+{
+  "slug": "sops-cli-workflow",
+  "number": "100",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "sops 使用指南：命令行操作",
+  "deck": "编辑加密文件，检查状态并管理接收者与数据密钥。",
+  "sections": [
+    [
+      "section-01",
+      "子命令总览"
+    ],
+    [
+      "section-02",
+      "编辑明文：核心用法"
+    ],
+    [
+      "section-03",
+      "加解密与检查"
+    ],
+    [
+      "section-04",
+      "密钥与接收者管理"
+    ],
+    [
+      "section-05",
+      ".sops.yaml 配置解读"
+    ],
+    [
+      "section-11",
+      "NixOS 场景速查"
+    ],
+    [
+      "section-12",
+      "相关"
+    ]
+  ],
+  "body": "<blockquote>\n<p>以下为通用 SOPS CLI 示例；子命令支持与参数位置以所安装版本为准。私钥的读取权限与机器配置决定是否需要管理员权限。</p>\n</blockquote>\n<h2 id=\"section-01\">子命令总览</h2>\n<pre><code>sops edit        编辑加密文件（最常用，解密→编辑器→自动加密）\nsops set         设置某个 key 的值\nsops unset       删除某个 key\nsops decrypt     解密输出到 stdout / -i 原地写回\nsops encrypt     加密（需指定 recipient）\nsops filestatus  检查文件加密状态\nsops updatekeys  按 .sops.yaml 同步接收者\nsops rotate      生成新数据密钥重加密\nsops exec-env    解密后注入环境变量执行命令</code></pre>\n<h2 id=\"section-02\">编辑明文：核心用法</h2>\n<p><strong>方式一：<code>sops edit</code>（推荐，标准姿势）</strong></p>\n<pre><code>sops edit host/secrets/secrets.yaml</code></pre>\n<p>它会自动解密 → 打开 <code>$EDITOR</code> 编辑明文 → 保存后自动加密写回。<strong>你永远不直接碰密文</strong>，也不用手动「解密→改→加密」。</p>\n<blockquote>\n<p>编辑权限\n管理员需先确认解密身份与文件写权限。专用用户 age 身份可避免日常编辑依赖系统 host key；不要把私钥放进仓库或命令参数。</p>\n</blockquote>\n<p><strong>方式二：受限临时文件中编辑，再加密</strong></p>\n<pre><code># Bash 示例；在含 .sops.yaml 的配置仓库根目录中执行\n# 先确认私钥可用，且解密目标与 creation_rules 的路径匹配\numask 077\ntask_secret_dir=$(mktemp -d &quot;${TMPDIR:-/tmp}/sops-edit.XXXXXXXX&quot;)\ntrap &#39;rm -rf -- &quot;$task_secret_dir&quot;&#39; EXIT\nsops decrypt host/secrets/secrets.yaml &gt; &quot;$task_secret_dir/plain.yaml&quot; &amp;&amp;\n  &quot;${EDITOR:-nano}&quot; &quot;$task_secret_dir/plain.yaml&quot; &amp;&amp;\n  sops encrypt --filename-override host/secrets/secrets.yaml \\\n    &quot;$task_secret_dir/plain.yaml&quot; &gt; &quot;$task_secret_dir/encrypted.yaml&quot; &amp;&amp;\n  sops filestatus &quot;$task_secret_dir/encrypted.yaml&quot; &amp;&amp;\n  cp -- &quot;$task_secret_dir/encrypted.yaml&quot; host/secrets/secrets.yaml\n# 成功或失败退出后都清理私有临时目录；不要提交明文</code></pre>\n<blockquote>\n<p>临时明文要删\n临时文件应使用随机私有目录和 0700/0600 权限，设置清理退出钩子，并防止编辑器备份、swap 和日志泄漏。删除不是存储介质上的安全擦除保证；需要时选择合适的受保护内存文件系统。加密失败时不要覆盖原密文。</p>\n</blockquote>\n<p><strong>方式三：set/unset（只改某个 key，不整文件编辑）</strong></p>\n<pre><code># 设置 app_env 的值（value 是 JSON 字符串）\nsops set host/secrets/secrets.yaml &#39;[&quot;app_env&quot;]&#39; &#39;&quot;NON_SECRET_EXAMPLE_VALUE&quot;&#39;\n\n# 删除某个 key\nsops unset host/secrets/secrets.yaml &#39;[&quot;app_env&quot;]&#39;</code></pre>\n<h2 id=\"section-03\">加解密与检查</h2>\n<pre><code># 解密到 stdout\nsops -d host/secrets/secrets.yaml\n\n# 解密并提取某个 key\nsops -d --extract &#39;[&quot;app_env&quot;]&#39; host/secrets/secrets.yaml\n\n# 原地解密成明文文件（危险，别提交 git）\nsops -d -i host/secrets/secrets.yaml\n\n# 加密一份明文文件（需指定 recipient，或依赖 .sops.yaml）\nsops -e --age &quot;$PUB_KEY&quot; &quot;$task_secret_dir/plain.yaml&quot; &gt; &quot;$task_secret_dir/encrypted.yaml&quot;\n# PUB_KEY 是已核对的 recipient；先检查加密成功再替换目标密文\n\n# 检查文件是否加密\nsops filestatus host/secrets/secrets.yaml</code></pre>\n<h2 id=\"section-04\">密钥与接收者管理</h2>\n<p><strong>新增接收者（多机授权）</strong>：</p>\n<pre><code># 1. 在 .sops.yaml 的 keys 添加新公钥，creation_rules 里加上\n# 2. 用 updatekeys 同步（需有旧 key 权限解密）\nsops updatekeys host/secrets/secrets.yaml</code></pre>\n<p><strong>移除接收者</strong>：从 <code>.sops.yaml</code> 删掉该 key，再 <code>sops updatekeys</code>。</p>\n<p><strong>轮换数据密钥</strong>（生成新 AES 密钥重加密，旧接收者仍有效）：</p>\n<pre><code>sops rotate --in-place host/secrets/secrets.yaml</code></pre>\n<blockquote>\n<p>换 key 安全流程\n先加新接收者（双保险）→ 验证新 key 能解密 → 确认稳定后再移除旧接收者。在保留旧密文、旧密钥和可用系统恢复路径的前提下，可在过渡期回退。完整流程见 <a href=\"/writing/sops-key-migration-rotation/\">sops 迁移指南</a>。</p>\n</blockquote>\n<h2 id=\"section-05\">.sops.yaml 配置解读</h2>\n<p><code>.sops.yaml</code> 是 sops 的<strong>客户端配置文件</strong>，决定「哪个文件用哪把公钥加密」。通用示例（占位符不可作为有效密钥）：</p>\n<pre><code>keys:\n  - &amp;server-key AGE_RECIPIENT_PLACEHOLDER_NOT_VALID\ncreation_rules:\n  - path_regex: host/secrets/secrets\\.yaml$\n    key_groups:\n      - age:\n        - *server-key</code></pre>\n<p>逐字段含义：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">字段</th>\n<th scope=\"col\">含义</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>keys:</code></td>\n<td>用于保存 YAML anchor 的辅助区域，不是独立的 SOPS 授权字段</td>\n</tr>\n<tr>\n<td><code>&amp;server-key</code></td>\n<td>YAML anchor（锚点）：给公钥串贴标签</td>\n</tr>\n<tr>\n<td><code>creation_rules:</code></td>\n<td>加密规则数组，每条规则匹配某些文件</td>\n</tr>\n<tr>\n<td><code>path_regex:</code></td>\n<td>路径正则，决定规则作用于哪些文件</td>\n</tr>\n<tr>\n<td><code>key_groups:</code></td>\n<td>密钥组；组内通常任一身份即可取得组份额，跨组受 Shamir threshold 控制</td>\n</tr>\n<tr>\n<td><code>*server-key</code></td>\n<td>YAML alias（别名引用）：展开成完整公钥</td>\n</tr>\n</tbody></table></div>\n<p><strong>多 secrets 文件</strong>：<code>creation_rules</code> 是数组，可加多条规则匹配不同文件，文件名随意——只要 <code>path_regex</code> 匹配。运行时在 <code>host/sops.nix</code> 用 <code>sopsFile</code> 声明对应：</p>\n<pre><code>sops = {\n  defaultSopsFile = ./secrets/secrets.yaml;\n  secrets = {\n    another = { sopsFile = ./secrets/another.yaml; };\n  };\n};</code></pre>\n<blockquote>\n<p><code>.sops.yaml</code> 与 <code>host/sops.nix</code> 的分工\n<code>.sops.yaml</code> 管<strong>加密时</strong>用哪把公钥（CLI 侧）；<code>host/sops.nix</code> 管<strong>解密时</strong>从哪个文件取哪个 secret（运行时侧）。两者 recipient/私钥必须配对。</p>\n</blockquote>\n<h3 id=\"section-06\">正则 vs glob：* 是重复符不是通配符</h3>\n<p>正则（regex）里 <code>*</code> 是<strong>重复前一个字符</strong>，不是 shell glob 的「任意匹配」：</p>\n<pre><code>secrets\\.yaml$        # 精确：只匹配 secrets.yaml（\\. 转义点号，$ 锚定结尾）\n.*secrets.*           # 任意路径含 &quot;secrets&quot; 的都匹配（.* 才是 glob 的 *）\nsecrets-[0-9]+\\.yaml$ # secrets-1.yaml, secrets-2.yaml...</code></pre>\n<h3 id=\"section-07\">YAML 的 &amp; / * 不是指针</h3>\n<p><code>&amp;name</code>（anchor）和 <code>*name</code>（alias）是 <strong>YAML 的声明/引用</strong>，不是内存指针——是 YAML 节点的锚点与别名关系：<code>*server-key</code> 在解析时引用已定义的公钥节点。作用：<strong>定义一次、引用多次</strong>，改时只改 <code>&amp;</code> 处一处。类似「变量」，比「指针」更贴切。</p>\n<h3 id=\"section-08\">语法来源分层</h3>\n<p><code>.sops.yaml</code> 有两层逻辑：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">层</th>\n<th scope=\"col\">谁定义的</th>\n<th scope=\"col\">例子</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>格式层（YAML 语法）</td>\n<td>YAML 规范</td>\n<td><code>&amp;anchor</code>、<code>*alias</code>、缩进、列表、键值</td>\n</tr>\n<tr>\n<td>语义层（配置字段）</td>\n<td><strong>sops 定义的</strong></td>\n<td><code>creation_rules</code>、<code>path_regex</code>、<code>key_groups</code>、<code>age</code></td>\n</tr>\n</tbody></table></div>\n<p>anchor/alias 是 YAML 的能力，sops 只是用户；<code>path_regex</code> 等字段才是 sops 的业务逻辑。这层区分适用于任何「YAML 做配置」的工具。</p>\n<h3 id=\"section-09\">.sops.yaml 的查找机制：核对工作目录与显式配置</h3>\n<p>当前上游 CLI 默认从进程当前目录 <code>.</code> 向上查找配置（还可能受配置路径环境变量影响），并非从目标文件所在目录起找。跨目录调用时，可在仓库根执行，或用 <code>--config /path/to/config-repo/.sops.yaml</code> 显式指定。<code>path_regex</code> 按配置文件所在目录解释目标路径；对临时文件重新加密时，用 <code>--filename-override</code> 指定预期仓库内文件名，避免规则不匹配。</p>\n<h3 id=\"section-10\">.sops.yaml 与 sops.nix 的 sopsFile 分工</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\"></th>\n<th scope=\"col\"><code>.sops.yaml</code></th>\n<th scope=\"col\"><code>sops.nix</code> 的 <code>sopsFile</code></th>\n</tr>\n</thead>\n<tbody><tr>\n<td>谁读它</td>\n<td>SOPS CLI</td>\n<td>sops-nix 模块</td>\n</tr>\n<tr>\n<td>管什么</td>\n<td>加密/更新接收者规则与 CLI 存储选项</td>\n<td>运行时要解密哪个来源、导出哪个 secret</td>\n</tr>\n<tr>\n<td>何时需要</td>\n<td>创建密文、更新授权等</td>\n<td>系统激活部署 secrets</td>\n</tr>\n</tbody></table></div>\n<p><code>SopsFile</code> 不决定 CLI 加密的 recipient。已有密文携带密钥封装元数据，解密本身不依赖 creation_rules；但 <code>.sops.yaml</code> 也可定义存储或编辑选项，不能概括为仅在两个时刻读取。</p>\n<h2 id=\"section-11\">NixOS 场景速查</h2>\n<p>命令行解密与 sops-nix 运行时解密使用的是不同入口：sops-nix 会按 <code>age.sshKeyPaths</code> 导入 SSH key，而 SOPS CLI 应显式使用可读的 age 身份。<code>--age</code> 接收的是加密 recipient，不能传私钥文件或进程替换路径来代替解密身份。</p>\n<pre><code># 管理员在已授权读取 host key 的受控 shell 内执行；不要打印私钥\numask 077\ntask_key_dir=$(mktemp -d /run/sops-key-check.XXXXXXXX)\ntrap &#39;rm -rf -- &quot;$task_key_dir&quot;&#39; EXIT\nssh-to-age -private-key -i /etc/ssh/ssh_host_ed25519_key &gt; &quot;$task_key_dir/identity.txt&quot; &amp;&amp;\n  SOPS_AGE_KEY_FILE=&quot;$task_key_dir/identity.txt&quot; \\\n    sops decrypt host/secrets/secrets.yaml &gt; /dev/null\n# 检查退出码；不将明文或派生私钥写到终端</code></pre>\n<p>这只是可执行示例，没有在当前机器运行。若存在其他默认 age 身份，需在隔离受控环境下禁用额外身份，再验证目标私钥，避免假阳性。</p>\n<pre><code># 经授权激活后检查运行时产物，不读取内容\nls -la /run/secrets/app_env\nsystemctl status example-app.service</code></pre>\n<p><code>set</code> 的 JSON 值会进入 shell 历史或进程参数；示例只使用非秘密字符串。真实值优先通过 <code>sops edit</code> 或当前版本支持的受控文件/标准输入接口提供。<code>sops -d -i</code> 会把原仓库文件变成明文，通常应避免；如误用，要停止提交并恢复受保护密文。<code>filestatus</code> 检查格式中的加密状态，不证明无泄漏、可解密或运行部署成功。</p>\n<h2 id=\"section-12\">相关</h2>\n<ul>\n<li>原理 → <a href=\"/writing/sops-principles/\">sops 原理</a></li>\n<li>运行时 → <a href=\"/writing/sops-nixos-integration/\">sops-nix 集成</a></li>\n<li>换密钥/迁移操作指南 → <a href=\"/writing/sops-key-migration-rotation/\">sops 迁移指南</a></li>\n</ul>\n<hr>\n",
+  "refs": [
+    [
+      "SOPS 官方文档",
+      "https://getsops.io/docs/"
+    ],
+    [
+      "SOPS CLI 源码",
+      "https://github.com/getsops/sops/blob/main/cmd/sops/main.go"
+    ],
+    [
+      "SOPS 配置源码",
+      "https://github.com/getsops/sops/blob/main/config/config.go"
+    ],
+    [
+      "sops-nix 官方说明",
+      "https://github.com/Mic92/sops-nix"
+    ],
+    [
+      "sops-nix 模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/default.nix"
+    ],
+    [
+      "sops-nix 模板模块",
+      "https://github.com/Mic92/sops-nix/blob/master/modules/sops/templates/default.nix"
+    ],
+    [
+      "ssh-to-age 官方说明",
+      "https://github.com/Mic92/ssh-to-age"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "security",
+    "sops"
+  ]
+}

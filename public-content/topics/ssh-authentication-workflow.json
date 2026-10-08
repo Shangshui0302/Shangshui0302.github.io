@@ -1,0 +1,16 @@
+{
+  "slug": "ssh-authentication-workflow",
+  "title": "SSH 认证、agent 与命令行工作流",
+  "deck": "先厘清双向身份验证，再理解密钥保护与日常操作。",
+  "description": "客户端验证服务器主机身份，服务端根据授权机制验证用户身份。由目录和四类认证材料进入 TOFU 与带外验证，再学习 passphrase、agent、keyring 及命令行配置；桌面自动解锁取决于具体版本和会话集成。",
+  "articles": [
+    "ssh-authentication-model",
+    "ssh-agent-keyring",
+    "ssh-usage-guide"
+  ],
+  "reading_guide": [
+    "先分开用户密钥与主机密钥，再检查 TOFU 能保证的连续性和不能保证的首次真实性。",
+    "沿私钥文件、agent socket、keyring 与 PAM 逐层阅读，特别检查自动解锁与遗忘口令的条件。",
+    "按生成密钥、检查 agent、解析配置和连接调试顺序练习；首次连接先核对主机指纹。"
+  ]
+}

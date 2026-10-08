@@ -1,0 +1,73 @@
+{
+  "slug": "container-engine-relationship",
+  "number": "118",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Docker 与 Podman：架构、兼容与共存",
+  "deck": "比较引擎控制模型、权限与生态，按工作负载选择工具。",
+  "sections": [
+    [
+      "section-01",
+      "一句话定位"
+    ],
+    [
+      "section-02",
+      "架构对比：一个管家 vs 你自己动手"
+    ],
+    [
+      "section-05",
+      "兼容性：Docker 的语法，Podman 的引擎"
+    ],
+    [
+      "section-09",
+      "安全性：根本差异"
+    ],
+    [
+      "section-10",
+      "选型指南"
+    ],
+    [
+      "section-12",
+      "历史脉络与版本边界"
+    ],
+    [
+      "section-13",
+      "共存：同一台机器同时用 Docker 和 Podman"
+    ],
+    [
+      "section-14",
+      "核心结论"
+    ]
+  ],
+  "body": "<blockquote>\n<p>同一个镜像标准，两种完全不同的哲学。理解了 dockerd 和 Daemonless，就理解了容器引擎的现在和未来。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">一句话定位</h2>\n<pre><code>graph LR\n    subgraph &quot;容器的两个时代&quot;\n        D[&quot;Docker / 推动容器工作流普及 / Client-Server 架构 / 生态最成熟&quot;]\n        P[&quot;Podman / OCI 容器引擎 / Daemonless 架构 / 支持 rootless&quot;]\n    end\n    D --&gt;|&quot;标准化了容器&quot;| OCI[&quot;OCI 标准 / 镜像格式 / 运行规范&quot;]\n    P --&gt;|&quot;遵循同一标准&quot;| OCI</code></pre>\n<p><strong>Docker 推动了镜像与容器工作流普及</strong>，并推动 OCI 标准建立。<strong>Podman 遵循同一标准</strong>，但用完全不同的架构重新实现了一遍。</p>\n<hr>\n<h2 id=\"section-02\">架构对比：一个管家 vs 你自己动手</h2>\n<pre><code>Docker:\n  docker CLI  ──REST API──▶  dockerd (ROOT, 常驻)  ──▶  containerd  ──▶  runc\n                              └─ 所有操作都经过它\n                              └─ 它是唯一的控制点\n\nPodman:\n  podman CLI  ──直接 fork/exec──▶  conmon  ──▶  crun/runc\n               └─ 每次启动新进程\n               └─ 没有中央控制点</code></pre>\n<h3 id=\"section-03\">这个差异意味着什么？</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">维度</th>\n<th scope=\"col\">Docker</th>\n<th scope=\"col\">Podman</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>后台进程</strong></td>\n<td><code>dockerd</code> 常驻，资源使用依负载</td>\n<td>无常驻中央 daemon；容器仍有 conmon 等进程</td>\n</tr>\n<tr>\n<td><strong>权限模型</strong></td>\n<td>传统 rootful daemon，也支持 rootless</td>\n<td>支持 rootful 和 rootless，按运行用户及配置判断</td>\n</tr>\n<tr>\n<td><strong>单点故障</strong></td>\n<td>daemon 不可用影响管理；live-restore 有助于部分运行场景</td>\n<td>无需常驻中央 daemon，但仍共享宿主内核和资源</td>\n</tr>\n<tr>\n<td><strong>开机自启</strong></td>\n<td>dockerd 开机启动，容器通过 restart policy</td>\n<td>通过 systemd + Quadlet 管理</td>\n</tr>\n<tr>\n<td><strong>API 方式</strong></td>\n<td>dockerd 的 REST API（Socket 是攻击面）</td>\n<td>可选 Podman API 和 Docker 兼容 API service/socket，均需控制权限</td>\n</tr>\n<tr>\n<td><strong>容器生命周期</strong></td>\n<td>daemon/containerd/shim 协作控制生命周期</td>\n<td>容器是独立的用户进程</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-04\">比喻</h3>\n<ul>\n<li><strong>Docker</strong> 像住酒店：前台（dockerd）24 小时值班，所有事（入住、退房、叫餐）都经过前台。前台有万能钥匙（root）。</li>\n<li><strong>Podman</strong> 像住自己的房子：你自己开门、关灯、做饭。本地操作不需要常驻前台；rootful 或 API socket 仍可能授予高权限。</li>\n</ul>\n<hr>\n<h2 id=\"section-05\">兼容性：Docker 的语法，Podman 的引擎</h2>\n<h3 id=\"section-06\">命令行兼容</h3>\n<pre><code># 这两个命令几乎等价\ndocker run -d --name web -p 8080:80 nginx:alpine\npodman run -d --name web -p 8080:80 nginx:alpine\n\n# 简单 CLI 可用 alias 试验，但脚本/API/Compose/buildx/远程行为需逐项验证\nalias docker=podman\ndocker ps          # 实际跑的是 podman ps\ndocker build -t myapp .  # 实际跑的是 podman build</code></pre>\n<h3 id=\"section-07\">生态兼容</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">Docker 工具</th>\n<th scope=\"col\">Podman 对应</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Docker Compose</td>\n<td><code>podman-compose</code> 或 <code>podman.socket</code> + <code>docker compose</code></td>\n</tr>\n<tr>\n<td>Docker Desktop</td>\n<td>Podman Desktop（免费开源）</td>\n</tr>\n<tr>\n<td>Docker Hub</td>\n<td>相同，都用 <code>docker.io</code></td>\n</tr>\n<tr>\n<td>Dockerfile</td>\n<td>常用语法相通，高级 BuildKit 特性及版本支持需验证，<code>podman build</code> 直接读 Dockerfile</td>\n</tr>\n<tr>\n<td>Docker Swarm</td>\n<td>Podman 不支持；用 Kubernetes 工作流或其他编排；generate kube 仅生成兼容配置片段，不等于直接部署迁移</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-08\">兼容边界</h3>\n<p><strong>常用互通领域（仍需按版本验证）</strong>：</p>\n<ul>\n<li>镜像格式（OCI 标准）</li>\n<li>Dockerfile 语法</li>\n<li>基本 CLI 命令（run, ps, stop, pull, push, build）</li>\n<li>卷（Volume）和绑定挂载</li>\n<li>端口映射（除 rootless 端口限制）</li>\n<li>环境变量注入</li>\n</ul>\n<p><strong>不兼容</strong>：</p>\n<ul>\n<li>Compose deploy 的实现支持差异；<code>deploy.resources</code> 并非仅 Swarm 专用，不能一概判定不支持</li>\n<li>Docker Swarm 整体</li>\n<li><code>docker buildx</code> 的多驱动构建（Podman 用 <code>podman build --platform</code>）</li>\n<li><code>docker context</code>（Docker 的多环境切换功能）</li>\n</ul>\n<hr>\n<h2 id=\"section-09\">安全性：根本差异</h2>\n<pre><code># Docker（默认）：docker run 通过 dockerd socket 执行\n# 父进程可能是 shim，权限由 daemon/rootless、userns 和容器 USER 等共同决定\nsudo docker run -d nginx:alpine\nps aux | grep nginx\n# 示意：ps 的 USER 列是进程用户，不显示父进程；查看父关系另查 PPID\n\n# Podman rootless：进程位于用户映射的权限范围，父关系与用户身份不是同一概念\npodman run -d nginx:alpine\nps aux | grep nginx\n# 示意：宿主可见 UID 取决于用户命名空间映射</code></pre>\n<p><strong>关键安全事实</strong>：</p>\n<ul>\n<li>控制 rootful Docker API 的用户通常可取得近似宿主 root 能力；rootless API 则限于对应用户权限。rootful 管理者可通过高权限挂载等操作访问宿主敏感内容，rootless 不因此获得任意文件读取权</li>\n<li>Podman rootless 中，容器 UID 0 通常映射到启动用户，其他 UID 可映射到 subordinate IDs；减少宿主 root 暴露，但用户文件、挂载、socket 和内核漏洞仍有风险</li>\n</ul>\n<hr>\n<h2 id=\"section-10\">选型指南</h2>\n<pre><code>graph TD\n    A[&quot;我需要什么？&quot;] --&gt; B{&quot;需要 Docker 专属功能？&quot;}\n    B --&gt;|&quot;Docker Swarm&quot;| D[&quot;用 Docker&quot;]\n    B --&gt;|&quot;Docker Build Cloud&quot;| D\n    B --&gt;|不需要| C{&quot;运行环境？&quot;}\n    C --&gt;|&quot;个人开发机&quot;| E[&quot;Podman / 按 rootless 与工具链要求验证&quot;]\n    C --&gt;|&quot;生产服务器&quot;| F{&quot;用什么管理？&quot;}\n    F --&gt;|&quot;systemd&quot;| G[&quot;Podman + Quadlet / 声明式 + 原生集成&quot;]\n    F --&gt;|&quot;Compose 文件&quot;| H{&quot;单机还是集群？&quot;}\n    H --&gt;|&quot;单机&quot;| I[&quot;Docker 或 Podman / 看团队习惯&quot;]\n    H --&gt;|&quot;集群&quot;| J[&quot;Docker Swarm 或 K8s&quot;]\n    C --&gt;|&quot;公司强制&quot;| K[&quot;用公司的标准 / 通常 Docker&quot;]</code></pre>\n<h3 id=\"section-11\">具体建议</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">你的情况</th>\n<th scope=\"col\">推荐</th>\n<th scope=\"col\">理由</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>刚学容器</td>\n<td><strong>Podman</strong></td>\n<td>开源、常用命令相似，具体工作负载需验证互通</td>\n</tr>\n<tr>\n<td>个人项目</td>\n<td><strong>Podman</strong></td>\n<td>无常驻中央 daemon，可选择 rootless；资源和安全需实测</td>\n</tr>\n<tr>\n<td>团队都用 Docker</td>\n<td><strong>Docker</strong></td>\n<td>保持一致，减少协作摩擦</td>\n</tr>\n<tr>\n<td>公司项目</td>\n<td><strong>Docker</strong></td>\n<td>企业支持、CI/CD 集成成熟</td>\n</tr>\n<tr>\n<td>生产单机部署</td>\n<td><strong>Podman + Quadlet</strong></td>\n<td>systemd 管理、自动重启、统一日志</td>\n</tr>\n<tr>\n<td>生产集群部署</td>\n<td><strong>Docker Swarm</strong> 或 <strong>K8s</strong></td>\n<td>编排能力</td>\n</tr>\n<tr>\n<td>安全敏感环境</td>\n<td>验证 <strong>Podman rootless</strong> 或 <strong>Docker rootless</strong></td>\n<td>明确权限、隔离与兼容要求</td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-12\">历史脉络与版本边界</h2>\n<p>Docker 在 2013 年开始普及容器镜像工作流，2015 年 OCI 成立并接受 runc 等贡献。Podman 随后发展为 OCI 引擎，强调无常驻中央 daemon 的本地操作和 rootless。Quadlet、网络栈、API 和 Desktop 功能持续演进，不能把某个大版本号等同于全部功能首次出现。</p>\n<p>Docker Desktop 许可、Hub 配额和发行版默认选择会改变；它们不是容器格式兼容性的证明。发行版默认引擎与同机共存条件应按实际软件包、socket 和版本配置核对。选型应检查实际版本、容器配置和团队工具链。</p>\n<h2 id=\"section-13\">共存：同一台机器同时用 Docker 和 Podman</h2>\n<pre><code># 两者可在同台机器并存，分别管理存储；端口、CLI/socket 兼容包和资源仍可能冲突\nsudo docker run -d nginx:alpine        # Docker 容器\npodman run -d nginx:alpine             # Podman 容器（rootless）\n\n# 查看 Docker 容器\nsudo docker ps\n\n# 查看 Podman 容器\npodman ps\n\n# 镜像互导\npodman save nginx:alpine -o nginx.tar\nsudo docker load -i nginx.tar\n# 反之亦然</code></pre>\n<hr>\n<h2 id=\"section-14\">核心结论</h2>\n<p>Docker 与 Podman 共享常用镜像标准、仓库和 Dockerfile 工作流，但权限模型、API、构建与编排功能不保证完全互换。根据安全边界、团队工具链、平台及维护方式选择，必要时以实际应用做兼容测试。Daemonless 本身不是绝对安全保证，rootless 也不是 Podman 独有。</p>\n",
+  "refs": [
+    [
+      "Docker rootless",
+      "https://docs.docker.com/engine/security/rootless/"
+    ],
+    [
+      "Docker daemon 安全",
+      "https://docs.docker.com/engine/security/"
+    ],
+    [
+      "Podman API service",
+      "https://docs.podman.io/en/latest/markdown/podman-system-service.1.html"
+    ],
+    [
+      "Podman Compose provider",
+      "https://docs.podman.io/en/latest/markdown/podman-compose.1.html"
+    ],
+    [
+      "OCI 规范",
+      "https://opencontainers.org/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "containers",
+    "docker",
+    "podman"
+  ]
+}

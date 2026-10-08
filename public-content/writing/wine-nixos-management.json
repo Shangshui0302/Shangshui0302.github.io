@@ -1,0 +1,61 @@
+{
+  "slug": "wine-nixos-management",
+  "number": "154",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "NixOS 中的 Wine 与游戏环境",
+  "deck": "将锁定的软件、Steam 工具注册、Flatpak 运行时与可变前缀分层管理。",
+  "sections": [
+    [
+      "section-01",
+      "声明式 vs 动态：核心矛盾"
+    ],
+    [
+      "section-02",
+      "Steam 与 Proton 的 Nix 配置"
+    ],
+    [
+      "section-06",
+      "Wine 引擎管理"
+    ],
+    [
+      "section-09",
+      "Bottles Flatpak 与图形运行时"
+    ],
+    [
+      "section-14",
+      "三层策略与最佳实践"
+    ],
+    [
+      "section-17",
+      "来源与核验边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>本章区分 Nix 管理的软件/系统配置与运行时可变的前缀、下载和账号数据。示例选项需按项目锁定的 nixpkgs 核对，不能当作所有 NixOS 版本通用配置。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">声明式 vs 动态：核心矛盾</h2>\n<p>NixOS 追求<strong>可复现</strong>——锁定的输入和声明式配置可确定构建依赖与受管理的系统配置，但构建、激活和运行时状态是不同层次；存档、下载、账号和 Prefix 不会因 rebuild 自动恢复为同一状态。而 Wine/Proton 的默认行为是：</p>\n<ul>\n<li><code>winetricks</code> 从网络下载 DLL 和运行时</li>\n<li>Proton-GE 从 GitHub Release 拉取新版本</li>\n<li>Prefix 内的注册表修改不经过 Nix</li>\n</ul>\n<p><strong>解决策略</strong>：分清&quot;引擎层&quot;和&quot;环境层&quot;。&quot;引擎&quot;走 Nix 声明式，&quot;环境&quot;走动态管理。</p>\n<pre><code>引擎层 (Engine)  →  Nix 声明式  →  锁定版本与声明，另外验证构建和激活\n环境层 (Prefix)  →  动态管理    →  记录安装与变更，可备份/版本化部分状态</code></pre>\n<hr>\n<h2 id=\"section-02\">Steam 与 Proton 的 Nix 配置</h2>\n<h3 id=\"section-03\">基础模块（推荐方式）</h3>\n<pre><code>{ config, pkgs, lib, ... }:\n\n{\n  # 允许本示例使用的 Steam unfree 包；NVIDIA 等需另按实际配置\n  nixpkgs.config.allowUnfreePredicate = pkg:\n    builtins.elem (lib.getName pkg) [\n      &quot;steam&quot;\n      &quot;steam-unwrapped&quot;\n      &quot;steam-original&quot;\n      &quot;steam-run&quot;\n    ];\n\n  programs.steam = {\n    enable = true;\n    remotePlay.openFirewall = false; # 只有明确需要 Remote Play 才单独评估开放\n    localNetworkGameTransfers.openFirewall = false; # 按实际局域网传输需求配置\n    protontricks.enable = true;\n\n    # 注入 Proton-GE\n    extraCompatPackages = with pkgs; [\n      proton-ge-bin\n    ];\n  };\n\n  # GameMode 优化调度\n  programs.gamemode.enable = true;\n\n  # 32 位字体缓存（部分游戏需要）\n  fonts.fontconfig.cache32Bit = true;\n}</code></pre>\n<h3 id=\"section-04\">Steam 的额外运行时包</h3>\n<p>部分游戏需要额外的系统库：</p>\n<pre><code>programs.steam.package = pkgs.steam.override {\n  extraPkgs = pkgs&#39;: with pkgs&#39;; [\n    xorg.libXcursor\n    xorg.libXi\n    xorg.libXinerama\n    xorg.libXScrnSaver\n    libpng\n    libpulseaudio\n    libvorbis\n    stdenv.cc.cc.lib\n    libkrb5\n    keyutils\n  ];\n};</code></pre>\n<h3 id=\"section-05\">Gamescope 微合成器</h3>\n<p>Valve 的微合成器支持 HDR、超分辨率、帧率限制：</p>\n<pre><code>programs.gamescope = {\n  enable = true;\n  capSysNice = false;  # 示例不授予该 capability；按调度需求与安全边界选择\n};\n\nprograms.steam.gamescopeSession.enable = true;</code></pre>\n<hr>\n<h2 id=\"section-06\">Wine 引擎管理</h2>\n<h3 id=\"section-07\">系统级 Wine</h3>\n<pre><code>environment.systemPackages = with pkgs; [\n  wineWowPackages.full     # 功能集合；full 不表示自动含 staging 补丁\n  # wineWowPackages.stable  # 仅 stable 版\n  # wineWowPackages.staging # staging 版（含额外补丁）\n  winetricks               # 依赖管理（仅用于手动调试）\n];</code></pre>\n<p><code>wineWowPackages</code> 的架构与功能集合取决于锁定 nixpkgs 的打包方式；分别检查 stable、staging 与 full 的定义，不能用 full 名称推断补丁或新 WoW64 支持。Steam 的 32 位图形库需求也与普通 Wine 包不同。</p>\n<h3 id=\"section-08\">环境变量按应用设定</h3>\n<p>不要全局固定 <code>WINEPREFIX</code> 或 <code>WINEARCH</code>，否则不同应用、protontricks 和管理器可能意外共用目录或使用不匹配架构。调试输出也应按场景选择，排障时全局 <code>WINEDEBUG=-all</code> 会隐藏证据。</p>\n<pre><code># 临时针对一个独立前缀；不是 system-wide sessionVariables。\nWINEPREFIX=&quot;$HOME/Games/MyTool&quot; WINEDEBUG=+seh,+loaddll wine MyTool.exe</code></pre>\n<p>对固定桌面入口可在包装脚本设置单应用环境；涉及已有前缀架构迁移时先备份，按 runner 文档验证。</p>\n<h2 id=\"section-09\">Bottles Flatpak 与图形运行时</h2>\n<h3 id=\"section-10\">Flatpak 安装</h3>\n<p>在 NixOS 中先声明 Flatpak 服务；软件获取和应用数据仍有自己的更新/持久化范围。</p>\n<pre><code>services.flatpak.enable = true;</code></pre>\n<p>下面是服务已按项目流程激活后、用于安装应用的示例，不由本篇自动执行：</p>\n<pre><code>flatpak install flathub com.usebottles.bottles</code></pre>\n<h3 id=\"section-11\">NVIDIA 图形扩展</h3>\n<p>NVIDIA 需要匹配宿主内核驱动的 Flatpak 用户空间 GL 扩展。先检查宿主实际驱动、应用运行时和扩展，不能盲目添加 <code>/run/opengl-driver</code>、<code>/sys</code> 或强制宿主 ICD 路径。查看配置与列表：</p>\n<pre><code>flatpak info com.usebottles.bottles\nflatpak info --show-permissions com.usebottles.bottles\nflatpak override --user --show com.usebottles.bottles\nflatpak list --runtime</code></pre>\n<p>宿主驱动更新与用户运行时更新需分别检查；扩展匹配后，再从 Bottle 的图形日志验证实际 GPU 和组件，而不是仅看驱动文件存在。</p>\n<h3 id=\"section-12\">AMD/Intel 图形扩展</h3>\n<p>AMD/Intel 通常通过 Flatpak 运行时的 Mesa/GL 扩展提供图形库，仍需要设备权限和所需架构。不要把宿主 <code>/usr/share/vulkan/icd.d/...</code> 写死到沙箱环境，它可能不存在或引用不兼容库。</p>\n<p>宿主 <code>vulkaninfo --summary</code> 只测宿主。Bottle 内的 DXVK/VKD3D 日志、HUD 或工具结果才描述对应运行环境；<code>wine dxdiag</code> 提供线索，也不能单独证明真实硬件路径与全部 Vulkan 功能。</p>\n<h3 id=\"section-13\">声明式 Flatpak Override</h3>\n<p>确定权限需求后，可以把 user override 纳入 Home Manager 的用户配置，避免让 GUI 与声明式文件同时争夺管理权。以下只授权一个示例游戏目录：</p>\n<pre><code>xdg.dataFile.&quot;flatpak/overrides/com.usebottles.bottles&quot;.text = &#39;&#39;\n  [Context]\n  filesystems=/mnt/games;\n&#39;&#39;;</code></pre>\n<p>该片段用于 Home Manager 的对应用户模块，需验证 <code>xdg.dataHome</code> 与 Flatpak 实际读取路径。导入前检查已有 override，保留仍需要的权限；激活后用 <code>flatpak override --user --show</code> 核对，再实际启动应用。本篇未构建或激活这个配置，也不把声明成功等同于 GPU 可用。</p>\n<h2 id=\"section-14\">三层策略与最佳实践</h2>\n<pre><code>┌─────────────────────────────────┐\n│      引擎层 (Nix 声明式)         │\n│  wineWowPackages.full           │\n│  proton-ge-bin (→ Steam)        │\n│  版本锁定在 Flake.lock          │\n└────────────┬────────────────────┘\n             │ Runner 调用\n┌────────────▼────────────────────┐\n│      管理层 (Bottles Flatpak)    │\n│  为每个 Windows 应用创建独立 Bottle│\n│  图形运行时、依赖安装、状态管理    │\n│  随 Flathub 更新                │\n└────────────┬────────────────────┘\n             │ 紧急尝鲜\n┌────────────▼────────────────────┐\n│    临时层 (ProtonUp-Qt)          │\n│  仅在 nixpkgs 滞后时使用        │\n│  验证后等待 nixpkgs 更新        │\n└─────────────────────────────────┘</code></pre>\n<h3 id=\"section-15\">分层管理原则</h3>\n<ol>\n<li><strong>Nix 管理引擎</strong>：锁定可获得的软件与模块配置，同时记录构建、激活与实际 PATH/runner 选择；不承诺全部运行状态可复现。</li>\n<li><strong>Steam 管理游戏兼容数据</strong>：<code>extraCompatPackages</code> 为 Steam 注册额外工具，不会自动把同一个 GE 包安装到 Bottles 的 runner 目录。</li>\n<li><strong>Bottles 管理应用状态</strong>：每应用独立环境，记录依赖和 runner；Flatpak 更新、下载组件和 Prefix 备份仍需单独维护。</li>\n<li><strong>按实际图形栈诊断</strong>：使用匹配的 Flatpak 扩展与最小权限，不强制暴露宿主驱动目录。</li>\n<li><strong>动态工具有自己的状态</strong>：ProtonUp-Qt 等下载渠道若被采用，明确版本、路径、校验与 Nix 配置的关系，不声称它们由 flake.lock 固定。</li>\n<li><strong>系统调优凭证据</strong>：不默认打开远程防火墙，不统一提高 max_map_count/file-max，也不通过编辑受管理 <code>/etc</code> 绕开系统配置。</li>\n</ol>\n<h3 id=\"section-16\">sysctl 与资源限制按需配置</h3>\n<p>先查看当前值，再结合日志确认瓶颈：</p>\n<pre><code>cat /proc/sys/vm/max_map_count\ncat /proc/sys/fs/file-max\nulimit -Sn\nulimit -Hn</code></pre>\n<p><code>fs.file-max</code> 是系统级文件句柄上限，<code>ulimit -n</code> 是进程相关限制，两者不是同一个参数。只有确认对应限制导致失败，才按项目证据选择目标值，并通过 Nix 模块声明；不复制超大数字作为通用推荐。</p>\n<pre><code># 仅说明选项位置；validatedMapLimit 必须由实际诊断与项目配置提供。\n# boot.kernel.sysctl.&quot;vm.max_map_count&quot; = validatedMapLimit;</code></pre>\n<p>源材料的 NixOS 25.05/24.11 范围与当前锁定输入可能不同。此次核对上游 Steam/Wine/fontconfig 模块仅确认机制与选项名称，不能替代目标 flake 的求值、构建、激活或游戏测试。</p>\n<h2 id=\"section-17\">来源与核验边界</h2>\n<p>以下参考定义相关机制与支持范围。安装、构建、激活、前缀状态与实际应用行为需要按目标环境分别核验；示例命令没有附带任何主机运行成功的结论。</p>\n<ul>\n<li><a href=\"https://docs.flatpak.org/en/latest/extension.html\" target=\"_blank\" rel=\"noopener noreferrer\">Flatpak 图形扩展</a></li>\n<li><a href=\"https://docs.flatpak.org/en/latest/sandbox-permissions.html\" target=\"_blank\" rel=\"noopener noreferrer\">Flatpak 沙箱权限</a></li>\n<li><a href=\"https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/programs/steam.nix\" target=\"_blank\" rel=\"noopener noreferrer\">nixpkgs Steam 模块</a></li>\n<li><a href=\"https://github.com/NixOS/nixpkgs/blob/master/pkgs/applications/emulators/wine/default.nix\" target=\"_blank\" rel=\"noopener noreferrer\">nixpkgs Wine 打包定义</a></li>\n</ul>\n",
+  "refs": [
+    [
+      "Flatpak 图形扩展",
+      "https://docs.flatpak.org/en/latest/extension.html"
+    ],
+    [
+      "Flatpak 沙箱权限",
+      "https://docs.flatpak.org/en/latest/sandbox-permissions.html"
+    ],
+    [
+      "nixpkgs Steam 模块",
+      "https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/programs/steam.nix"
+    ],
+    [
+      "nixpkgs Wine 打包定义",
+      "https://github.com/NixOS/nixpkgs/blob/master/pkgs/applications/emulators/wine/default.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "nixos",
+    "wine",
+    "gaming"
+  ]
+}

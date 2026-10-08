@@ -1,0 +1,72 @@
+{
+  "slug": "nix-flake-update-mechanics",
+  "number": "031",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Flake 更新机制",
+  "deck": "区分输入更新、软件包集合、系统代际与缓存下载。",
+  "sections": [
+    [
+      "section-01",
+      "1. Flake = 描述，Lock = 实例"
+    ],
+    [
+      "section-02",
+      "2. 为什么更新的是整个 nixpkgs"
+    ],
+    [
+      "section-03",
+      "3. flake update 的本质"
+    ],
+    [
+      "section-04",
+      "4. follows"
+    ],
+    [
+      "section-05",
+      "5. Generation 与 Store"
+    ],
+    [
+      "section-06",
+      "6. 为什么更新下载很多"
+    ],
+    [
+      "section-07",
+      "7. Binary Cache 与 fetchFromGitHub"
+    ],
+    [
+      "section-08",
+      "8. 源码下载失败的依赖传播示例"
+    ],
+    [
+      "section-09",
+      "9. 为什么不能自动改用 jsDelivr"
+    ],
+    [
+      "section-10",
+      "10. 本次理解的核心"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">1. Flake = 描述，Lock = 实例</h2>\n<p><code>flake.nix</code> 描述依赖关系（Dependency Specification），<code>flake.lock</code> 锁定依赖实例（Dependency Resolution）。</p>\n<pre><code>flake.nix\n    │\n    ├── nixpkgs = github:NixOS/nixpkgs/nixos-unstable\n    └── home-manager = github:nix-community/home-manager\n\n            │\n\nflake.lock\n    │\n    ├── nixpkgs -&gt; commit A\n    ├── home-manager -&gt; commit B\n    └── narHash</code></pre>\n<p>没有 <code>flake.lock</code>，<code>nixos-unstable</code> 始终指向最新 commit，构建不可复现；可复现性来自 <strong>(flake.nix + flake.lock)</strong>。</p>\n<hr>\n<h2 id=\"section-02\">2. 为什么更新的是整个 nixpkgs</h2>\n<p>Nix 不管理单个 package，而管理 <strong>package set</strong>。</p>\n<pre><code>nixpkgs(commit A)\n├── git\n├── gcc\n├── firefox\n└── neovim\n\n↓\n\nnixpkgs(commit B)\n├── git\n├── gcc\n├── firefox\n└── neovim</code></pre>\n<p>更新 nixpkgs 输入会更换整个 package set 的定义，可能让多个软件及共享依赖一起改变；实际构建只涉及配置需要的闭包。</p>\n<p>如果只想追新某个软件，可引入第二个 nixpkgs 并从中选择该包，也可维护 overlay、单独的 Flake 包或固定源码的 derivation。这些方式仍可能引入不同依赖，需检查兼容性，不能把它理解为传统包管理器的原地单包升级。</p>\n<hr>\n<h2 id=\"section-03\">3. flake update 的本质</h2>\n<pre><code>nix flake update</code></pre>\n<p>更新所有 input。</p>\n<pre><code>nix flake update nixpkgs</code></pre>\n<p>仅更新指定 input。</p>\n<p>本质均为：</p>\n<pre><code>修改 flake.lock</code></pre>\n<p>不会修改 <code>flake.nix</code>，不会自动 rebuild。</p>\n<hr>\n<h2 id=\"section-04\">4. follows</h2>\n<p>推荐：</p>\n<pre><code>home-manager.inputs.nixpkgs.follows = &quot;nixpkgs&quot;;</code></pre>\n<p>作用：</p>\n<pre><code>没有 follows\n\nmy flake\n├── nixpkgs(A)\n└── home-manager\n    └── nixpkgs(B)\n\n有 follows\n\nmy flake\n├── nixpkgs(A)\n└── home-manager\n    └── follows -&gt; nixpkgs(A)</code></pre>\n<p>减少重复的输入来源；不保证消除 Store 中所有重复包，也需检查版本兼容性。</p>\n<hr>\n<h2 id=\"section-05\">5. Generation 与 Store</h2>\n<p>Generation 不是系统副本，而是一组指向 <code>/nix/store</code> 的符号链接。</p>\n<pre><code>/run/current-system\n        │\n        └── symlink\n                │\n                ▼\n           /nix/store</code></pre>\n<p>因此：</p>\n<ul>\n<li>Generation 很轻量。</li>\n<li>闭包完整时，相关产物可复用；求值仍需所引用的源和其他输入。</li>\n<li>Store 缺失才需要下载或构建。</li>\n</ul>\n<hr>\n<h2 id=\"section-06\">6. 为什么更新下载很多</h2>\n<p>更新 <code>flake.lock</code> 后，整个 package set 可能变化。</p>\n<p>例如：</p>\n<pre><code>mesa\nlinux\nlinux-firmware\nsystemd\nglibc\nllvm</code></pre>\n<p>即使自己没有显式安装，也可能因依赖链发生变化而更新。</p>\n<hr>\n<h2 id=\"section-07\">7. Binary Cache 与 fetchFromGitHub</h2>\n<p>Binary Cache：</p>\n<pre><code>cache.nixos.org\n        ↓\n下载已构建好的 nar</code></pre>\n<p>fetchFromGitHub：</p>\n<pre><code>GitHub\n        ↓\n下载源码（若 Store/缓存中没有）\n        ↓\n构建或复用缓存产物</code></pre>\n<p>二者是不同阶段：源码固定输出 derivation 和最终包都可能被缓存；缓存命中可避免实际下载或构建。</p>\n<p>Binary Cache 正常 ≠ GitHub 正常。</p>\n<hr>\n<h2 id=\"section-08\">8. 源码下载失败的依赖传播示例</h2>\n<p>假设首个失败来源是字体源码下载：</p>\n<pre><code>example-font\n        ↓\nfetchFromGitHub\n        ↓\ncodeload.github.com\n        ↓\n下载失败</code></pre>\n<p>随后依赖它的构建也可能失败：</p>\n<pre><code>example-font\n        ↓\nfont-package-set\n        ↓\nfontconfig\n        ↓\nsystem-path\n        ↓\nsystem</code></pre>\n<p>均属于依赖传播，不是独立错误。</p>\n<p>排查原则：<strong>永远定位第一个失败的 <code>.drv</code>。</strong></p>\n<hr>\n<h2 id=\"section-09\">9. 为什么不能自动改用 jsDelivr</h2>\n<p><code>fetchFromGitHub</code> 固定：</p>\n<ul>\n<li>URL</li>\n<li>hash</li>\n<li>输出内容</li>\n</ul>\n<p>修改来源后应核验内容：规范化输出若完全相同，可以保留 hash；内容不同则需要新的准确 hash。不能仅替换域名就假定归档格式和路径相同。</p>\n<p>如果自行维护 derivation，可以使用：</p>\n<pre><code>fetchurl</code></pre>\n<p>并改为 jsDelivr，但必须：</p>\n<ul>\n<li>固定 commit/tag，不使用 <code>main</code></li>\n<li>更新 hash</li>\n</ul>\n<hr>\n<h2 id=\"section-10\">10. 本次理解的核心</h2>\n<p>更新 nixpkgs 输入会改变 package set；Nix 也能独立管理 derivation 和包。可复现性的最小单位不是配置，而是 <strong>(flake.nix + flake.lock)</strong>；系统状态不是文件集合，而是 <strong>Generation → Store</strong> 的引用关系。</p>\n<p>多数看似 &quot; 不方便 &quot; 的设计（依赖图更新、严格校验 hash、锁定输入）都服务于同一目标：<strong>可复现性（Reproducibility）与一致性（Consistency）</strong>。</p>\n",
+  "refs": [
+    [
+      "Nix Flake 手册",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake"
+    ],
+    [
+      "Nix flake update",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-update"
+    ],
+    [
+      "Nix flake check",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-check"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nix-flakes"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "slug": "nix-ecosystem-devices-deployment",
+  "title": "NixOS 节点部署与 ARM 设备",
+  "deck": "从 Colmena 部署目标到树莓派镜像和硬件服务。",
+  "description": "沿原生态 MOC 的部署方向，把节点构建、传输、激活与 ARM 镜像启动分开验证；不把跨架构复制或旧硬件选项当作默认可用。",
+  "articles": [
+    "nix-ecosystem-colmena",
+    "nix-ecosystem-raspberry-pi"
+  ],
+  "reading_guide": [
+    "先确认 hive 的输入、节点筛选与 build/dry-activate/switch 边界。",
+    "先核对板型与镜像，再按硬件接口和服务章节逐步配置。"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "slug": "nix-ld-precompiled",
+  "number": "081",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "nix-ld：预编译 ELF、加载器与库路径",
+  "deck": "从文件存在却报 ENOENT 的原因，一步步连接 ELF 诊断、打包修补和 nix-ld 配置。",
+  "sections": [
+    [
+      "section-01",
+      "文件存在，为什么仍然是 ENOENT？"
+    ],
+    [
+      "section-03",
+      "打包时的解决方案：autoPatchelfHook"
+    ],
+    [
+      "section-05",
+      "nix-ld 的垫片机制"
+    ],
+    [
+      "section-09",
+      "steam-run 与打包方案的取舍"
+    ],
+    [
+      "section-10",
+      "来源与范围"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">文件存在，为什么仍然是 ENOENT？</h2>\n<p>动态链接 ELF 不仅需要可执行文件本身，还需要 ELF 中记录的解释器。普通 x86_64 Linux 发行版常把 glibc 加载器放在 <code>/lib64/ld-linux-x86-64.so.2</code>；NixOS 的已打包程序通常直接引用 <code>/nix/store</code> 中的加载器。未适配的下载文件找不到其固定加载器路径时，<code>execve</code> 返回 <code>ENOENT</code>，shell 便可能报出 <code>No such file or directory</code>。</p>\n<p>下面是说明这一现象的历史示例输出，不是本机运行记录：</p>\n<pre><code>$ ./masterpdfeditor5\nbash: ./masterpdfeditor5: No such file or directory\n$ ls -la ./masterpdfeditor5\n-rwxr-xr-x 1 user users 27160344 Jul 4 16:22 ./masterpdfeditor5</code></pre>\n<h3 id=\"section-02\">从系统调用查到 ELF 解释器</h3>\n<pre><code>strace -f ./masterpdfeditor5\nfile ./masterpdfeditor5\npatchelf --print-interpreter ./masterpdfeditor5</code></pre>\n<p>典型的诊断关系如下，地址、构建 ID 和 store hash 已省略：</p>\n<pre><code>execve(&quot;./masterpdfeditor5&quot;, [&quot;./masterpdfeditor5&quot;], ...) = -1 ENOENT (No such file or directory)\nstrace: exec: No such file or directory\nmasterpdfeditor5: ELF 64-bit LSB executable, x86-64, dynamically linked,\ninterpreter /lib64/ld-linux-x86-64.so.2, stripped</code></pre>\n<p><code>file</code> 是独立的软件包工具，不属于 binutils。<code>strace</code> 显示系统调用和返回值；<code>file</code> 与 <code>patchelf</code> 帮助区分文件权限、架构、解释器与依赖库问题。加载器路径缺失只是 ENOENT 的一种原因，脚本 shebang 指向不存在的解释器也会产生类似错误。</p>\n<p>比较一个已打包的系统程序：</p>\n<pre><code>patchelf --print-interpreter /run/current-system/sw/bin/ls</code></pre>\n<p>其加载器常是 <code>/nix/store/&lt;hash&gt;-glibc-&lt;version&gt;/lib/ld-linux-x86-64.so.2</code>。这是 NixOS 的路径布局差异；NixOS 本身也是 Linux。</p>\n<h2 id=\"section-03\">打包时的解决方案：autoPatchelfHook</h2>\n<p>对有固定发布包的闭源软件，<code>autoPatchelfHook</code> 是 Nixpkgs 构建 hook：在打包阶段查找二进制依赖，改写 ELF 解释器并设置库搜索路径。<code>buildInputs</code> 中仍需提供相应依赖，hook 不会凭空下载缺失的库。</p>\n<p>历史笔记用 Master PDF Editor 展示改写后的 RPATH：</p>\n<pre><code>nix-shell -p masterpdfeditor patchelf\ncommand -v masterpdfeditor5\n# 对真正的 ELF 文件检查；外层可能是启动 wrapper\npatchelf --print-rpath /nix/store/&lt;hash&gt;-masterpdfeditor-&lt;version&gt;/bin/.masterpdfeditor5-wrapped</code></pre>\n<p>包名、版本和 wrapped 文件名应以所用 Nixpkgs 为准。历史输出的实质是 RPATH 包含多个 Nix store 库目录：</p>\n<pre><code>/nix/store/&lt;hash&gt;-sane-backends-&lt;version&gt;/lib:\n/nix/store/&lt;hash&gt;-zlib-&lt;version&gt;/lib:\n/nix/store/&lt;hash&gt;-qtsvg-5.15/lib:\n/nix/store/&lt;hash&gt;-qtbase-5.15/lib:\n/nix/store/&lt;hash&gt;-qtdeclarative-5.15/lib:\n/nix/store/&lt;hash&gt;-libglvnd-&lt;version&gt;/lib:\n/nix/store/&lt;hash&gt;-gcc-&lt;version&gt;-lib/lib</code></pre>\n<p>上面的换行只用于阅读，实际 RPATH 是冒号分隔的一行。Qt5 是这一历史包的依赖，不代表当前所有版本仍采用 Qt5。</p>\n<h3 id=\"section-04\">哪些场景不适合每次 patch？</h3>\n<ul>\n<li>编辑器扩展、npm 或 pip 等工具下载的可执行文件，更新后还要重新修补。</li>\n<li>Java JAR 或其他归档把二进制藏在内部，直到运行时才解压。</li>\n<li>游戏或专有软件校验二进制完整性，修改后可能拒绝启动。</li>\n<li>FPGA IDE 等体积很大的软件，复制到 store 后再处理可能很不方便。</li>\n</ul>\n<h2 id=\"section-05\">nix-ld 的垫片机制</h2>\n<p><code>nix-ld</code> 放在普通发行版加载器所在的路径，再转交给真正的 Nix store 动态加载器。它让未 patch 的文件保留原来的内容，不要求将整个软件复制到 store。</p>\n<p><code>NIX_LD</code> 指定真正的加载器；<code>NIX_LD_LIBRARY_PATH</code> 指定额外库目录，使用<strong>冒号分隔</strong>，不是逗号分隔。垫片为加载器提供库搜索路径。上游也支持按架构设置的变量，例如 <code>NIX_LD_x86_64_linux</code>；后缀将 system 中的连字符替换为下划线。</p>\n<h3 id=\"section-06\">系统模块配置</h3>\n<pre><code>{ pkgs, ... }: {\n  programs.nix-ld.enable = true;\n  programs.nix-ld.libraries = with pkgs; [\n    stdenv.cc.cc\n    zlib\n    fuse3\n    icu\n    nss\n    openssl\n    curl\n    expat\n    # 按应用缺失依赖继续添加\n  ];\n}</code></pre>\n<p>该模块生效后，再运行目标二进制。仅把配置写入文件或构建系统，并不等于已经启用了垫片。上述依赖列表是起点，不能保证每个商业软件都可以直接运行。</p>\n<p>原文写于 2022 年，讨论了当时 upcoming 23.05 的库配置体验；这里把发布预告改为历史说明。原作者的扩展配置可见 <a href=\"https://github.com/Mic92/dotfiles/blob/master/nixos/modules/nix-ld.nix\" target=\"_blank\" rel=\"noopener noreferrer\">Mic92 的 nix-ld 模块</a>。</p>\n<h3 id=\"section-07\">项目局部的环境变量</h3>\n<pre><code>{ pkgs ? import &lt;nixpkgs&gt; {} }:\npkgs.mkShell {\n  NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;\n  NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [\n    pkgs.stdenv.cc.cc\n    pkgs.openssl\n  ];\n}</code></pre>\n<p>如果垫片已存在而加载器配置缺失，错误信息可能明确指出尚未配置 <code>NIX_LD</code>。应按安装版本提示核对配置。</p>\n<h3 id=\"section-08\">与 Python 虚拟环境的边界</h3>\n<p>Nixpkgs 的 Python 已链接到 store 内加载器，不会因为设置了 <code>NIX_LD_LIBRARY_PATH</code> 就自动走 nix-ld。PyPI 扩展模块缺库时，需要在项目局部准备正确的系统库与运行环境；直接全局设置 <code>LD_LIBRARY_PATH</code> 可能把错误版本注入已经打包好的程序。Python/Qt 的具体排查见 <a href=\"/writing/nix-ecosystem-python-qt/\">Python 环境配置与 Qt 排错</a>。</p>\n<h2 id=\"section-09\">steam-run 与打包方案的取舍</h2>\n<p>偶尔运行未适配软件，可以考虑 <code>steam-run</code> 提供的 FHS 环境：</p>\n<pre><code>steam-run ./my-app</code></pre>\n<p>命令要求 <code>steam-run</code> 已可用。它提供的是兼容环境，适用范围与 nix-ld 不完全相同；打包时则通常优先考虑 <code>autoPatchelfHook</code> 或其他 Nixpkgs 构建机制。</p>\n<p>日常使用的 QQ、WeChat、VS Code 等软件先在 <a href=\"https://search.nixos.org/packages\" target=\"_blank\" rel=\"noopener noreferrer\">Nixpkgs 包搜索</a> 查找现成包，再根据具体依赖选择兼容方案。nix-ld 解决动态加载器与库路径问题，不会自动修复缺失资源、内核功能、所有 <code>/usr/bin</code> 硬编码路径或其他 ABI 差异。硬编码脚本路径是另一个话题，可进一步了解 <a href=\"https://github.com/Mic92/envfs\" target=\"_blank\" rel=\"noopener noreferrer\">envfs</a>。</p>\n<h2 id=\"section-10\">来源与范围</h2>\n<p>本篇合并基础配置笔记与 Jörg Thalheim、Jill Thornhill 于 2022-12-31 发布的 <a href=\"https://blog.thalheim.io/2022/12/31/nix-ld-a-clean-solution-for-issues-with-pre-compiled-executables-on-nixos/\" target=\"_blank\" rel=\"noopener noreferrer\">nix-ld 原文</a>，去掉重复中英对照，保留系统调用、ELF、RPATH、适用场景和配置的完整技术链。命令及输出均用于解释，不是本机验证结果。</p>\n",
+  "refs": [
+    [
+      "nix-ld 上游说明",
+      "https://github.com/nix-community/nix-ld"
+    ],
+    [
+      "原作者历史文章",
+      "https://blog.thalheim.io/2022/12/31/nix-ld-a-clean-solution-for-issues-with-pre-compiled-executables-on-nixos/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

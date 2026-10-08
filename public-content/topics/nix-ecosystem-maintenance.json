@@ -1,0 +1,20 @@
+{
+  "slug": "nix-ecosystem-maintenance",
+  "title": "Nix 命令与长期维护",
+  "deck": "连接命令参考、nh、世代回收以及配置组织。",
+  "description": "以 NixOS MOC 的声明式、可复现、语言与 Flake 到用户配置的学习结构为起点，组织系统日常维护；回滚、store GC 和数据备份分开处理。",
+  "articles": [
+    "nix-ecosystem-learning-roadmap",
+    "nix-ecosystem-command-reference",
+    "nix-ecosystem-nh",
+    "nix-ecosystem-gc-rollback",
+    "nix-ecosystem-best-practices"
+  ],
+  "reading_guide": [
+    "按六模块顺序确认自己已掌握的配置层次。",
+    "查参数时先确认新旧 CLI 以及具体工具的版本。",
+    "选择 build/switch/clean，并按安装版本核对扩展搜索功能。",
+    "决定保留哪些世代后，再删除引用和回收对象。",
+    "把模块组织、自动更新、安全、数据备份和恢复步骤一起检查。"
+  ]
+}

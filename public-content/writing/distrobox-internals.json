@@ -1,0 +1,53 @@
+{
+  "slug": "distrobox-internals",
+  "number": "134",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Distrobox 内部机制：包、配置与命令解析",
+  "deck": "通过真实路径诊断解释同名工具、共享配置和 Nix 二进制的不同来源。",
+  "sections": [
+    [
+      "section-01",
+      "1. 容器内的包会重复吗？"
+    ],
+    [
+      "section-02",
+      "2. 为什么 Starship 在 Arch 容器里生效了？"
+    ],
+    [
+      "section-03",
+      "3. 为什么 Starship 生效但 eza 却失败了？"
+    ]
+  ],
+  "body": "<p>本文的命令接口按 Distrobox 1.8.2.5 官方脚本核对；镜像标签与发行版包名是示例，使用前确认镜像仍受支持、仓库可用及本机实际版本。示例未做运行验证。</p>\n<p>本文收集了一些关于 Distrobox 内部行为的零散但重要的观察，包括包重复机制、Starship 提示符的生效原理，以及 eza 别名失效的原因分析。</p>\n<hr>\n<h2 id=\"section-01\">1. 容器内的包会重复吗？</h2>\n<p><strong>会重复。</strong> 容器有自己的镜像根文件系统视图（<code>/</code>），另叠加宿主 bind mounts。宿主机有自己的 <code>/usr/bin</code>、<code>/lib</code>，Arch 容器里也有自己独立的 <code>/usr/bin</code>、<code>/lib</code>。</p>\n<p>所以像 <code>bash</code>、<code>gcc</code>、<code>python</code> 这些基础包，宿主机装了一份，Arch 容器和 Ubuntu 容器里也各自装了一份，它们是独立包环境；同一后端的基础镜像层可以共享，不代表所有字节都重复复制。</p>\n<p><strong>可以同时运行，互不干扰。</strong> 当你打开终端时处于宿主机环境，<code>python</code> 调用宿主机的。<code>distrobox-enter arch</code> 进入容器后，<code>python</code> 调用容器内的。开两个终端窗口分别跑宿主和容器内的 python，默认搜索 guest 的工具，但共享 shell 配置、PATH、HOME、网络或显式 host-exec 可能改变解析结果，不能只凭进入容器就确定实际调用位置。</p>\n<hr>\n<h2 id=\"section-02\">2. 为什么 Starship 在 Arch 容器里生效了？</h2>\n<p>没有通过 guest pacman 安装 Starship 时，提示符仍可能生效，但不能仅凭提示符推断它一定来自宿主 Nix 包。</p>\n<p><strong>配置共享</strong>：默认 HOME 挂载使 <code>~/.config/starship.toml</code> 和 shell 初始化配置可读。这只解释配置来源，不证明二进制可执行。</p>\n<p><strong>命令解析</strong>：distrobox-enter 会把宿主 PATH 与 guest 常规目录组合，profile 符号链接也可能随 HOME 可见；然而 PATH 字符串存在不代表 <code>/nix/store</code>、ELF loader 和库都在 guest 同路径可用。预装 guest 包、另一条 PATH 或 wrapper 也可能提供同名命令。</p>\n<pre><code># 在 guest shell 中诊断，输出以实际机器为准\ntype -a starship\ncommand -v starship\nreadlink -f &quot;$(command -v starship)&quot;\nprintf &#39;%s\\n&#39; &quot;$PATH&quot;\nstarship --version</code></pre>\n<p>确认来源后，选择 guest 原生安装、完整只读 Nix 路径或明确的 host-exec 调用，不要把共享配置等同于共享完整软件环境。</p>\n<hr>\n<h2 id=\"section-03\">3. 为什么 Starship 生效但 eza 却失败了？</h2>\n<p>不同命令可能解析到不同来源，也可能是 shell alias/function、断开的符号链接、PATH 顺序或动态 loader 缺失。没有“用户 Nix profile 100% 暴露、系统 profile 一定遗漏”的通用规则。</p>\n<pre><code># 根据使用的 shell 查看 alias/function 与可执行路径\ntype -a ls eza starship\ncommand -v eza\nprintf &#39;%s\\n&#39; &quot;$PATH&quot;\n# 已找到路径时再检查链接与文件类型\nreadlink -f &quot;$(command -v eza)&quot;\nfile &quot;$(command -v eza)&quot;</code></pre>\n<p>若 <code>command -v</code> 找不到，先处理 alias、PATH 或在 guest 安装工具。若文件存在但启动报 ENOENT，检查 ELF interpreter 与 <code>/nix/store</code> 路径可见性。<code>ldd</code> 只用于可信可执行文件；未知二进制可先用 <code>readelf -l</code> 检查 interpreter，避免诊断时执行不可信内容。</p>\n<p>通过 <code>distrobox-host-exec eza</code> 可以明确选择宿主工具，但其工作目录、路径参数和命令影响也属于宿主。guest 中的 <code>/run/host/...</code> 路径未必适用于宿主桥接，应改用宿主实际路径或显式工作目录。</p>\n<p>最终要分别确认三件事：shell 加载了哪份配置、命令解析到哪里、所需 loader/库及目录在哪一侧。仅看到 prompt 或 alias 不能得出完整结论。</p>\n",
+  "refs": [
+    [
+      "Distrobox security implications",
+      "https://distrobox.it/#security-implications"
+    ],
+    [
+      "Distrobox create",
+      "https://distrobox.it/usage/distrobox-create/"
+    ],
+    [
+      "Distrobox enter",
+      "https://distrobox.it/usage/distrobox-enter/"
+    ],
+    [
+      "Distrobox 1.8.2.5 enter implementation",
+      "https://github.com/89luca89/distrobox/blob/1.8.2.5/distrobox-enter"
+    ],
+    [
+      "host-spawn",
+      "https://github.com/1player/host-spawn"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "linux",
+    "containers",
+    "distrobox"
+  ]
+}

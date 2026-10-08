@@ -1,0 +1,18 @@
+{
+  "slug": "github-actions",
+  "title": "GitHub Actions 与 CI",
+  "deck": "把本地检查转为有明确权限、结果和失败证据的持续集成。",
+  "description": "Actions 是事件驱动的自动化系统：先读执行模型，再设计 CI 契约、合并门槛和资源策略，最后审查 Token、Secrets、OIDC、不可信输入与供应链。Nix 主题教学示例把求值、实际构建、输出契约、Actions run 和桌面运行时分别记账。本专题以 CI 为中心；部署、Pages、Packages、大型 Enterprise 治理和自托管 Runner 完整运维仅保留与 CI 直接相连的边界。GitHub UI、套餐、Runner 和 Action 版本会变化，应按当前官方参考和实际平台状态维护。",
+  "articles": [
+    "github-actions-fundamentals",
+    "github-actions-ci-configuration",
+    "github-actions-security-debugging",
+    "github-nix-ci-example"
+  ],
+  "reading_guide": [
+    "先掌握事件到 Step 的执行树，再对照 needs、outputs、matrix、concurrency、cache 与 artifact 的职责。",
+    "从已有本地命令建立质量门，再看矩阵、缓存和汇总检查；required check 的名称、触发范围与 Pending 状态需要共同验证。",
+    "先画事件、权限、凭据和 Runner 的信任边界，再阅读 pull_request_target/workflow_run、供应链、日志排查与成本控制。",
+    "逐段读六变体 Nix workflow 与 flake 输出契约，然后用三层记录模板判断求值、构建、Actions 和桌面证据各能证明什么。"
+  ]
+}

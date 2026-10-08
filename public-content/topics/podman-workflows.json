@@ -1,0 +1,32 @@
+{
+  "slug": "podman-workflows",
+  "title": "Podman 容器工作流",
+  "deck": "从镜像与rootless基础到Pod、Quadlet、Compose及NixOS管理。",
+  "description": "先理解OCI容器运行与权限，再掌握镜像/容器/卷/网络命令；以已有rootless和Quadlet正文为共同基础，补充配置、Pod与多服务示例，最后进入Compose互操作、Nix声明管理与运维。版本与权限条件贯穿全部步骤。",
+  "articles": [
+    "podman-fundamentals",
+    "podman-basic-usage",
+    "podman-rootless-boundaries",
+    "podman-rootless-configuration",
+    "podman-pods-kubernetes",
+    "quadlet-service-lifecycle",
+    "podman-quadlet-multi-service",
+    "podman-compose-interoperability",
+    "podman-nixos-management",
+    "podman-advanced-operations",
+    "container-engine-relationship"
+  ],
+  "reading_guide": [
+    "从容器与镜像进入OCI运行时，重点辨别daemon管理与权限模式。",
+    "按镜像、容器、卷和网络练习，先区分查询与删除操作。",
+    "先掌握实际UID映射、宿主文件权限和数据存储位置。",
+    "继续看subUID配置、ICMP系统政策与注册表搜索；不要照搬范围或路径。",
+    "先创建与管理Pod，再检查kube清单支持范围、存储与秘密导出。",
+    "走通Quadlet源文件、生成unit与实际请求验证，理解数据和就绪边界。",
+    "把Pod、网络、卷与PG/API/Web分开读，检查env文件和健康工具前提。",
+    "先辨别podman-compose与podman compose，再判断CLI、provider与socket互操作。",
+    "按系统、Home Manager、quadlet-nix三层选管理方式，核对锁定revision与激活边界。",
+    "从资源与健康观测进入更新、镜像搬运、日志和有备份的清理。",
+    "比较共享OCI标准与两种管理入口，用具体工具需求判断兼容和共存。"
+  ]
+}

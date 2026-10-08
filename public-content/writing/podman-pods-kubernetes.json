@@ -1,0 +1,64 @@
+{
+  "slug": "podman-pods-kubernetes",
+  "number": "122",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Pod 体系与 Kubernetes 清单",
+  "deck": "组织共享网络的本地容器，并检查 Kubernetes 清单导入导出的范围。",
+  "sections": [
+    [
+      "section-01",
+      "什么是 Pod？（零基础版）"
+    ],
+    [
+      "section-04",
+      "Pod 基本操作"
+    ],
+    [
+      "section-09",
+      "Podman ↔ Kubernetes 双向转换"
+    ],
+    [
+      "section-13",
+      "实战示例：WordPress + MySQL in a Pod"
+    ],
+    [
+      "section-14",
+      "Pod 的存储共享"
+    ]
+  ],
+  "body": "<blockquote>\n<p>Podman 的 Pod 让本地容器共享指定命名空间，并为 Kubernetes 清单工作流提供一种组织方式。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">什么是 Pod？（零基础版）</h2>\n<h3 id=\"section-02\">从一个场景理解</h3>\n<p>想象你部署一个网站，需要三个东西：Web 服务器 + 后台 API + 数据库。</p>\n<p><strong>Docker 方式</strong>（各自独立）：</p>\n<pre><code>容器 A (nginx)     独立网络地址（示意）\n容器 B (api)       独立网络地址（示意）\n容器 C (postgres)  独立网络地址（示意）</code></pre>\n<p>独立网络命名空间常通过桥接网络和容器 DNS 通信；实际开销取决于网络实现和工作负载，不能据此认定单机数据库必须与 API 放进同一 Pod。</p>\n<p><strong>Pod 方式</strong>（住同一个&quot;房间&quot;）：</p>\n<pre><code>┌──────── Pod 共享网络 ────────┐\n│  localhost                  │\n│  容器 A (nginx)              │  ← 通过 localhost:3000 访问 API\n│  容器 B (api)                │  ← 通过 localhost:5432 访问 DB\n│  容器 C (postgres)           │\n└──────────────────────────────┘</code></pre>\n<p><strong>Pod 的核心特性</strong>：同一个 Pod 内的容器共享网络——它们可以用 <code>localhost</code> 互相通信，不需要暴露端口到外部。</p>\n<h3 id=\"section-03\">Pod 和 Kubernetes 的关系</h3>\n<p>Kubernetes 中，Pod 是<strong>最小的调度单位</strong>——你永远无法直接运行一个容器，你必须把它放在一个 Pod 里。Podman 把 Pod 概念带到了本地开发环境，让你在单机上也能享受相同的组织方式。</p>\n<hr>\n<h2 id=\"section-04\">Pod 基本操作</h2>\n<h3 id=\"section-05\">创建一个空 Pod</h3>\n<pre><code># 创建 Pod 并暴露端口\npodman pod create --name mypod -p 127.0.0.1:8080:80\n#                └───────┘ └────────┘\n#               Pod 名称    把 Pod 的 80 端口映射到宿主机 8080\n\n# 查看所有 Pod\npodman pod ps\n# 输出类似：\n# POD ID     NAME   STATUS  CREATED  INFRA ID   # OF CONTAINERS\n# abc123...  mypod  Running 2s ago   def456...  1\n# 注意：刚创建的 Pod 已经有 1 个容器——这就是 infra 容器</code></pre>\n<h3 id=\"section-06\">Infra 容器是什么？</h3>\n<p>默认创建 Pod 时，Podman 创建一个 <strong>infra 容器</strong>。它的作用类似 Pod 的&quot;房东&quot;——持有共享的网络、IPC 等名字空间。其他容器加入 Pod 时，&quot;住进&quot;这个房东的房子里。</p>\n<pre><code># 查看 infra 容器（podman pod ps 中 INFRA ID 对应的容器）\npodman ps --pod\n# infra 容器名字类似 abc123-infra，状态为 Running\n\n# 当前默认由 Podman 创建本地轻量 infra 镜像；可用 --infra-image 覆盖</code></pre>\n<h3 id=\"section-07\">向 Pod 中添加容器</h3>\n<pre><code># 创建 Pod\npodman pod create --name webapp -p 127.0.0.1:8080:80\n\n# 向 Pod 中添加 nginx 容器\npodman run -d --pod webapp --name web docker.io/library/nginx:alpine\n#              └───────┘ └──────┘\n#           加入 webapp Pod  容器名\n\n# 添加 API 容器（同一 Pod 内可用 localhost 访问 nginx）\npodman run -d --pod webapp --name api myapi:latest\n\n# 添加数据库容器\npodman run -d --pod webapp --name db \\\n  --env-file /path/to/private/postgres.env \\\n  -v pgdata:/var/lib/postgresql/data \\\n  postgres:16-alpine</code></pre>\n<p><strong>关键</strong>：现在 <code>api</code> 容器可以通过 <code>localhost:80</code> 访问 <code>web</code>，<code>web</code> 可以通过 <code>localhost:3000</code> 访问 <code>api</code>，都在共享网络命名空间；服务需监听相应端口，端口不能冲突。</p>\n<h3 id=\"section-08\">管理 Pod</h3>\n<pre><code># 查看 Pod 内所有容器\npodman pod ps --ctr-names\n\n# 查看 Pod 详情\npodman pod inspect webapp\n\n# 停止整个 Pod（停掉里面所有容器）\npodman pod stop webapp\n\n# 启动整个 Pod\npodman pod start webapp\n\n# 重启整个 Pod\npodman pod restart webapp\n\n# 暂停/恢复 Pod\npodman pod pause webapp\npodman pod unpause webapp\n\n# 删除 Pod（和里面所有容器）\npodman pod rm -f webapp</code></pre>\n<hr>\n<h2 id=\"section-09\">Podman ↔ Kubernetes 双向转换</h2>\n<p>这是 Podman 独特的杀手能力。</p>\n<h3 id=\"section-10\">从 Pod 生成 Kubernetes YAML</h3>\n<pre><code># 生成 K8s YAML\npodman kube generate webapp &gt; webapp.yaml\n\n# 产出后检查镜像、环境变量、卷、hostPath、标签和网络字段\n# 迁移集群前调整清单；经授权部署时才运行 kubectl apply -f webapp.yaml</code></pre>\n<p>生成的 YAML 示例（简化）：</p>\n<pre><code>apiVersion: v1\nkind: Pod\nmetadata:\n  name: webapp\nspec:\n  containers:\n    - name: web\n      image: docker.io/library/nginx:alpine\n      ports:\n        - containerPort: 80\n    - name: db\n      image: docker.io/library/postgres:16-alpine\n      env:\n        - name: POSTGRES_PASSWORD\n          value: NON_SECRET_EXAMPLE_REPLACE_BEFORE_USE</code></pre>\n<h3 id=\"section-11\">从 Kubernetes YAML 运行本地容器</h3>\n<pre><code># 手头有个 K8s YAML，想本地跑起来看看\npodman kube play webapp.yaml\n\n# 本地解释支持的 Kubernetes 对象/字段，不是完整 Kubernetes 控制平面\n# Podman 会解析 YAML，在本地创建对应的 Pod 和容器</code></pre>\n<h3 id=\"section-12\">生成 systemd 服务文件</h3>\n<pre><code># 为当前运行的 Pod 生成 systemd unit file\npodman generate systemd --files --name webapp --pod-prefix myapp\n# --files 输出到当前目录；--name 使用资源名；webapp 是位置参数；--pod-prefix 控制前缀\n\n# 但官方现在更推荐用 Quadlet（见下一篇）</code></pre>\n<hr>\n<h2 id=\"section-13\">实战示例：WordPress + MySQL in a Pod</h2>\n<pre><code># 1. 创建 Pod\npodman pod create --name wordpress -p 127.0.0.1:8080:80\n\n# 2. 启动 MariaDB（WordPress 的数据库）\npodman run -d \\\n  --pod wordpress \\\n  --name wp-db \\\n  --env-file /path/to/private/mariadb.env \\\n  -e MYSQL_DATABASE=wordpress \\\n  -e MYSQL_USER=wpuser \\\n  -v wp-db:/var/lib/mysql \\\n  docker.io/library/mariadb:11\n\n# 3. 启动 WordPress\npodman run -d \\\n  --pod wordpress \\\n  --name wp-app \\\n  -e WORDPRESS_DB_HOST=127.0.0.1 \\\n  -e WORDPRESS_DB_USER=wpuser \\\n  --env-file /path/to/private/wordpress.env \\\n  -e WORDPRESS_DB_NAME=wordpress \\\n  docker.io/library/wordpress:latest\n\n# 4. 打开 http://localhost:8080，WordPress 安装界面就绪\n\n# 5. 生成 K8s YAML 存档\npodman kube generate wordpress &gt; wordpress-k8s.yaml</code></pre>\n<p>对比 Docker Compose：Compose 的 <code>depends_on</code> 控制依赖，不决定寻址方式；同一网络中通常通过服务名解析。Pod 可用 localhost，但仍经过网络栈，并非零开销。MariaDB 初始化与 WordPress 启动仍需就绪重试。</p>\n<hr>\n<h2 id=\"section-14\">Pod 的存储共享</h2>\n<p>同一 Pod 内的容器可以共享卷，但需要显式挂载同一路径：</p>\n<pre><code>podman run -d --pod mypod --name container-a -v shared:/data app-a:latest\npodman run -d --pod mypod --name container-b -v shared:/data app-b:latest\n# container-a 和 container-b 都能读写 shared 卷里的文件</code></pre>\n<hr>\n<hr>\n<p>示例 env 文件存放在仓库外且权限受限，分别提供匹配的数据库口令等必需值；所有展示字符串为无效演示值。导出的 kube 清单可能包含明文环境变量，不能直接当作安全存档上传。<code>podman play kube</code> 是 <code>podman kube play</code> 的别名，<code>generate kube</code> 为旧入口；命令更名不等于功能变为完整 Kubernetes。Pod 共享哪些 namespace 可配置；共享网络不自动共享文件系统和卷。<code>podman generate systemd</code> 已弃用，保留只为识别旧工作流，新服务采用 Quadlet。</p>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "Pod 创建与 infra",
+      "https://docs.podman.io/en/stable/markdown/podman-pod-create.1.html"
+    ],
+    [
+      "kube play 范围",
+      "https://docs.podman.io/en/stable/markdown/podman-kube-play.1.html"
+    ],
+    [
+      "kube generate",
+      "https://docs.podman.io/en/stable/markdown/podman-kube-generate.1.html"
+    ],
+    [
+      "旧 systemd 生成命令",
+      "https://docs.podman.io/en/stable/markdown/podman-generate-systemd.1.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers"
+  ]
+}

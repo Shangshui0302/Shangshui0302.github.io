@@ -1,0 +1,16 @@
+{
+  "slug": "terminal-sessions",
+  "title": "Shell、终端与会话",
+  "deck": "Fish、Foot 与 Zellij 各自管理哪一层交互。",
+  "description": "终端显示字符，Shell 编辑和执行命令，复用器管理会话。按这三层逐步组织快捷键、搜索、配置和状态。",
+  "articles": [
+    "fish-interactive-workflow",
+    "foot-terminal-controls",
+    "zellij-session-lifecycle"
+  ],
+  "reading_guide": [
+    "先整理命令行：补全、键位、缩写与函数。",
+    "再理解显示端：选择、搜索、配置与颜色切换。",
+    "最后保留会话：分离、重连与布局恢复的边界。"
+  ]
+}

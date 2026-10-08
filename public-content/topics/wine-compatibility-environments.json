@@ -1,0 +1,16 @@
+{
+  "slug": "wine-compatibility-environments",
+  "title": "Wine 与应用环境",
+  "deck": "理解兼容引擎，再用独立前缀和管理器维护 Windows 应用。",
+  "description": "Wine 提供 Windows API 兼容，Proton 在游戏生态中集成运行环境与图形组件，Bottles/Lutris 管理前缀、依赖和运行器。阅读先建立三者关系，再学习 Wine 操作和 Bottles 管理；前缀分离不能当作安全沙箱，管理器的状态恢复也不能代替外部数据备份。原 MOC 的内核、兼容引擎、图形组件和管理层结构在文章中保留，去掉未经核验的最新版本承诺。",
+  "articles": [
+    "wine-proton-bottles-relationships",
+    "wine-fundamentals",
+    "wine-bottles-manager"
+  ],
+  "reading_guide": [
+    "先看技术谱系和场景矩阵，分清 API 翻译、图形转译、运行环境与管理界面。",
+    "按前缀、winecfg、依赖和完整命令流阅读，再核对同步、WoW64、Wayland 与安全边界。",
+    "从 runner 选择与依赖进入状态恢复点，再核对 Flatpak 图形扩展、文件权限和实际运行。"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "slug": "git-advanced-tools",
+  "number": "096",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Git 进阶：变基、拣选与二分排错",
+  "deck": "在理解历史改写边界后使用 rebase、cherry-pick、reflog 和 bisect。",
+  "sections": [
+    [
+      "section-01",
+      "1. 变基：git rebase (衍合)"
+    ],
+    [
+      "section-04",
+      "2. 拣选：git cherry-pick"
+    ],
+    [
+      "section-05",
+      "3. 交互式变基：git rebase -i"
+    ],
+    [
+      "section-06",
+      "4. 引用日志：git reflog (终极救命)"
+    ],
+    [
+      "section-07",
+      "5. 查找 Bug：git bisect (二分查找)"
+    ],
+    [
+      "section-08",
+      "操作中断与验收"
+    ]
+  ],
+  "body": "<blockquote>\n<p>&quot;熟练使用这些工具后，你将拥有‘重写过去’和‘精准剪裁代码’的能力。&quot;</p>\n</blockquote>\n<h2 id=\"section-01\">1. 变基：git rebase (衍合)</h2>\n<p><code>rebase</code> 的本质是：<strong>改变分支的根基 (Base)</strong>。</p>\n<h3 id=\"section-02\">哲学对比：Merge vs. Rebase</h3>\n<pre><code>graph TD\n    subgraph Merge_Flow\n    A1((A)) --&gt; B1((B))\n    B1 --&gt; C1((C))\n    B1 --&gt; D1((D))\n    C1 --&gt; M1((Merge Commit))\n    D1 --&gt; M1\n    end\n\n    subgraph Rebase_Flow\n    A2((A)) --&gt; B2((B))\n    B2 --&gt; C2((C))\n    C2 --&gt; D2((D prime))\n    end</code></pre>\n<p><strong>解析：</strong></p>\n<ul>\n<li><strong>Merge (合并)</strong>：保留了分支的“祖先”关系。产生一个新的合并点 <code>M1</code>。历史是真实的，但如果分支很多，拓扑图会像蜘蛛网一样乱。</li>\n<li><strong>Rebase (变基)</strong>：把 <code>feature</code> 分支上的提交 <code>D</code> 摘下来，以 <code>master</code> 分支的最新提交 <code>C</code> 为新底座，重新“应用”一遍。生成的 <code>D&#39;</code> 重放相同补丁，冲突处理和新基础可能改变最终内容；<strong>哈希值也会改变</strong>（因为它的父指针变了）。历史变成了一条笔直的线。</li>\n</ul>\n<h3 id=\"section-03\">场景：保持功能分支最新</h3>\n<p>当你正在 <code>feature</code> 分支开发，而 <code>master</code> 已经往前走了。</p>\n<ul>\n<li><strong>Merge 做法</strong>：保留分叉关系，可产生合并提交。</li>\n<li><strong>Rebase 做法</strong>：<pre><code>git switch feature/example\ngit rebase master</code></pre>\n</li>\n</ul>\n<blockquote>\n<p>黄金法则：不要在公共分支上执行 Rebase！</p>\n<p><strong>技术原理：哈希裂变 (Hash Fission)</strong></p>\n<ol>\n<li><strong>改变父节点</strong>：当你 <code>rebase</code> 时，你生成父关系不同的新提交，原提交对象并不被原地修改。</li>\n<li><strong>联动反应</strong>：由于哈希是由内容（含父哈希）生成的，父哈希变了，该提交的哈希值也会彻底改变（变成 <code>D&#39;</code>）。</li>\n<li><strong>历史断裂</strong>：如果你把 <code>D&#39;</code> 推送到远程公共分支，其他协作者本地仍保留旧的 <code>D</code> 历史，需要协调共同基础。</li>\n<li><strong>灾难现场</strong>：当同事执行 <code>git pull</code> 时，Git 会发现本地有 <code>D</code> 而远程有 <code>D&#39;</code>，由于它们哈希不同，Git 会认为这是两条完全不同的历史。如果他尝试合并，会产生大量<strong>重复的提交</strong>和<strong>乱七八糟的冲突</strong>。</li>\n</ol>\n<p><strong>总结：只在“属于你自己的”分支上进行 Rebase，在公共分支上请老老实实地使用 Merge。</strong></p>\n</blockquote>\n<h2 id=\"section-04\">2. 拣选：git cherry-pick</h2>\n<p><strong>场景</strong>：你在 <code>dev</code> 分支写了 10 个提交，但由于紧急上线需求，你只需要其中一个特定的功能（比如 <code>Commit X</code>）进入 <code>master</code>。</p>\n<pre><code># 1. 切换到目标分支\ngit switch master\n\n# 2. 将特定的提交“拣选”过来\ngit cherry-pick &lt;commit-hash&gt;</code></pre>\n<p>Git 通常将该提交引入的变化应用到当前分支并创建新提交，可能冲突；拣选合并提交需明确 <code>-m</code> 主线父提交。</p>\n<h2 id=\"section-05\">3. 交互式变基：git rebase -i</h2>\n<p>这是重写历史的“外科手术”。它允许你合并、重命名、甚至删除过去的提交。</p>\n<pre><code># 修改最近 3 个提交\ngit rebase -i HEAD~3</code></pre>\n<p><strong>进入编辑器后的常用指令</strong>：</p>\n<ul>\n<li><strong><code>pick</code></strong>：保留该提交。</li>\n<li><strong><code>reword</code></strong>：保留该提交，但修改提交信息。</li>\n<li><strong><code>edit</code></strong>：停下来让你修改代码。</li>\n<li><strong><code>squash</code></strong>：<strong>合并提交</strong>。将这个提交合入前一个提交中（常用于清理乱七八糟的 WIP 提交）。</li>\n<li><strong><code>drop</code></strong>：在新历史中跳过该提交；旧对象是否保留取决于引用、reflog 与 GC。</li>\n</ul>\n<h2 id=\"section-06\">4. 引用日志：git reflog (终极救命)</h2>\n<p><strong>场景</strong>：你不小心执行了 <code>git reset --hard</code>，或者在 <code>rebase</code> 过程中把代码搞丢了。</p>\n<p>本地 reflog 记录引用更新，HEAD reflog 也可记录切换；历史会过期，不随普通 fetch/push 自动传到远端。未提交内容不能保证通过它恢复。</p>\n<pre><code># 1. 查看所有历史轨迹 (即使是被 reset 掉的)\ngit reflog\n\n# 2. 找到你想找回的那个时刻的哈希值\n# 3. 先建立恢复分支保住该提交，不覆盖当前工作区\ngit branch recovery/saved-tip &lt;reflog-hash&gt;\ngit show --stat &lt;reflog-hash&gt;</code></pre>\n<h2 id=\"section-07\">5. 查找 Bug：git bisect (二分查找)</h2>\n<p><strong>场景</strong>：项目突然报了个错，你不知道是哪天、哪次提交引入的。</p>\n<pre><code>git bisect start             # 开始查找\ngit bisect bad               # 标记当前版本是坏的\ngit bisect good &lt;hash&gt;       # 标记很久以前的一个已知好版本\n\n# Git 会自动切换到中间的 commit，请你测试：\ngit bisect good              # 如果这个版本是好的\n# ... 循环往复，直到 Git 锁定那个引起 Bug 的 commit\ngit bisect reset             # 结束查找，回到原点</code></pre>\n<hr>\n<h2 id=\"section-08\">操作中断与验收</h2>\n<p>变基或拣选发生冲突时，检查 status，编辑冲突文件并暂存后，分别使用 <code>git rebase --continue</code> 或 <code>git cherry-pick --continue</code>；决定放弃时对应使用 <code>--abort</code>。<code>rebase -i HEAD~3</code> 要求存在该祖先，初始提交范围可用 <code>--root</code>。</p>\n<p>bisect 需要可重复的好/坏判定，环境无法测试的提交可用 <code>git bisect skip</code>；多个跳过结果可能让最终原因不唯一。结束时 <code>git bisect reset</code> 恢复查找前位置。</p>\n",
+  "refs": [
+    [
+      "Git 变基",
+      "https://git-scm.com/docs/git-rebase"
+    ],
+    [
+      "Git 拣选",
+      "https://git-scm.com/docs/git-cherry-pick"
+    ],
+    [
+      "Git 本地引用日志",
+      "https://git-scm.com/docs/git-reflog"
+    ],
+    [
+      "Git 二分查找",
+      "https://git-scm.com/docs/git-bisect"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "git",
+    "version-control"
+  ]
+}

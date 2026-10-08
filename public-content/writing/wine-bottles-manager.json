@@ -1,0 +1,61 @@
+{
+  "slug": "wine-bottles-manager",
+  "number": "152",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Bottles：运行器与应用环境",
+  "deck": "通过管理器维护依赖、前缀和恢复点，同时核对 Flatpak 的实际权限。",
+  "sections": [
+    [
+      "section-01",
+      "Bottles 的设计理念"
+    ],
+    [
+      "section-02",
+      "Runner 体系"
+    ],
+    [
+      "section-06",
+      "依赖管理与一键安装"
+    ],
+    [
+      "section-07",
+      "环境隔离与快照"
+    ],
+    [
+      "section-10",
+      "Flatpak 安装与注意事项"
+    ],
+    [
+      "section-12",
+      "来源与核验边界"
+    ]
+  ],
+  "body": "<blockquote>\n<p>将 Wine Prefix 概念具象化为&quot;Bottle&quot;，让用户告别命令行，一键管理 Windows 运行环境。Runner 名称、默认选择和可用组件随版本变化，应从实际组件清单核对。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">Bottles 的设计理念</h2>\n<p>Bottles 的核心抽象是 <strong>Bottle（瓶子）</strong>——将 Wine Prefix、runner 选择、依赖记录与环境变量组织在一起的应用环境；runner 和组件可能存放在共享目录，并非完整自包含归档。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">操作</th>\n<th scope=\"col\">命令行 Wine</th>\n<th scope=\"col\">Bottles GUI</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>创建新环境</td>\n<td><code>WINEPREFIX=... winecfg</code></td>\n<td>点击 &quot;Create Bottle&quot;</td>\n</tr>\n<tr>\n<td>安装 .NET</td>\n<td><code>winetricks dotnet48</code></td>\n<td>一键勾选</td>\n</tr>\n<tr>\n<td>切换 Wine 版本</td>\n<td>手动下载 + PATH 管理</td>\n<td>下拉菜单选 Runner</td>\n</tr>\n<tr>\n<td>快照恢复</td>\n<td>手动备份目录</td>\n<td>文件状态版本管理/恢复点（按实际版本检查覆盖范围）</td>\n</tr>\n<tr>\n<td>沙箱权限</td>\n<td>由外部隔离工具配置</td>\n<td>Flatpak/环境权限需实际检查</td>\n</tr>\n</tbody></table></div>\n<p>Bottles <strong>不参与代码翻译</strong>——所有底层操作最终都通过调用 Wine/Proton 命令行接口实现。它的价值是消除配置摩擦。</p>\n<hr>\n<h2 id=\"section-02\">Runner 体系</h2>\n<p>Runner 是执行 Windows 程序的兼容引擎及相关补丁集合；Bottles 负责选择和调用它，不自己实现完整 Windows API。实际可下载名称、构建与默认值需从所用 Bottles 的组件清单检查。</p>\n<pre><code>graph TD\n    B[Bottles 管理器] --&gt; C[Caffe 等 Wine runner]\n    B --&gt; S[Soda 等特定组件渠道]\n    B --&gt; V[Vaniglia 基线 runner]\n    B --&gt; E[其他已核对的运行器]\n    E --&gt; U[若使用 GE-Proton 则确认 umu 支持路径]</code></pre>\n<h3 id=\"section-03\">Soda</h3>\n<p>源材料以 Soda 描述面向游戏的 runner 选择。不能把该历史命名当作当前推荐默认，也不能在缺少 manifest/release 证据时确定其 Wine 基底、TKG/GE 补丁集合或当前版本。若当前安装仍提供 Soda，应记录确切版本、架构、下载来源与目标应用的实测结果。</p>\n<h3 id=\"section-04\">Caffe</h3>\n<p>Bottles 官方 runner 文档将 Caffe 描述为带补丁与改进、面向游戏和应用的运行器。它不应简单等同于“最小补丁的办公专用 Wine”；同一名称下不同版本仍可能有兼容性差异。先使用应用可稳定运行的版本，再对新 runner 做独立测试。</p>\n<h3 id=\"section-05\">Vaniglia</h3>\n<p>官方文档把 Vaniglia 描述为较干净的 runner，但仍应用 wine-staging 补丁和主题，不能称为完全无补丁的上游基线。它适合用作对照之一；要判断 bug 是否来自 Bottles 还需保持应用、前缀状态、依赖、图形组件和其他条件一致。</p>\n<p><strong>选择策略</strong>：先遵循当前 Bottles 环境建议和目标应用已验证的 runner，不把“游戏必选 Soda、办公必选 Caffe”写成固定规则。Steam 游戏优先在 Steam 中使用 Proton；GE-Proton 在 Steam 外的官方支持边界是 umu，管理器是否具备该集成需要核实。</p>\n<h2 id=\"section-06\">依赖管理与一键安装</h2>\n<p>Windows 程序最常见的失败原因是缺少运行时组件。Bottles 将依赖打包为分类的一键安装项：</p>\n<pre><code>框架类:\n  - dotnet48          # .NET Framework 4.8\n  - dotnetcore3       # .NET Core 3.1\n  - mono              # Mono 运行时\n\n运行时类:\n  - vcredist2019      # 示例名称；实际 VC 运行时版本按组件 manifest 核对\n  - vcredist2015      # Visual C++ 2015 运行时\n  - allfonts          # 常用 Windows 字体\n\n游戏类:\n  - d3dx9             # DirectX 9 扩展库\n  - d3dcompiler_43    # D3D 着色器编译器\n  - xact              # Xbox Audio Creation Tool\n\n媒体类:\n  - mf-install        # 历史外部方案名称，不能当作当前 Bottles 内置依赖\n  - lavfilters        # LAV Filters 解码包</code></pre>\n<p>Bottles 使用组件/依赖定义来执行下载和安装，不能把它的依赖系统整体等同于 winetricks。上表是用途分类示例，不保证这些名称在当前组件目录都可选；例如 Media Foundation 外部脚本不能自动视为内置依赖。安装器、许可、版本与前缀架构需核对。安装失败不代表已自动完整回滚，重要改动前建立可复核的恢复点和备份。</p>\n<hr>\n<h2 id=\"section-07\">环境隔离与快照</h2>\n<h3 id=\"section-08\">Bottle 级别隔离</h3>\n<p>每个 Bottle 拥有独立：</p>\n<ul>\n<li>Prefix 目录（虚拟 C 盘 + 注册表）</li>\n<li>Runner 版本</li>\n<li>依赖列表</li>\n<li>环境变量</li>\n<li>沙箱策略</li>\n</ul>\n<p>这些设置通常分离，但 Bottle 不是独立安全边界，仍可能共享宿主文件、网络、权限和组件。同一个程序（如 Office 2016 和 Photoshop）可以分置不同 Bottle，各有不同的 Windows 版本报告和 DLL 覆盖，互不冲突。</p>\n<h3 id=\"section-09\">状态快照与恢复点</h3>\n<p>Bottles 的 Versioning 以文件状态和恢复点为核心：官方说明描述对新增、删除及修改文件进行差异索引。不能据此承诺底层文件系统 CoW、完整系统快照、运行中的进程内存或外部文件都被保存。</p>\n<ul>\n<li>修改依赖或注册表前，关闭应用并创建带说明的状态。</li>\n<li>核对当前版本纳入索引的目录和配置；外部存档、共享 runner、Steam 云状态与宿主文件另行备份。</li>\n<li>恢复后重新检查应用、依赖和数据，不以一个成功提示代替完整验收。</li>\n<li>测量实际空间占用，不把差异索引自动等同于任意文件系统上的块级 CoW。</li>\n</ul>\n<p>恢复点减少配置试错成本，但不能代替独立备份，也不保证安装失败时自动回滚。</p>\n<h2 id=\"section-10\">Flatpak 安装与注意事项</h2>\n<p>Bottles 官方推荐通过 Flatpak 安装：</p>\n<pre><code>flatpak install flathub com.usebottles.bottles\nflatpak run com.usebottles.bottles</code></pre>\n<h3 id=\"section-11\">Flatpak 权限、GPU 与文件访问</h3>\n<p>Flatpak 的运行时和图形扩展负责提供匹配的用户空间图形库，不需要默认把宿主 <code>/run/opengl-driver</code>、<code>/sys</code> 或整个根目录暴露给应用。NVIDIA 扩展需与宿主驱动匹配；AMD/Intel 通常使用运行时的 Mesa/GL 扩展。强制设置宿主的 ICD JSON 路径可能指向沙箱中不存在或不兼容的库。</p>\n<p>先检查实际运行时、权限和 override：</p>\n<pre><code>flatpak info com.usebottles.bottles\nflatpak info --show-permissions com.usebottles.bottles\nflatpak override --user --show com.usebottles.bottles\nflatpak list --runtime</code></pre>\n<p>本机 <code>vulkaninfo</code> 成功只证明本机工具的图形栈；Bottle 内部还需核对 runner、DXVK/VKD3D 日志与实际游戏设备。若扩展缺失或版本不匹配，应修复运行时/驱动关系，避免用宽权限掩盖问题。</p>\n<p>文件权限的默认状态以 app manifest 与实际安装为准，不假定它能访问整个家目录。文件选择器 portal 可授予单文件访问；确需外部游戏目录时可给具体路径最小权限：</p>\n<pre><code># 内容示例：仅授权这个已确认的游戏目录，不授权整个宿主。\nflatpak override --user --filesystem=/mnt/games com.usebottles.bottles</code></pre>\n<p>Flatseal 可帮助检查权限，但更改会影响隔离边界。字体问题应先检查 Bottle 中的字体与中文覆盖，再使用依赖管理或依法安装的字体文件；不要盲目暴露 <code>/usr/share/fonts</code>，Flatpak 的保留目录与实际字体集成机制可能使这个 override 无效。前缀和 DLL 覆盖也不能阻止网络访问。</p>\n<p>官方 Versioning/runner 文档描述的是机制与某些历史界面，不能保证当前 UI 完全一致；本篇没有运行 Bottles 或验证安装成功。</p>\n<h2 id=\"section-12\">来源与核验边界</h2>\n<p>以下参考定义相关机制与支持范围。安装、构建、激活、前缀状态与实际应用行为需要按目标环境分别核验；示例命令没有附带任何主机运行成功的结论。</p>\n<ul>\n<li><a href=\"https://docs.usebottles.com/components/runners\" target=\"_blank\" rel=\"noopener noreferrer\">Bottles runner 文档</a></li>\n<li><a href=\"https://docs.usebottles.com/bottles/versioning\" target=\"_blank\" rel=\"noopener noreferrer\">Bottles Versioning</a></li>\n<li><a href=\"https://docs.flatpak.org/en/latest/extension.html\" target=\"_blank\" rel=\"noopener noreferrer\">Flatpak 图形扩展</a></li>\n<li><a href=\"https://docs.flatpak.org/en/latest/sandbox-permissions.html\" target=\"_blank\" rel=\"noopener noreferrer\">Flatpak 沙箱权限</a></li>\n</ul>\n",
+  "refs": [
+    [
+      "Bottles runner 文档",
+      "https://docs.usebottles.com/components/runners"
+    ],
+    [
+      "Bottles Versioning",
+      "https://docs.usebottles.com/bottles/versioning"
+    ],
+    [
+      "Flatpak 图形扩展",
+      "https://docs.flatpak.org/en/latest/extension.html"
+    ],
+    [
+      "Flatpak 沙箱权限",
+      "https://docs.flatpak.org/en/latest/sandbox-permissions.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "bottles",
+    "flatpak",
+    "wine"
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "slug": "podman-advanced-operations",
+  "number": "126",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Podman 高级运维与调优",
+  "deck": "管理资源、健康状态、镜像工具链、日志与存储清理。",
+  "sections": [
+    [
+      "section-01",
+      "资源限制：内存和 CPU"
+    ],
+    [
+      "section-05",
+      "健康检查 (Health Check)"
+    ],
+    [
+      "section-06",
+      "容器自动更新"
+    ],
+    [
+      "section-09",
+      "Buildah：构建镜像的底层工具"
+    ],
+    [
+      "section-11",
+      "Skopeo：镜像搬运专家"
+    ],
+    [
+      "section-12",
+      "网络调试"
+    ],
+    [
+      "section-13",
+      "日志管理"
+    ],
+    [
+      "section-14",
+      "cgroups v2 资源监控"
+    ],
+    [
+      "section-15",
+      "Podman Machine（macOS/Windows）"
+    ],
+    [
+      "section-16",
+      "清理策略：防止磁盘爆满"
+    ],
+    [
+      "section-18",
+      "快速排错速查"
+    ],
+    [
+      "section-19",
+      "运维检查的前置条件"
+    ]
+  ],
+  "body": "<blockquote>\n<p>资源限制、健康检查、自动更新、Buildah/Skopeo 工具链——把你的容器能力从&quot;会用&quot;提升到&quot;可控&quot;。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">资源限制：内存和 CPU</h2>\n<h3 id=\"section-02\">内存限制</h3>\n<pre><code># 限制容器最多用 256MB 内存\npodman run -d --memory=256m --name web docker.io/library/nginx:alpine\n#         └──────────┘\n#      可加单位：b/k/m/g（字节/KB/MB/GB）\n\n# 限制内存 + 交换分区（总共 512M，其中 256M 是 RAM + 256M swap）\npodman run -d --memory=256m --memory-swap=512m docker.io/library/nginx:alpine\n\n# 查看容器实际内存使用\npodman stats web\n# 输出类似：\n# ID    NAME  CPU%  MEM USAGE / LIMIT  MEM%  NET IO       BLOCK IO\n# abc   web   0.2%  18.2MB / 256MB     7.1%  1.2kB / 0B   0B / 0B</code></pre>\n<h3 id=\"section-03\">CPU 限制</h3>\n<pre><code># 限制总CPU时间配额相当于1.5个逻辑CPU，不固定在哪些核运行\npodman run -d --cpus=1.5 docker.io/library/nginx:alpine\n\n# 绑定到特定 CPU 核心（只用 CPU 0 和 CPU 1）\npodman run -d --cpuset-cpus=0,1 docker.io/library/nginx:alpine\n\n# 设置 CPU 权重（默认 1024，值越小优先级越低）\npodman run -d --cpu-shares=512 docker.io/library/nginx:alpine</code></pre>\n<h3 id=\"section-04\">在 Quadlet 中设置资源限制</h3>\n<pre><code>[Container]\nImage=docker.io/library/nginx:alpine\nContainerName=web\n\n[Service]\nMemoryMax=256M\nCPUQuota=150%\n# 150% = 1.5 个核心\n\n[Container]\nPublishPort=8080:80</code></pre>\n<hr>\n<h2 id=\"section-05\">健康检查 (Health Check)</h2>\n<p>告诉 Podman &quot;怎样判断这个容器是活的&quot;。</p>\n<pre><code># 运行时指定\npodman run -d \\\n  --health-cmd=&quot;wget -q -O /dev/null http://127.0.0.1/ || exit 1&quot; \\\n  --health-interval=30s \\\n  --health-timeout=5s \\\n  --health-retries=3 \\\n  --health-start-period=60s \\\n  docker.io/library/nginx:alpine\n\n# 参数含义：\n# --health-cmd           检查命令，exit 0 表示健康\n# --health-interval      多久检查一次\n# --health-timeout       单次检查的超时时间\n# --health-retries       连续失败多少次才标记为 unhealthy\n# --health-start-period  启动宽限期，早期失败通常不计入阈值，不表示完全不检查</code></pre>\n<p>查看健康状态：</p>\n<pre><code>podman ps --format &quot;table {{.Names}} {{.Status}}&quot;\n# 输出可能包含 &quot;(healthy)&quot; 或 &quot;(unhealthy)&quot;</code></pre>\n<hr>\n<h2 id=\"section-06\">容器自动更新</h2>\n<h3 id=\"section-07\">启用自动更新</h3>\n<pre><code># 启动时加 auto-update 标签\npodman run -d \\\n  --label &quot;io.containers.autoupdate=registry&quot; \\\n  --name web \\\n  docker.io/library/nginx:alpine\n# --label ... 只声明更新策略；自动更新还需systemd管理关联与timer/手动调用\n\n# 手动触发所有有标签容器的更新\npodman auto-update\n# 输出类似：\n# UNIT              IMAGE                        POLICY   UPDATED\n# web.service       docker.io/library/nginx:alpine                 registry  false\n# ↑ false 表示此次未更新；结合策略和完整结果判断，不能独立证明所有服务最新</code></pre>\n<h3 id=\"section-08\">设置自动检查定时器</h3>\n<pre><code># 启用用户级timer；实际周期由timer配置决定\nsystemctl --user enable --now podman-auto-update.timer\n\n# 查看 timer 状态和下一次触发时间\nsystemctl --user list-timers podman-auto-update.timer</code></pre>\n<p>Quadlet 版（推荐）：</p>\n<pre><code>[Container]\nImage=docker.io/library/nginx:alpine\nAutoUpdate=registry\n# 自动启动的定时器会检查这个容器</code></pre>\n<hr>\n<h2 id=\"section-09\">Buildah：构建镜像的底层工具</h2>\n<p>Buildah 是 Podman 的&quot;构建兄弟&quot;。<code>podman build</code> 使用 Buildah 的构建功能/库；不是每次都额外运行 buildah CLI。</p>\n<h3 id=\"section-10\">什么时候直接用 Buildah</h3>\n<pre><code># 1. 需要脚本化构建（不用 Dockerfile）\nbuildah from docker.io/library/alpine:latest                    # 创建工作容器\nbuildah run alpine-working-container -- apk add python3  # 在里面执行命令\nbuildah commit alpine-working-container mypython:latest   # 保存为镜像\n\n# 2. CI/CD 中构建镜像（无 daemon 开销）\nbuildah bud -t myapp:latest .     # bud = build using Dockerfile\n\n# 3. 查看已存在的镜像层\nbuildah images</code></pre>\n<p>对于大多数场景，继续用 <code>podman build</code> 就行。Buildah 是给高级用户和 CI 系统用的。</p>\n<hr>\n<h2 id=\"section-11\">Skopeo：镜像搬运专家</h2>\n<p>Skopeo 用于在镜像仓库之间<strong>复制、检查和签名</strong>镜像，而不需要先把镜像拉到本地。</p>\n<pre><code># 查看远程镜像的详细信息（不下载）\nskopeo inspect docker://docker.io/library/nginx:alpine\n\n# 在不同仓库之间复制镜像（直接复制，不经过本地存储）\nskopeo copy \\\n  docker://docker.io/library/nginx:alpine \\\n  docker://registry.example.com/library/nginx:alpine\n\n# 复制到本地目录\nskopeo copy \\\n  docker://docker.io/library/nginx:alpine \\\n  dir:/tmp/nginx-local\n\n# 同步镜像（批量复制）\nskopeo sync --src docker --dest dir \\\n  docker.io/library/nginx:alpine \\\n  /tmp/synced-images</code></pre>\n<p><strong>使用场景</strong>：把你的镜像从 Docker Hub 搬到私有仓库，或者做离线镜像分发。</p>\n<hr>\n<h2 id=\"section-12\">网络调试</h2>\n<pre><code># 查看容器的 IP 地址\npodman inspect web | grep IPAddress\n\n# 查看容器的 DNS 配置\npodman exec web cat /etc/resolv.conf\n\n# 测试容器间网络连通性\npodman exec web ping db\n# 同一自定义网络中的容器可以用容器名互相访问\n\n# 查看 iptables/nftables 规则（rootful 模式）\nsudo nft list ruleset | grep podman</code></pre>\n<hr>\n<h2 id=\"section-13\">日志管理</h2>\n<pre><code># journalctl 是 systemd 的日志工具\n# 查看容器日志\njournalctl --user -u nginx\n\n# 最近 50 行\njournalctl --user -u nginx -n 50\n\n# 实时跟踪\njournalctl --user -u nginx -f\n\n# 只看今天的\njournalctl --user -u nginx --since today\n\n# 按时间段\njournalctl --user -u nginx --since &quot;2026-06-20 10:00&quot; --until &quot;2026-06-20 12:00&quot;\n</code></pre>\n<p>在Quadlet源文件的 [Service] 段设置速率策略，不是日志容量上限；NixOS按声明式配置管理：</p>\n<pre><code>[Service]\nLogRateLimitIntervalSec=0\n# 0禁用此服务的速率限制，可能增加日志量；容量由journald保留策略等控制</code></pre>\n<hr>\n<h2 id=\"section-14\">cgroups v2 资源监控</h2>\n<pre><code># 查看容器的 cgroup 信息\npodman inspect web --format &#39;{{.HostConfig.CgroupParent}}&#39;\n\n# 查看内存使用（系统级）\nsystemd-cgtop\n# 按 cgroup 分组显示 CPU/内存/IO，可以看到每个容器的实时资源用量\n\n# 查看容器的 cgroup 限制是否生效\npodman exec web cat /sys/fs/cgroup/memory.max\n# 输出：268435456 = 256MB（和 --memory=256m 对应）</code></pre>\n<hr>\n<h2 id=\"section-15\">Podman Machine（macOS/Windows）</h2>\n<p>如果你在 macOS 上开发：</p>\n<pre><code># 初始化一个 Podman 管理的 Linux VM\npodman machine init\n\n# 启动 VM\npodman machine start\n\n# 查看 VM 状态\npodman machine list\n\n# 进入 VM shell（调试用）\npodman machine ssh\n\n# 停止/删除 VM\npodman machine stop\npodman machine rm</code></pre>\n<p>Podman Machine 的 VM provider依平台与版本变化；按已安装版本核对，不把单一provider或固定性能比较套到所有5.0+。machine rm会删除VM，应先导出需要保留的数据。</p>\n<hr>\n<h2 id=\"section-16\">清理策略：防止磁盘爆满</h2>\n<pre><code># 查看存储使用\npodman system df\n\n# 删除所有未使用的镜像、容器、卷（一键清理）\npodman system prune -a --volumes\n#                     └┘ └──────┘\n#               包括未使用   包括未使用的卷\n#               的镜像\n\n# 定期自动清理（加到 crontab 或 systemd timer）\npodman image prune -f --filter &quot;until=72h&quot;\n# 删除 72 小时前创建的未使用镜像</code></pre>\n<h3 id=\"section-17\">限制存储总大小</h3>\n<p>在 <code>~/.config/containers/storage.conf</code> 中：</p>\n<pre><code>[storage]\ndriver = &quot;overlay&quot;\nrunroot = &quot;/run/user/EXAMPLE_UID/containers&quot; # 示例不可直接复制，通常保留默认\ngraphroot = &quot;/path/to/local-container-storage&quot; # 受控本地路径示例，迁移需单独处理\n\n[storage.options.overlay]\nsize = &quot;50G&quot;       # 特定驱动/文件系统支持的层配额，不是整个graphroot总容量限制</code></pre>\n<hr>\n<h2 id=\"section-18\">快速排错速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">症状</th>\n<th scope=\"col\">检查</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>容器启动后立刻退出</td>\n<td><code>podman logs &lt;容器&gt;</code> 查看退出原因</td>\n</tr>\n<tr>\n<td>端口映射不生效</td>\n<td>查询非特权端口起点，确认发布IP/端口/应用监听；再查防火墙</td>\n</tr>\n<tr>\n<td>卷挂载权限被拒绝</td>\n<td>核对应用UID映射、目录/父目录权限、ACL与SELinux</td>\n</tr>\n<tr>\n<td>镜像拉取慢</td>\n<td>配置镜像加速：<code>~/.config/containers/registries.conf</code></td>\n</tr>\n<tr>\n<td>容器间无法通信</td>\n<td>确认在同一自定义网络；用 <code>podman exec &lt;容器&gt; ping &lt;另一个容器&gt;</code> 测试</td>\n</tr>\n<tr>\n<td>内存不断增长</td>\n<td><code>podman stats</code> 查看；可能缺 <code>--memory</code> 限制</td>\n</tr>\n<tr>\n<td>重启后容器状态丢失</td>\n<td>检查是否用了 Quadlet/systemd；区分持久数据、restart策略与开机用户管理器；Quadlet/systemd需Install和linger条件</td>\n</tr>\n</tbody></table></div>\n<hr>\n<hr>\n<h2 id=\"section-19\">运维检查的前置条件</h2>\n<p>资源限制在rootless环境下依赖cgroup版本与委派权限，成功创建也要读实际限制和观察工作负载。健康命令在镜像内执行，示例要求提供wget；unhealthy不自动让systemd Restart策略触发，需单独配置HealthOnFailure等机制。auto-update按systemd关联重启服务，单独的run标签不足以成为完整更新方案；registry策略应使用完全限定镜像名。</p>\n<p>清理示例会删除未使用资源，尤其--volumes可丢失数据库数据；先用system df、ps -a、volume inspect盘点并备份，不应把自动prune当无风险默认。image prune的until按创建时间筛选，“未使用”与“旧”是不同条件。Skopeo inspect不下载完整镜像层，但仍访问注册表/获取元数据；copy会向目标仓库写入，需有授权和认证。日志与inspect可能含环境变量等秘密，分享前应脱敏。</p>\n",
+  "refs": [
+    [
+      "Podman 官方 run 手册",
+      "https://docs.podman.io/en/stable/markdown/podman-run.1.html"
+    ],
+    [
+      "Podman 官方总览与 rootless",
+      "https://docs.podman.io/en/stable/markdown/podman.1.html"
+    ],
+    [
+      "Podman 自动更新条件",
+      "https://docs.podman.io/en/stable/markdown/podman-auto-update.1.html"
+    ],
+    [
+      "容器存储配置",
+      "https://github.com/containers/storage/blob/main/docs/containers-storage.conf.5.md"
+    ],
+    [
+      "Buildah 官方说明",
+      "https://github.com/containers/buildah"
+    ],
+    [
+      "Skopeo 官方说明",
+      "https://github.com/containers/skopeo"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "podman",
+    "containers"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "slug": "nixos-specialisation",
+  "number": "019",
+  "category": "LINUX / SYSTEMS",
+  "title": "Specialisation：一个世代的多个配置变体",
+  "deck": "在一个基础配置下声明变体，并区分运行时激活与重启生效。",
+  "sections": [
+    [
+      "section-01",
+      "一、核心概念：什么是 Specialisation？"
+    ],
+    [
+      "section-02",
+      "二、为什么要用 Specialisation？"
+    ],
+    [
+      "section-03",
+      "三、如何定义 Specialisation？"
+    ],
+    [
+      "section-04",
+      "四、如何使用这些变体？"
+    ],
+    [
+      "section-09",
+      "五、Specialisation 的优势与局限"
+    ],
+    [
+      "section-10",
+      "总结"
+    ]
+  ],
+  "body": "<p><code>specialisation</code>（特化/专精）是 NixOS 中一个非常强大但常被低估的功能。它允许你在<strong>同一个系统世代</strong>下，派生出多个具有不同配置变体的 &quot; 平行世界 &quot;。<br>通俗地讲，它就像是给系统配置开了 &quot; 多分支 &quot;，但这几个分支在一次构建中全部生成好了，已构建变体可直接激活，但内核、引导和某些驱动变更需要重启。</p>\n<hr>\n<h2 id=\"section-01\">一、核心概念：什么是 Specialisation？</h2>\n<p>通常，当你执行 <code>nixos-rebuild switch</code> 时，系统会构建当前 <code>configuration.nix</code> 的状态，并生成一个 Generation。<br>而 <code>specialisation</code> 允许你在当前配置的基础上，定义若干个<strong>子配置</strong>。这些子配置会继承基础配置的所有内容，并在此基础上<strong>覆盖或追加</strong>特定的设置。一次 <code>rebuild</code> 会同时生成基础配置和所有特化配置，它们共享同一个 Generation 编号。</p>\n<h2 id=\"section-02\">二、为什么要用 Specialisation？</h2>\n<p>想象以下场景：</p>\n<ol>\n<li>你平时用核显办公，但偶尔需要插上独显打游戏或跑深度学习。</li>\n<li>你平时需要防火墙和代理，但偶尔需要在本地测试网络服务，需要调整防火墙允许的测试端口。</li>\n<li>你平时用 GNOME，但想偶尔尝鲜 Hyprland（分别定义桌面服务和软件集合）。</li>\n</ol>\n<p>如果没有 <code>specialisation</code>，你只能每次修改配置文件然后重新 <code>rebuild</code>。<br>有了 <code>specialisation</code>，你可以把这些 &quot; 偶尔用 &quot; 的配置写成变体，开机时在 GRUB 菜单中直接选择进入，或者在运行中通过命令瞬间切换（部分配置可能需要重新登录）。</p>\n<h2 id=\"section-03\">三、如何定义 Specialisation？</h2>\n<p>在 <code>configuration.nix</code> 中，使用 <code>specialisation.&lt;name&gt;.configuration</code> 来定义。</p>\n<pre><code>{ config, pkgs, lib, ... }:\n{\n  # ===== 基础配置（日常模式）=====\n  networking.firewall.enable = true;\n  services.desktopManager.gnome.enable = true;\n  environment.systemPackages = with pkgs; [ firefox git ];\n\n  # ===== 特化配置 1：游戏模式 =====\n  specialisation.&quot;gaming&quot;.configuration = {\n    # 按服务需要开放示例端口，避免为游戏直接关闭整个防火墙\n    networking.firewall.allowedUDPPorts = [ 27015 ];\n    \n    # 安装 Steam 和显卡驱动相关工具\n    environment.systemPackages = with pkgs; [ steam mangohud gamemode ];\n  };\n\n  # ===== 特化配置 2：开发/调试模式 =====\n  specialisation.&quot;debug&quot;.configuration = {\n    # 启用更详细的内核日志\n    boot.kernelParams = [ &quot;debug&quot; ];\n    \n    # 安装一堆调试工具\n    environment.systemPackages = with pkgs; [ gdb valgrind strace ltrace ];\n  };\n}</code></pre>\n<h2 id=\"section-04\">四、如何使用这些变体？</h2>\n<p>构建好之后（<code>sudo nixos-rebuild switch</code>），你有三种方式使用它们：</p>\n<h3 id=\"section-05\">1. 开机时在 GRUB 中选择</h3>\n<p>重启电脑，在 GRUB 菜单的 &quot;NixOS - All configurations&quot; 子菜单里，你会看到类似这样的选项：</p>\n<ul>\n<li><code>NixOS Generation 105</code> (默认基础配置)</li>\n<li><code>NixOS Generation 105 - gaming</code></li>\n<li><code>NixOS Generation 105 - debug</code></li>\n</ul>\n<p>选择哪个就进入哪个环境。</p>\n<h3 id=\"section-06\">2. 在运行中的系统里切换（无需重启）</h3>\n<p>如果你想从 &quot; 日常模式 &quot; 瞬间切到 &quot; 游戏模式 &quot;，可以运行：</p>\n<pre><code>sudo /nix/var/nix/profiles/system/specialisation/gaming/bin/switch-to-configuration test</code></pre>\n<p>如果需从源配置重新求值/构建并激活指定变体，可使用本机支持的 rebuild 接口：</p>\n<pre><code>sudo nixos-rebuild test --specialisation gaming</code></pre>\n<blockquote>\n<p><strong>注意</strong>：这种热切换能生效的程度取决于配置内容。新闭包的软件路径和可热激活服务会切换，但已运行进程不自动换成新二进制，但涉及内核模块、显示管理器（如从 GNOME 切到 Hyprland）的改动，可能需要注销重新登录甚至重启才能完全应用。</p>\n</blockquote>\n<h3 id=\"section-07\">3. 路径和辅助工具</h3>\n<p>官方模块文档使用 <code>/run/current-system/specialisation/&lt;name&gt;/bin/switch-to-configuration test</code>。从基础系统切换后，<code>/run/current-system</code> 可能指向变体，访问兄弟变体时使用仍指向基础世代的系统 profile 路径，或显式保存基础闭包路径。辅助工具可能依靠标记文件识别变体，其约定需按工具版本核实，原生特化并不自动保证 <code>/etc/specialisation</code> 标记。</p>\n<h3 id=\"section-08\">4. 覆盖继承值</h3>\n<p>特化默认继承父配置，选项合并仍遵循模块系统规则。父子两边给布尔或字符串写不同的普通定义可能产生冲突；明确覆盖时使用 <code>lib.mkForce</code>，列表默认则往往追加。例如：</p>\n<pre><code>specialisation.minimal.configuration = {\n  services.desktopManager.gnome.enable = lib.mkForce false;\n};</code></pre>\n<p><code>inheritParentConfig = false</code> 可以关闭父配置继承，但此时需要提供完整有效的系统配置，不等于进程、数据或硬件的隔离。</p>\n<h2 id=\"section-09\">五、Specialisation 的优势与局限</h2>\n<p><strong>优势：</strong></p>\n<ul>\n<li><strong>省时</strong>：一次构建，多套配置可用。</li>\n<li><strong>原子性</strong>：变体和基础配置绑定在同一个 Generation 中，回滚时一起回滚，不会出现配置版本错乱。</li>\n<li><strong>干净</strong>：不用为了偶尔用一次的软件而长期污染日常环境。</li>\n</ul>\n<p><strong>局限：</strong></p>\n<ul>\n<li><strong>构建时间长</strong>：因为所有变体都要在一次 <code>rebuild</code> 中构建出来，如果你的变体里包含大量重型软件（如 Steam），更新时会求值并确保各变体输出可用，能使用现有 store 结果或缓存时不必全部重新编译。</li>\n<li><strong>不能跨越硬件边界</strong>：特化配置是在同一个硬件系统上运行的，你不能用它来让同一份配置在两台不同的电脑上表现不同（那应该用 Flakes 的多个 <code>nixosConfigurations</code> 来实现）。</li>\n</ul>\n<h2 id=\"section-10\">总结</h2>\n<p><code>specialisation</code> 是 NixOS 声明式配置的优雅体现。它将 &quot; 系统的多种运行姿态 &quot; 固化到了配置文件中，让你可以通过简单的目录选择或开机引导，在不同的工作环境间按明确的激活与重启边界切换。</p>\n<hr>\n",
+  "refs": [
+    [
+      "NixOS 手册",
+      "https://nixos.org/manual/nixos/stable/"
+    ],
+    [
+      "Nix 语言手册",
+      "https://nix.dev/manual/nix/stable/language/syntax.html"
+    ],
+    [
+      "NixOS 26.05 specialisation 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-26.05/nixos/modules/system/activation/specialisation.nix"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

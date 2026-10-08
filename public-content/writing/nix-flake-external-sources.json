@@ -1,0 +1,56 @@
+{
+  "slug": "nix-flake-external-sources",
+  "number": "028",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "外部 Flake 引用与协作",
+  "deck": "连接外部模块和软件包，并检查依赖版本之间的关系。",
+  "sections": [
+    [
+      "section-01",
+      "如何引用外部资源？"
+    ],
+    [
+      "section-03",
+      "实战案例：引用他人的 Nix 配置"
+    ],
+    [
+      "section-06",
+      "🔄 协作与依赖冲突"
+    ],
+    [
+      "section-08",
+      "协作工作流"
+    ],
+    [
+      "section-09",
+      "总结"
+    ]
+  ],
+  "body": "<hr>\n<h2 id=\"section-01\">如何引用外部资源？</h2>\n<p>在 <code>flake.nix</code> 的 <code>inputs</code> 部分，你可以定义各种外部来源。</p>\n<h3 id=\"section-02\">1. 常见的 URL 类型</h3>\n<ul>\n<li><strong>GitHub/GitLab</strong>：<code>github:user/repo/rev</code></li>\n<li><strong>本地路径</strong>：<code>path:../other-flake</code></li>\n<li><strong>Tarball</strong>：<code>https://example.com/archive.tar.gz</code></li>\n</ul>\n<hr>\n<h2 id=\"section-03\">实战案例：引用他人的 Nix 配置</h2>\n<h3 id=\"section-04\">1. 引用 Hyprland 的官方 Flake</h3>\n<p>Hyprland 更新极快，NixOS 官方仓库可能不够新。你可以直接引用它的 Flake：</p>\n<pre><code>inputs.hyprland.url = &quot;github:hyprwm/Hyprland&quot;;\n\noutputs = { self, nixpkgs, hyprland, ... }: {\n  nixosConfigurations.my-pc = nixpkgs.lib.nixosSystem {\n    modules = [\n      ./configuration.nix\n      { programs.hyprland = {\n          enable = true;\n          package = hyprland.packages.x86_64-linux.hyprland;\n          portalPackage = hyprland.packages.x86_64-linux.xdg-desktop-portal-hyprland;\n        }; } # 官方文档的包与 portal 配对方式\n    ];\n  };\n};</code></pre>\n<h3 id=\"section-05\">2. 引用他人的 Neovim 配置</h3>\n<p>假设有人把自己的 Neovim 打包成了一个 Flake：</p>\n<pre><code>inputs.my-neovim.url = &quot;github:someone/neovim-flake&quot;;\n\n# 在 configuration.nix 里：\nenvironment.systemPackages = [ inputs.my-neovim.packages.x86_64-linux.default ];</code></pre>\n<hr>\n<h2 id=\"section-06\">🔄 协作与依赖冲突</h2>\n<p>当你引用多个 Flake 时，每个 Flake 可能都依赖于不同版本的 <code>nixpkgs</code>。共享版本前需检查外部项目的兼容要求。</p>\n<h3 id=\"section-07\">使用 follows 解决！</h3>\n<p>如果外部 Flake 支持当前 nixpkgs，可让指定输入跟随主配置的版本：</p>\n<pre><code>inputs = {\n  nixpkgs.url = &quot;github:nixos/nixpkgs/nixos-unstable&quot;;\n  home-manager = {\n    url = &quot;github:nix-community/home-manager&quot;;\n    inputs.nixpkgs.follows = &quot;nixpkgs&quot;; # 强制跟随主 nixpkgs\n  };\n};</code></pre>\n<hr>\n<h2 id=\"section-08\">协作工作流</h2>\n<ol>\n<li><strong>添加 Input</strong>：修改 <code>flake.nix</code>。</li>\n<li><strong>锁定版本</strong>：运行 <code>nix flake lock</code>（会自动更新 <code>flake.lock</code>）。</li>\n<li><strong>使用 Output</strong>：在代码中通过变量名引用对应的输出。</li>\n</ol>\n<hr>\n<h2 id=\"section-09\">总结</h2>\n<p>学会引用外部 Flake，你就拥有了整个 Nix 社区的武器库。无论是桌面环境、编辑器还是特定的开发工具，都能实现“开箱即用”。</p>\n",
+  "refs": [
+    [
+      "Nix Flake 手册",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake"
+    ],
+    [
+      "Nix flake update",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-update"
+    ],
+    [
+      "Nix flake check",
+      "https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake-check"
+    ],
+    [
+      "Hyprland 官方 NixOS 文档",
+      "https://wiki.hypr.land/Nix/Hyprland-on-NixOS/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "nix-flakes"
+  ]
+}

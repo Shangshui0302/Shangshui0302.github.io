@@ -1,0 +1,41 @@
+{
+  "slug": "arch-pacman-commands",
+  "number": "061",
+  "category": "LINUX / SYSTEMS",
+  "title": "Pacman 常用命令与参数记忆",
+  "deck": "用 S、Q、R、U 四类操作区分仓库查询、本机查询、卸载和本地包安装。",
+  "sections": [
+    [
+      "section-01",
+      "两层语法与常用参数"
+    ],
+    [
+      "section-02",
+      "孤儿依赖与文件检查"
+    ],
+    [
+      "section-03",
+      "AUR 助手的参数兼容"
+    ]
+  ],
+  "body": "<h2 id=\"section-01\">两层语法与常用参数</h2>\n<p><code>pacman</code> 最好记成 &quot; 两层语法 &quot;：</p>\n<pre><code>pacman -&lt;大类&gt;&lt;小参数&gt;</code></pre>\n<p>第一层先记 4 个最常用大类：</p>\n<ul>\n<li><code>S</code> = Sync，同步仓库 / 安装软件</li>\n<li><code>Q</code> = Query，查询本机已安装软件</li>\n<li><code>R</code> = Remove，卸载</li>\n<li><code>U</code> = Upgrade，安装本地包文件</li>\n</ul>\n<p>最核心的其实就这几个。</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">命令</th>\n<th scope=\"col\">含义</th>\n<th scope=\"col\">助记</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>pacman -S 包名</code></td>\n<td>安装软件</td>\n<td><code>S = Sync/install</code></td>\n</tr>\n<tr>\n<td><code>pacman -Syu</code></td>\n<td>全系统更新</td>\n<td><code>y = refresh</code>，<code>u = upgrade</code></td>\n</tr>\n<tr>\n<td><code>pacman -Ss 关键词</code></td>\n<td>搜仓库</td>\n<td>第二个 <code>s = search</code></td>\n</tr>\n<tr>\n<td><code>pacman -Si 包名</code></td>\n<td>看仓库包详情</td>\n<td><code>i = info</code></td>\n</tr>\n<tr>\n<td><code>pacman -Qs 关键词</code></td>\n<td>搜已安装软件</td>\n<td><code>Q = local Query</code> + <code>s = search</code></td>\n</tr>\n<tr>\n<td><code>pacman -Qi 包名</code></td>\n<td>看已安装包详情</td>\n<td><code>i = info</code></td>\n</tr>\n<tr>\n<td><code>pacman -Ql 包名</code></td>\n<td>查看这个包安装了哪些文件</td>\n<td><code>l = list</code></td>\n</tr>\n<tr>\n<td><code>pacman -Qo /路径/文件</code></td>\n<td>查询文件属于哪个包</td>\n<td><code>o = owner</code></td>\n</tr>\n<tr>\n<td><code>pacman -R 包名</code></td>\n<td>卸载</td>\n<td><code>R = Remove</code></td>\n</tr>\n<tr>\n<td><code>pacman -Rs 包名</code></td>\n<td>卸载 + 不再需要的依赖</td>\n<td><code>s = recursive deps</code></td>\n</tr>\n<tr>\n<td><code>pacman -Rns 包名</code></td>\n<td>卸载 + 不再需要的依赖，且不保存受管理配置为 .pacsave</td>\n<td><code>n = nosave</code></td>\n</tr>\n<tr>\n<td><code>pacman -U xxx.pkg.tar.zst</code></td>\n<td>安装本地包</td>\n<td><code>U = Upgrade file</code></td>\n</tr>\n<tr>\n<td><code>pacman -Sc</code></td>\n<td>清理旧缓存</td>\n<td><code>c = clean</code></td>\n</tr>\n</tbody></table></div>\n<p>你日常真正高频的可以压缩成：</p>\n<pre><code>sudo pacman -Syu\nsudo pacman -S foo\npacman -Ss foo\npacman -Qs foo\npacman -Qi foo\npacman -Ql foo\npacman -Qo /usr/bin/foo\nsudo pacman -Rns foo</code></pre>\n<p>其中最值得理解的是 <code>S</code> 和 <code>Q</code> 的区别：</p>\n<pre><code>-S* → 问“仓库里有什么”\n-Q* → 问“我电脑上已经有什么”</code></pre>\n<p>所以：</p>\n<pre><code>pacman -Ss firefox</code></pre>\n<p>= 搜远程仓库里的 firefox。</p>\n<pre><code>pacman -Qs firefox</code></pre>\n<p>= 搜你本机已经安装的 firefox 相关包。</p>\n<p>几个特别容易搞混的：</p>\n<pre><code>pacman -Sy</code></pre>\n<p>只刷新数据库，不升级软件。Arch 上一般不要单独这么干，因为可能造成 partial upgrade。</p>\n<p>正常应该：</p>\n<pre><code>sudo pacman -Syu</code></pre>\n<p>可以把它强行记成：</p>\n<pre><code>S = Sync\ny = refresh repository database\nu = upgrade installed packages</code></pre>\n<p>也就是：</p>\n<pre><code>同步 → 刷新数据库 → 升级</code></pre>\n<p><code>-Rns</code> 也很值得形成肌肉记忆：</p>\n<pre><code>R = Remove\nn = nosave，不生成受管理配置的 .pacsave 备份\ns = 顺便删无用依赖</code></pre>\n<p>卸载前确认不再需要该软件，且是否希望保留 <code>.pacsave</code> 配置备份：</p>\n<pre><code>sudo pacman -Rns foo</code></pre>\n<h2 id=\"section-02\">孤儿依赖与文件检查</h2>\n<p>以下命令适合排错：</p>\n<pre><code>pacman -Qdt</code></pre>\n<p>找孤儿依赖。可以记：</p>\n<pre><code>Q = query\nd = dependency\nt = unrequired</code></pre>\n<p>先检查查询结果；仍需使用的包应改为显式安装。删除时写入已确认不需要的包名：</p>\n<pre><code>sudo pacman -Rns &lt;CONFIRMED_ORPHAN_PACKAGE&gt;</code></pre>\n<p>以及：</p>\n<pre><code>pacman -Qk foo</code></pre>\n<p>检查包安装的文件是否缺失，<code>k = check</code>。</p>\n<pre><code>pacman -Qkk foo</code></pre>\n<p>检查得更详细。</p>\n<h2 id=\"section-03\">AUR 助手的参数兼容</h2>\n<p>如果使用 <code>paru</code>，绝大多数 pacman 查询/安装参数也可以原样用：</p>\n<pre><code>paru -S foo\nparu -Ss foo\nparu -Qs foo\nparu -Syu</code></pre>\n<p>最简单的脑图就是：</p>\n<pre><code>pacman\n├── S  仓库 / 安装\n│   ├── s search\n│   ├── i info\n│   └── yu 更新\n├── Q  本机查询\n│   ├── s search\n│   ├── i info\n│   ├── l list files\n│   └── o owner\n├── R  卸载\n│   └── ns 干净卸载\n└── U  本地 pkg.tar.zst</code></pre>\n<p><code>S / Q / R / U</code> 可作为记忆入口；涉及删除和缓存清理时仍应查看确认列表及当前手册。<code>-n</code> 不会清除用户家目录下的所有设置。</p>\n",
+  "refs": [
+    [
+      "ArchWiki：Pacman",
+      "https://wiki.archlinux.org/title/Pacman"
+    ],
+    [
+      "pacman(8)",
+      "https://man.archlinux.org/man/pacman.8.en"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "arch-linux",
+    "package-management"
+  ]
+}

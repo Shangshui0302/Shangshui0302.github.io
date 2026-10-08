@@ -1,0 +1,56 @@
+{
+  "slug": "linux-command-shell",
+  "number": "042",
+  "category": "TOOLS / FIELD NOTES",
+  "title": "Shell 基本功",
+  "deck": "用管道、重定向、变量和历史操作组合命令行工具。",
+  "sections": [
+    [
+      "section-01",
+      "管道"
+    ],
+    [
+      "section-03",
+      "重定向"
+    ],
+    [
+      "section-08",
+      "通配符"
+    ],
+    [
+      "section-09",
+      "变量"
+    ],
+    [
+      "section-13",
+      "别名"
+    ],
+    [
+      "section-15",
+      "历史与快捷操作"
+    ],
+    [
+      "section-19",
+      "组合示例"
+    ],
+    [
+      "section-21",
+      "核心心智模型"
+    ]
+  ],
+  "body": "<blockquote>\n<p>本文以 Bash 风格语法为主；Fish 的变量、命令替换、历史与配置语法有差异。</p>\n</blockquote>\n<blockquote>\n<p>前三篇是&quot;用什么命令&quot;，这篇是&quot;怎么把命令串起来&quot;。管道和重定向是 Linux 哲学的具象化：小工具组合出大威力。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">管道</h2>\n<h3 id=\"section-02\">| — 把一个命令的输出喂给下一个命令</h3>\n<pre><code>command1 | command2</code></pre>\n<p>本质：<code>command1</code> 的标准输出 直接变成 <code>command2</code> 的标准输入。</p>\n<pre><code>ps aux | grep python        # ps 的输出交给 grep 筛选\nls -l | wc -l               # 统计显示行数，含 total 行；不是可靠文件数\ncat file.txt | grep error   # 等价于 grep error file.txt\ndu -sh * | sort -hr         # 列出文件大小，从大到小排</code></pre>\n<p>管道可以一直串下去：</p>\n<pre><code>cat access.log | grep &quot;404&quot; | cut -d&#39; &#39; -f1 | sort | uniq -c | sort -rn\n# 解释：日志 → 筛404 → 取IP列 → 排序 → 去重计数 → 按次数倒排\n# 结果：谁在疯狂 404 一目了然</code></pre>\n<hr>\n<h2 id=\"section-03\">重定向</h2>\n<h3 id=\"section-04\">&gt; — 输出到文件（覆盖）</h3>\n<pre><code>echo &quot;hello&quot; &gt; file.txt       # 写内容到文件，覆盖原有内容\nls -la &gt; listing.txt          # ls 的结果存到文件，终端不显示</code></pre>\n<h3 id=\"section-05\">&gt;&gt; — 输出到文件（追加）</h3>\n<pre><code>echo &quot;another line&quot; &gt;&gt; file.txt    # 追加到末尾</code></pre>\n<h3 id=\"section-06\">&lt; — 从文件读取输入</h3>\n<pre><code>wc -l &lt; file.txt         # 把文件内容喂给 wc（等价于 wc -l file.txt）</code></pre>\n<h3 id=\"section-07\">2&gt;&amp;1 — 把错误输出合并到标准输出</h3>\n<pre><code>./script.sh &gt; output.log 2&gt;&amp;1    # 正常输出和报错都进同一个文件\n./script.sh &gt; /dev/null 2&gt;&amp;1     # 静默运行，什么都不显示</code></pre>\n<p>理解模型：</p>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">编号</th>\n<th scope=\"col\">名字</th>\n<th scope=\"col\">默认去向</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>0</td>\n<td>stdin（标准输入）</td>\n<td>键盘</td>\n</tr>\n<tr>\n<td>1</td>\n<td>stdout（标准输出）</td>\n<td>终端</td>\n</tr>\n<tr>\n<td>2</td>\n<td>stderr（标准错误）</td>\n<td>终端</td>\n</tr>\n</tbody></table></div>\n<p><code>2&gt;&amp;1</code> 的意思是：把 stderr（2）重定向到 stdout（1）去的地方。</p>\n<hr>\n<h2 id=\"section-08\">通配符</h2>\n<pre><code>*          # 匹配任意多个字符\n?          # 匹配恰好一个字符\n[abc]      # 匹配 a、b、c 中的任意一个\n[0-9]      # 匹配 0-9 任意数字</code></pre>\n<pre><code>ls *.md           # 所有 .md 文件\nls report_??.txt  # 先预览任意两个字符后缀（不限定数字）\nrm -- report_??.txt  # 核对列表后才删除；不匹配时的行为取决于 Shell\nls [A-Z]*.md      # 大写字母开头的 .md 文件</code></pre>\n<hr>\n<h2 id=\"section-09\">变量</h2>\n<h3 id=\"section-10\">定义和使用</h3>\n<pre><code>name=&quot;hello&quot;          # 定义变量，等号两边不能有空格\necho &quot;$name&quot;            # 使用变量，加 $ 前缀\necho &quot;${name}&quot;          # 也可以用花括号包起来</code></pre>\n<h3 id=\"section-11\">环境变量</h3>\n<pre><code>echo $PATH            # 可执行文件的搜索路径\necho $HOME            # 你的家目录\necho $USER            # 当前用户名\nenv                   # 列出所有环境变量\nexport MY_VAR=&quot;val&quot;   # 设为环境变量（子进程可见）</code></pre>\n<h3 id=\"section-12\">命令替换</h3>\n<pre><code>now=$(date)           # 把 date 命令的输出赋给变量\necho &quot;现在时间：$now&quot;\nfiles=$(find . -maxdepth 1 -type f -printf &#39;x\\n&#39; | wc -l)  # GNU find：当前目录普通文件数</code></pre>\n<hr>\n<h2 id=\"section-13\">别名</h2>\n<h3 id=\"section-14\">alias — 给长命令起短名</h3>\n<pre><code>alias ll=&#39;ls -lah&#39;              # ll 代替 ls -lah\nalias gs=&#39;git status&#39;           # git 常用操作缩到两字母\nalias ..=&#39;cd ..&#39;                # 快速回上级\n\nalias                          # 查看当前所有别名</code></pre>\n<p>永久生效需要写到 <code>~/.bashrc</code>（bash）或 <code>~/.config/fish/config.fish</code>（fish）。</p>\n<hr>\n<h2 id=\"section-15\">历史与快捷操作</h2>\n<h3 id=\"section-16\">history — 查看命令历史</h3>\n<pre><code>history                     # 全部历史\nhistory | grep git          # 在历史中搜 git 相关命令</code></pre>\n<h3 id=\"section-17\">复用历史命令</h3>\n<pre><code>!!          # 重复上一条命令\n!git        # 重复最近一条以 git 开头的命令\n!$          # 上一条命令的最后一个参数</code></pre>\n<h3 id=\"section-18\">终端快捷键</h3>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">快捷键</th>\n<th scope=\"col\">作用</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><code>Ctrl+C</code></td>\n<td>终止当前前台程序</td>\n</tr>\n<tr>\n<td><code>Ctrl+Z</code></td>\n<td>暂停当前前台程序</td>\n</tr>\n<tr>\n<td><code>Ctrl+D</code></td>\n<td>发送 EOF（退出终端/关闭输入流）</td>\n</tr>\n<tr>\n<td><code>Ctrl+L</code></td>\n<td>清屏（等价于 <code>clear</code>）</td>\n</tr>\n<tr>\n<td><code>Ctrl+R</code></td>\n<td>反向搜索历史命令</td>\n</tr>\n<tr>\n<td><code>Ctrl+A</code></td>\n<td>光标跳到行首</td>\n</tr>\n<tr>\n<td><code>Ctrl+E</code></td>\n<td>光标跳到行尾</td>\n</tr>\n<tr>\n<td><code>Ctrl+W</code></td>\n<td>删除光标前一个词</td>\n</tr>\n<tr>\n<td><code>Ctrl+U</code></td>\n<td>删除光标前全部内容</td>\n</tr>\n</tbody></table></div>\n<p><code>Ctrl+R</code> 特别实用：在长历史里搜索用过的命令，再按一次继续往前搜。</p>\n<hr>\n<h2 id=\"section-19\">组合示例</h2>\n<h3 id=\"section-20\">一行命令解决实际问题</h3>\n<pre><code># 当前目录项目（含目录）的磁盘占用前 5 名\ndu -sh * | sort -hr | head -5\n\n# 统计名称匹配的进程数（不是线程数）\npgrep -c nginx\n# 查看已知 PID 的线程数与线程列表\nps -o nlwp= -p PID\nps -T -p PID\n\n# 查看 8080 端口被哪个程序占了\nss -tlnp | grep 8080\n\n# 递归找所有 .md 文件中有多少行包含 &quot;TODO&quot;\ngrep -rn --include=&quot;*.md&quot; &quot;TODO&quot; . | wc -l</code></pre>\n<p>这就是 Unix 哲学：<strong>每个命令做好一件事，用管道把它们串起来。</strong></p>\n<hr>\n<h2 id=\"section-21\">核心心智模型</h2>\n<pre><code>输入(stdin) → [命令] → 输出(stdout)\n                  ↓\n              错误(stderr)\n\n管道 | ：把 A 的 stdout 给 B 的 stdin\n重定向 &gt; ：把 stdout 存到文件\n2&gt;&amp;1   ：把 stderr 合并到 stdout 同一去处</code></pre>\n<p>理解了这个，所有命令的拼接方式都自然想通了。</p>\n<hr>\n<hr>\n<p>重定向从左到右处理：<code>&gt; output.log 2&gt;&amp;1</code> 与 <code>2&gt;&amp;1 &gt; output.log</code> 不等价。<code>!!</code> 等历史展开在交互 Bash 中可用，执行前应核对展开后的命令。</p>\n",
+  "refs": [
+    [
+      "GNU Bash 手册",
+      "https://www.gnu.org/software/bash/manual/bash.html"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "development",
+  "tags": [
+    "linux",
+    "cli"
+  ]
+}

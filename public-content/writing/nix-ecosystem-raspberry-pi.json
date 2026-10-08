@@ -1,0 +1,60 @@
+{
+  "slug": "nix-ecosystem-raspberry-pi",
+  "number": "086",
+  "category": "LINUX / SYSTEMS",
+  "title": "树莓派上的 NixOS：镜像、硬件与服务",
+  "deck": "从 SD 镜像和首次启动延伸到板卡接口、常用服务以及小内存设备维护。",
+  "sections": [
+    [
+      "section-01",
+      "支持的树莓派型号"
+    ],
+    [
+      "section-02",
+      "准备 SD 卡"
+    ],
+    [
+      "section-05",
+      "首次启动配置"
+    ],
+    [
+      "section-08",
+      "硬件特性支持"
+    ],
+    [
+      "section-13",
+      "常用服务配置"
+    ],
+    [
+      "section-17",
+      "性能优化"
+    ],
+    [
+      "section-20",
+      "SD 卡持久性优化"
+    ],
+    [
+      "section-21",
+      "排查问题"
+    ]
+  ],
+  "body": "<blockquote>\n<p>以 nix.dev 的树莓派教程为起点整理，另有硬件、服务与维护扩展；不是官方教程的逐字翻译： <a href=\"https://nix.dev/tutorials/nixos/installing-nixos-on-a-raspberry-pi\" target=\"_blank\" rel=\"noopener noreferrer\">Installing NixOS on a Raspberry Pi</a></p>\n</blockquote>\n<p>在树莓派上运行 NixOS，打造可复现的 ARM 设备。</p>\n<h2 id=\"section-01\">支持的树莓派型号</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">型号</th>\n<th scope=\"col\">使用范围</th>\n<th scope=\"col\">注意事项</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Raspberry Pi 4B</td>\n<td>本篇基础安装路径的主要对象</td>\n<td>以具体镜像和固件验证启动</td>\n</tr>\n<tr>\n<td>Raspberry Pi 3/3B+</td>\n<td>官方教程说明可以调整后使用</td>\n<td>不应直接套用 Pi 4 的内核和硬件选项</td>\n</tr>\n<tr>\n<td>Raspberry Pi Zero 2 W</td>\n<td>需要单独核对镜像与硬件模块</td>\n<td>内存约束和设备支持需检查</td>\n</tr>\n<tr>\n<td>Raspberry Pi 5</td>\n<td>需要单独的型号支持路径</td>\n<td>不能把“安装最新内核”当作完整方案</td>\n</tr>\n</tbody></table></div>\n<p>本文保留以 24.05 为背景的示例；它不是当前版本或所有型号的兼容承诺。nix.dev 的参考教程仍以 Pi 4B 为对象。选择 <code>nixos-hardware</code> 模块时固定其修订，并查看对应型号的 README。</p>\n<h2 id=\"section-02\">准备 SD 卡</h2>\n<h3 id=\"section-03\">1. 下载预构建镜像</h3>\n<pre><code># Raspberry Pi 4 (64位)\nnix-shell -p wget zstd\n# 从对应 Hydra 任务的成功构建复制实际 build-product URL\nIMAGE_URL=&#39;https://hydra.nixos.org/build/&lt;build-id&gt;/download/1/&lt;image&gt;.img.zst&#39;\nwget -O nixos-sd-image-aarch64-linux.img.zst &quot;$IMAGE_URL&quot;\n\n# 解压\nunzstd nixos-sd-image-aarch64-linux.img.zst</code></pre>\n<h3 id=\"section-04\">2. 写入 SD 卡</h3>\n<p>以下 <code>dd</code> 会覆盖目标设备全部内容。先备份 SD 卡，使用 <code>lsblk</code> 核对容量、型号和挂载点，卸载其分区；确认 <code>/dev/sdX</code> 是整张 SD 卡而不是系统盘。占位路径不能直接执行。</p>\n<pre><code># 查找 SD 卡设备\nlsblk\n\n# 写入（替换 /dev/sdX）\nsudo dd if=nixos-sd-image-aarch64-linux.img of=/dev/sdX bs=4M conv=fsync status=progress\n\n# 同步\nsync</code></pre>\n<h2 id=\"section-05\">首次启动配置</h2>\n<h3 id=\"section-06\">1. 基础配置</h3>\n<p>以下是 Pi 4 历史配置骨架；根文件系统、引导分区和内核由已验证镜像及硬件模块决定，先保留生成的 <code>hardware-configuration.nix</code>。不要把 SD 镜像生成模块当成所有已安装系统都应导入的硬件配置：</p>\n<pre><code>{ config, pkgs, lib, ... }:\n\n{\n  # 导入硬件配置\n  imports = [\n    ./hardware-configuration.nix\n  ];\n  \n  # 启动配置\n  boot = {\n    kernelPackages = pkgs.linuxKernel.packages.linux_rpi4;\n    loader.grub.enable = false;\n    loader.generic-extlinux-compatible.enable = true;\n  };\n  \n  # 固件\n  hardware.enableRedistributableFirmware = true;\n  hardware.firmware = [ pkgs.wireless-regdb ];\n  \n  # 网络\n  networking = {\n    hostName = &quot;workstation&quot;;\n    wireless.enable = true;\n    interfaces.wlan0.useDHCP = true;\n  };\n  \n  # SSH\n  services.openssh = {\n    enable = true;\n    settings = {\n      PermitRootLogin = &quot;no&quot;;\n      PasswordAuthentication = false;\n    };\n  };\n  \n  # 用户\n  users.users.user = {\n    isNormalUser = true;\n    extraGroups = [ &quot;wheel&quot; &quot;video&quot; &quot;audio&quot; ];\n    openssh.authorizedKeys.keyFiles = [ ./keys/user.pub ];\n    # 本地登录密码通过运行时密码文件或首次控制台设置处理\n  };\n  \n  # 系统版本\n  system.stateVersion = &quot;24.05&quot;;\n}</code></pre>\n<h3 id=\"section-07\">2. 配置 WiFi</h3>\n<pre><code># 仅展示字段形状；不要把真实 WiFi 密码写入 Nix/store\n# networking.wireless.networks.&quot;ExampleSSID&quot;.psk = &quot;&lt;wifi-password&gt;&quot;;</code></pre>\n<p>使用仅 root 可读的运行时环境文件；密钥不要通过 Nix 路径值复制到 store：</p>\n<pre><code>{\nnetworking.wireless.environmentFile = &quot;/var/secrets/wireless.env&quot;;\nnetworking.wireless.networks = {\n  &quot;ExampleSSID&quot;.psk = &quot;@PASS@&quot;;\n};\n}</code></pre>\n<h2 id=\"section-08\">硬件特性支持</h2>\n<h3 id=\"section-09\">GPIO</h3>\n<pre><code>{ pkgs, ... }:\n\n{\n  # 真实 GPIO 依赖对应型号的内核与 device tree；gpio-mockup 仅模拟 GPIO\n  # boot.kernelModules = [ &quot;gpio-mockup&quot; ];\n  \n  # 安装工具\n  environment.systemPackages = with pkgs; [\n    libgpiod\n    raspberrypifw\n  ];\n  \n  # 用户权限\n  users.groups.gpio = {};\n  users.users.user.extraGroups = [ &quot;gpio&quot; ];\n  services.udev.extraRules = &#39;&#39;\n    KERNEL==&quot;gpiochip*&quot;, GROUP=&quot;gpio&quot;, MODE=&quot;0660&quot;\n  &#39;&#39;;\n}</code></pre>\n<h3 id=\"section-10\">I2C</h3>\n<pre><code>{\n  boot.kernelModules = [ &quot;i2c-dev&quot; ];\n  hardware.i2c.enable = true;\n  users.users.user.extraGroups = [ &quot;i2c&quot; ];\n}</code></pre>\n<h3 id=\"section-11\">SPI</h3>\n<pre><code>{\n  boot.kernelModules = [ &quot;spidev&quot; ];\n  # SPI controller 还须由对应板卡的 device-tree overlay 启用\n  # hardware.spi.enable 不是通用 NixOS 选项\n}</code></pre>\n<h3 id=\"section-12\">摄像头</h3>\n<p>原笔记使用旧 Raspberry Pi 固件相机路径。现代相机栈和选项随板型、固件与 nixos-hardware 模块变化；以下保留固件配置的历史语义，不能直接当作当前 NixOS 模块：</p>\n<pre><code>{\n  boot.loader.raspberryPi.firmwareConfig = &#39;&#39;\n    start_x=1\n    gpu_mem=256\n  &#39;&#39;;\n  \n  # hardware.raspberry-pi.camera.enable 并非所有 NixOS 都有的选项\n  # 应先核对目标型号模块，再启用对应相机栈\n}</code></pre>\n<h2 id=\"section-13\">常用服务配置</h2>\n<h3 id=\"section-14\">家庭自动化 (Home Assistant)</h3>\n<pre><code>{\n  services.home-assistant = {\n    enable = true;\n    openFirewall = true;\n    config = {\n      homeassistant = {\n        name = &quot;Home&quot;;\n        latitude = 0.0;   # 示例坐标，部署时使用所需位置\n        longitude = 0.0;\n        elevation = 0;\n        unit_system = &quot;metric&quot;;\n        time_zone = &quot;Asia/Shanghai&quot;;\n      };\n    };\n  };\n}</code></pre>\n<h3 id=\"section-15\">媒体中心 (Kodi)</h3>\n<pre><code>{\n  services.xserver.desktopManager.kodi = {\n    enable = true;\n  };\n  \n  services.displayManager.autoLogin = {\n    enable = true;\n    user = &quot;kodi&quot;;\n  };\n  \n  users.users.kodi = {\n    isNormalUser = true;\n    extraGroups = [ &quot;audio&quot; &quot;video&quot; ];\n  };\n}</code></pre>\n<h3 id=\"section-16\">AdGuard Home（DNS 过滤）</h3>\n<p>监听所有接口并开防火墙会扩大 DNS 服务范围；部署时限制到目标局域网接口，并核对 53 端口冲突。</p>\n<pre><code>{\n  services.adguardhome = {\n    enable = true;\n    openFirewall = true;\n    settings = {\n      dns = {\n        bind_hosts = [ &quot;0.0.0.0&quot; ];\n        port = 53;\n      };\n    };\n  };\n}</code></pre>\n<h2 id=\"section-17\">性能优化</h2>\n<h3 id=\"section-18\">内存优化</h3>\n<pre><code>{\n  # ZRAM 交换\n  zramSwap.enable = true;\n  zramSwap.memoryPercent = 50;\n  \n  # 减少日志保留\n  services.journald.extraConfig = &#39;&#39;\n    SystemMaxUse=100M\n    MaxFileSec=7day\n  &#39;&#39;;\n  \n  # 禁用不需要的服务\n  documentation.nixos.enable = false;\n  services.xserver.enable = false;  # 无图形界面\n}</code></pre>\n<h3 id=\"section-19\">存储优化</h3>\n<p><code>fstrim</code> 仅在存储设备和整条块设备链支持 discard 时有效；并非所有 SD 卡都支持。tmpfs 会占用内存和可能的交换空间，需要与小内存设备预算一起设置。</p>\n<pre><code>{\n  # 启用 discard 支持\n  services.fstrim.enable = true;\n  \n  # 临时文件使用 tmpfs\n  boot.tmp.useTmpfs = true;\n  boot.tmp.tmpfsSize = &quot;50%&quot;;\n}</code></pre>\n<h2 id=\"section-20\">SD 卡持久性优化</h2>\n<p>减少持续写入可延缓磨损；<code>volatile</code> 日志重启后丢失，需要外部日志才能排查跨重启问题：</p>\n<pre><code>{\n  # 限制日志写入\n  services.journald.storage = &quot;volatile&quot;;\n  \n  # RAM 中的 /tmp\n  boot.tmp.useTmpfs = true;\n  \n  # 禁用不必要的服务\n  systemd.services.systemd-journal-flush.enable = false;\n}</code></pre>\n<h2 id=\"section-21\">排查问题</h2>\n<h3 id=\"section-22\">无法启动</h3>\n<p>检查 <code>config.txt</code>：</p>\n<pre><code>cat /boot/firmware/config.txt</code></pre>\n<h3 id=\"section-23\">WiFi 不工作</h3>\n<pre><code># 检查固件\nsudo dmesg | grep -i wifi\n\n# 重新加载驱动\nsudo modprobe -r brcmfmac\nsudo modprobe brcmfmac</code></pre>\n<h3 id=\"section-24\">温度过高</h3>\n<p>先检查散热、电源和负载。CPU governor 调整是性能/功耗策略，不等于加装散热，也不保证直接限制最高频率：</p>\n<pre><code>{\n  # 限制 CPU 频率\n  powerManagement.cpuFreqGovernor = &quot;conservative&quot;;\n}</code></pre>\n<h3 id=\"section-25\">初次应用与恢复</h3>\n<p>镜像能启动后，先构建自己的系统配置，再安排 <code>nixos-rebuild boot</code> 和重启。保留已知可启动世代、串口或本地控制台恢复路径。网络驱动卸载会中断连接，远程会话不要盲目执行。SSH 公钥占位文件需实际存在；这些配置未在实体树莓派上运行测试。</p>\n",
+  "refs": [
+    [
+      "nix.dev Pi 4B 安装教程",
+      "https://nix.dev/tutorials/nixos/installing-nixos-on-a-raspberry-pi"
+    ],
+    [
+      "nixos-hardware 型号模块",
+      "https://github.com/NixOS/nixos-hardware"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos"
+  ]
+}

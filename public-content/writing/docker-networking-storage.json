@@ -1,0 +1,64 @@
+{
+  "slug": "docker-networking-storage",
+  "number": "114",
+  "category": "SYSTEMS / INFRASTRUCTURE",
+  "title": "Docker 网络与存储",
+  "deck": "选择网络模式和持久化方式，明确暴露端口与数据生命周期。",
+  "sections": [
+    [
+      "section-01",
+      "网络模式"
+    ],
+    [
+      "section-07",
+      "网络驱动选择速查"
+    ],
+    [
+      "section-08",
+      "端口映射详解"
+    ],
+    [
+      "section-09",
+      "存储驱动"
+    ],
+    [
+      "section-12",
+      "卷类型对比"
+    ],
+    [
+      "section-14",
+      "共享数据"
+    ],
+    [
+      "section-17",
+      "数据与网络的实际前提"
+    ]
+  ],
+  "body": "<blockquote>\n<p>理解 Docker 怎么处理网络和存储，才能在生产环境不出事。网络模式、存储驱动、卷类型——这里一次性讲透。</p>\n</blockquote>\n<hr>\n<h2 id=\"section-01\">网络模式</h2>\n<p>Docker 提供五种网络驱动：</p>\n<h3 id=\"section-02\">bridge（默认，最常用）</h3>\n<p>默认 rootful bridge 网络通常使用 <code>docker0</code>；自定义 bridge 使用自己的网桥，容器有独立的内网 IP。</p>\n<pre><code># 默认 bridge\ndocker run -d --name web nginx:alpine\n# 容器获得 172.17.0.x IP，通过 docker0 桥接出去\n# 其他容器不能通过容器名访问它\n\n# 自定义 bridge（推荐！）\ndocker network create mynet\ndocker run -d --name web --network mynet nginx:alpine\ndocker run -d --name db --network mynet -e POSTGRES_PASSWORD_FILE=/run/secrets/db_password --mount type=bind,src=/path/to/protected-password-file,dst=/run/secrets/db_password,readonly postgres:16-alpine\n# web 和 db 可以通过容器名互相 ping 通\n# Docker 内置 DNS 服务器，自动解析容器名 → IP</code></pre>\n<pre><code>graph LR\n    subgraph &quot;宿主机&quot;\n        ETH0[&quot;eth0 / 192.0.2.10&quot;]\n        NAT[&quot;NAT 转发&quot;]\n        BRIDGE[&quot;docker0 / 示例网桥地址&quot;]\n    end\n    subgraph &quot;容器&quot;\n        C1[&quot;web / 172.17.0.2&quot;]\n        C2[&quot;db / 172.17.0.3&quot;]\n    end\n    C1 --- BRIDGE\n    C2 --- BRIDGE\n    BRIDGE --- NAT --- ETH0</code></pre>\n<h3 id=\"section-03\">host</h3>\n<p>容器直接使用宿主机的网络栈，不自己做端口映射。</p>\n<pre><code>docker run --network host nginx:alpine\n# 容器的 80 端口 = 宿主机的 80 端口\n# 不需要 -p\n# 减少特定网络路径开销，效果需测量；共享网络栈增加暴露面和端口冲突风险</code></pre>\n<h3 id=\"section-04\">none</h3>\n<p>容器没有网络。</p>\n<pre><code>docker run --network none alpine ash\n# 容器内只有 lo（回环），无法访问任何网络\n# 用于需要禁用常规容器网络的场景</code></pre>\n<h3 id=\"section-05\">overlay（需要 Swarm 控制平面）</h3>\n<p>跨宿主机通信，容器分布在不同物理机器上但共享同一个虚拟网络。</p>\n<pre><code>docker network create -d overlay myoverlay\n# 需要 Swarm 模式开启</code></pre>\n<h3 id=\"section-06\">macvlan / ipvlan</h3>\n<p>给容器分配一个真实的物理网络 IP（和宿主机在同一子网）。</p>\n<pre><code>docker network create -d macvlan \\\n  --subnet=192.0.2.0/24 \\\n  --gateway=192.0.2.1 \\\n  -o parent=eth0 \\\n  mymacvlan\n# 容器直接获得 192.0.2.x 的 IP\n# 物理路由器能直接看到容器</code></pre>\n<hr>\n<h2 id=\"section-07\">网络驱动选择速查</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">场景</th>\n<th scope=\"col\">推荐驱动</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>单机多容器（最常用）</td>\n<td><code>bridge</code>（自定义）</td>\n</tr>\n<tr>\n<td>性能优先（不需要端口映射）</td>\n<td><code>host</code></td>\n</tr>\n<tr>\n<td>Swarm 多节点</td>\n<td><code>overlay</code></td>\n</tr>\n<tr>\n<td>容器需要物理 IP</td>\n<td><code>macvlan</code> / <code>ipvlan</code></td>\n</tr>\n<tr>\n<td>禁用常规容器网络</td>\n<td><code>none</code></td>\n</tr>\n</tbody></table></div>\n<hr>\n<h2 id=\"section-08\">端口映射详解</h2>\n<pre><code># 基本格式：宿主机IP:宿主机端口:容器端口/协议\n\n# 映射到所有网卡\ndocker run -p 8080:80 nginx:alpine\n# 0.0.0.0:8080 → 容器 80\n\n# 只映射到本机（不对外暴露）\ndocker run -p 127.0.0.1:8080:80 nginx:alpine\n# 显式绑定 loopback；旧 Engine 版本及特殊路由条件仍需核对访问边界\n\n# 映射到指定 IP\ndocker run -p 192.0.2.10:8080:80 nginx:alpine\n\n# 随机端口（宿主机端口不关心）\ndocker run -P nginx:alpine\n# -P 自动映射 Dockerfile EXPOSE 声明的所有端口到随机宿主端口</code></pre>\n<hr>\n<h2 id=\"section-09\">存储驱动</h2>\n<h3 id=\"section-10\">怎么选</h3>\n<pre><code># 查看当前存储驱动\ndocker info | grep &quot;Storage Driver&quot;</code></pre>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">驱动</th>\n<th scope=\"col\">适用文件系统</th>\n<th scope=\"col\">备注</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>overlay2</strong></td>\n<td>兼容的 ext4、xfs 等</td>\n<td>经典存储驱动常用；Engine 29+ 新安装默认使用 containerd image store，按实际配置判断</td>\n</tr>\n<tr>\n<td>fuse-overlayfs</td>\n<td>任意</td>\n<td>rootless overlay 不可用时的选择，具体内核及功能要求需核对</td>\n</tr>\n<tr>\n<td>devicemapper</td>\n<td>—</td>\n<td>旧版，不推荐</td>\n</tr>\n<tr>\n<td>btrfs</td>\n<td>btrfs</td>\n<td>需配置和维护，不因宿主文件系统类型自动成为最佳选择</td>\n</tr>\n<tr>\n<td>zfs</td>\n<td>ZFS</td>\n<td>需配置和维护，按负载测试</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-11\">overlay2 原理（简化）</h3>\n<pre><code>镜像层（只读）：\n  Layer 4: COPY app.py\n  Layer 3: RUN pip install\n  Layer 2: COPY requirements.txt\n  Layer 1: FROM python:3.12\n\n容器层（读写）：\n  Container Layer ← 你做的所有修改都存在这一层</code></pre>\n<p>镜像只读层可被多个容器共享；容器写入采用自己的可写层，copy-up 可能复制整个文件，并非所有重复内容都自动去重。</p>\n<hr>\n<h2 id=\"section-12\">卷类型对比</h2>\n<div class=\"table-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"技术对照表\"><table>\n<thead>\n<tr>\n<th scope=\"col\">类型</th>\n<th scope=\"col\">数据位置</th>\n<th scope=\"col\">生命周期</th>\n<th scope=\"col\">适用场景</th>\n</tr>\n</thead>\n<tbody><tr>\n<td><strong>Volume（命名卷）</strong></td>\n<td><code>/var/lib/docker/volumes/</code></td>\n<td>手动删除才消失</td>\n<td>数据库、持久化数据</td>\n</tr>\n<tr>\n<td><strong>Bind Mount（绑定挂载）</strong></td>\n<td>你指定的宿主机路径</td>\n<td>宿主机目录的生命周期</td>\n<td>开发环境代码同步</td>\n</tr>\n<tr>\n<td><strong>tmpfs</strong></td>\n<td>内存</td>\n<td>容器停止即丢</td>\n<td>临时文件、缓存、密码</td>\n</tr>\n</tbody></table></div>\n<h3 id=\"section-13\">挂载权限</h3>\n<pre><code># 只读挂载（容器只能读，不能写）\ndocker run -v /host/config:/app/config:ro nginx:alpine\n#                                      └┘ 只读\n\n# z/Z 标签（SELinux 启用时按策略选择；会重标记宿主文件，勿对系统目录盲用）\ndocker run -v /data:/data:Z nginx:alpine\n# :Z = 这个卷只被这一个容器用\n# :z = 可以被多个容器共享</code></pre>\n<hr>\n<h2 id=\"section-14\">共享数据</h2>\n<h3 id=\"section-15\">多个容器共享同一个卷</h3>\n<pre><code>docker volume create shared\n\ndocker run -d --name writer -v shared:/data alpine sh -c &quot;echo data &gt; /data/file &amp;&amp; sleep infinity&quot;\ndocker run --name reader -v shared:/data alpine cat /data/file\n# 输出：data</code></pre>\n<h3 id=\"section-16\">从其他容器挂载（--volumes-from）</h3>\n<pre><code>docker run -d --name db -v pgdata:/var/lib/postgresql/data -e POSTGRES_PASSWORD_FILE=/run/secrets/db_password --mount type=bind,src=/path/to/protected-password-file,dst=/run/secrets/db_password,readonly postgres:16-alpine\ndocker run --rm --volumes-from db:ro --mount type=bind,src=/path/to/backup.sh,dst=/backup.sh,readonly alpine sh /backup.sh\n# backup 容器可以直接访问 db 的所有卷</code></pre>\n<hr>\n<h2 id=\"section-17\">数据与网络的实际前提</h2>\n<p>图中的 IP 是文档示意，实际子网需避开现有路由且配置网关；macvlan 还可能限制宿主与容器直接通信。host 模式受平台和 Desktop 设置支持范围约束。端口发布可能绕过部分宿主防火墙常规链，应按 Docker 网络规则验证暴露面。</p>\n<p>卷存储路径受 daemon data-root、rootless、Desktop VM 与驱动影响。绑定挂载遮蔽容器已有目录内容，而非删除镜像目录。空卷复制由挂载方式与 nocopy 等选项决定。tmpfs 数据也可能进入 swap，不能称为绝对只在内存的秘密存储。<code>--volumes-from</code> 只提供访问，不生成一致性备份；数据库需要停止写入、快照或原生备份流程。</p>\n",
+  "refs": [
+    [
+      "Docker 网络",
+      "https://docs.docker.com/engine/network/"
+    ],
+    [
+      "端口发布",
+      "https://docs.docker.com/engine/network/port-publishing/"
+    ],
+    [
+      "存储驱动",
+      "https://docs.docker.com/engine/storage/drivers/select-storage-driver/"
+    ],
+    [
+      "卷",
+      "https://docs.docker.com/engine/storage/volumes/"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "containers",
+  "tags": [
+    "containers",
+    "docker"
+  ]
+}

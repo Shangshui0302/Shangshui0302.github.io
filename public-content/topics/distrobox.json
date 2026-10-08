@@ -1,0 +1,28 @@
+{
+  "slug": "distrobox",
+  "title": "Distrobox：用户空间、桌面集成与可恢复环境",
+  "deck": "从共享模型到 NixOS 实践，完整管理可信的跨发行版用户空间。",
+  "description": "本专题依次介绍用户空间集成原理、后端安装、镜像与容器生命周期，再进入桌面导出、init 服务、assemble 清单、GPU 与多容器协作。最后面向 NixOS 讨论声明式宿主路径、备份资产与命令解析。开发工具和 GUI 应用可以沿主线阅读，服务、GPU 与特殊平台按需选读；所有方案都以共享 HOME 和宿主资源的信任边界为前提。",
+  "articles": [
+    "distrobox-fundamentals",
+    "distrobox-installation",
+    "distrobox-lifecycle",
+    "distrobox-export",
+    "distrobox-integration-workflows",
+    "distrobox-advanced-workflows",
+    "distrobox-on-nixos",
+    "distrobox-backup",
+    "distrobox-internals"
+  ],
+  "reading_guide": [
+    "先建立用户空间、共享资源和安全边界的整体认识。",
+    "按后端、映射、安装和首次初始化顺序检查环境。",
+    "把 create/enter、升级和删除当作独立状态转换，重点核对共享数据。",
+    "阅读已有导出长文，掌握 app/bin 参数、Exec 改写和 wrapper 分支。",
+    "补齐 XDG 桌面验证与 guest/host 两层服务生命周期。",
+    "按需选择 assemble、GPU、多容器协作与特殊平台实践，不把示例当统一配置。",
+    "NixOS 用户对照锁定版本，分别验证配置、构建、应用与 guest 路径。",
+    "先列清镜像之外的数据资产，再选择备份方案并演练恢复。",
+    "用真实命令解析证据判断配置、二进制和执行环境来源。"
+  ]
+}

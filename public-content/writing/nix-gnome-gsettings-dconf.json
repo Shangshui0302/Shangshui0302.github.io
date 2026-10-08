@@ -1,0 +1,69 @@
+{
+  "slug": "nix-gnome-gsettings-dconf",
+  "number": "077",
+  "category": "LINUX / SYSTEMS",
+  "title": "管理 GSettings 默认值与 dconf 状态",
+  "deck": "分清 schema 默认、vendor override 和用户数据库，选择合适的声明接口。",
+  "sections": [
+    [
+      "section-01",
+      "问题"
+    ],
+    [
+      "section-02",
+      "存储机制：dconf"
+    ],
+    [
+      "section-03",
+      "三层优先级"
+    ],
+    [
+      "section-04",
+      "NixOS 侧的两个声明式接口"
+    ],
+    [
+      "section-07",
+      "持久化方法论"
+    ],
+    [
+      "section-08",
+      "关联"
+    ],
+    [
+      "section-09",
+      "导出格式与生效检查"
+    ]
+  ],
+  "body": "<blockquote>\n<p>核验范围：2026 年 10 月查询的 nixpkgs <code>nixos-unstable</code> 模块与上游文档。分组列表、包数和服务默认值会随 revision 改变；部署时应以项目锁定的 nixpkgs 和 Home Manager 源码为准。本文没有构建、激活或桌面运行测试。</p>\n</blockquote>\n<h2 id=\"section-01\">问题</h2>\n<p>GNOME 的设置（主题、壁纸、外设、夜灯…）存在哪？rebuild 后会丢吗？怎么把它变成声明式、可重现？</p>\n<h2 id=\"section-02\">存储机制：dconf</h2>\n<p>GNOME 的配置是 <strong>dconf</strong>——一个 key-value 数据库，物理文件在 <code>~/.config/dconf/user</code>（二进制）。命令行工具 <code>dconf</code> 和 <code>gsettings</code> 访问它。</p>\n<ul>\n<li><code>dconf dump /</code> 导出用户数据库里显式保存的键值；它不等于所有有效设置，也不保证每个值都与 schema 默认不同</li>\n<li><code>dconf read /path/to/key</code> 读单个</li>\n<li>GNOME 设置界面改的就是这个数据库</li>\n</ul>\n<p>关键特性：<strong>它是运行时状态，不在 /nix/store，rebuild 保留但不进 git</strong>。</p>\n<h2 id=\"section-03\">三层优先级</h2>\n<p>一个 GSettings key 的值由三层决定（从低到高）：</p>\n<pre><code>1. schema 默认值（包自带的 XML schema）\n2. GSettings override（NixOS 生成的&quot;系统默认&quot;，如壁纸、favorite-apps）\n3. 用户 dconf 数据库值  ← 优先级最高</code></pre>\n<blockquote>\n<p>含义\nNixOS 的 <code>extraGSettingsOverrides</code> 设的是<strong>第 2 层默认值</strong>——新机器 rebuild 后自动得到这些设置，但<strong>当前用户 dconf 里已有的值优先</strong>，不会被拉回。所以它是&quot;持久化默认&quot;而非&quot;强制锁定&quot;。</p>\n</blockquote>\n<h2 id=\"section-04\">NixOS 侧的两个声明式接口</h2>\n<h3 id=\"section-05\">services.desktopManager.gnome.extraGSettingsOverrides（NixOS 层，宽松默认）</h3>\n<pre><code>services.desktopManager.gnome.extraGSettingsOverridePackages = [\n  pkgs.gsettings-desktop-schemas\n  pkgs.gnome-settings-daemon\n];\nservices.desktopManager.gnome.extraGSettingsOverrides = &#39;&#39;\n  [org.gnome.desktop.interface]\n  show-battery-percentage=true\n  clock-show-weekday=true\n\n  [org.gnome.settings-daemon.plugins.color]\n  night-light-enabled=true\n  night-light-schedule-from=22.0\n&#39;&#39;;</code></pre>\n<h3 id=\"section-06\">home-manager dconf.settings（home 层，activation 写回）</h3>\n<pre><code># home/theme.nix 的用法\ndconf.settings = {\n  &quot;org/gnome/desktop/interface&quot; = {\n    color-scheme = &quot;prefer-dark&quot;;\n    gtk-theme = &quot;adw-gtk3-dark&quot;;\n  };\n};</code></pre>\n<blockquote>\n<p>两者的差别很关键</p>\n<ul>\n<li><code>extraGSettingsOverrides</code>：<strong>默认值</strong>，用户后续手动改不会被覆盖（宽松）</li>\n<li>home-manager <code>dconf.settings</code>：<strong>每次 Home Manager activation 时写入所声明的键</strong>，会把用户手动改的拉回声明值（激活时写回）</li>\n</ul>\n<p>可把需要 activation 写回的主题交给 Home Manager，把可由用户调整的默认偏好交给 extraGSettingsOverrides。Home Manager 写回不是持续锁定；用户之后仍可修改，下一次 activation 再重新应用。真正限制用户修改需使用 dconf 的系统 profile/locks 机制。</p>\n</blockquote>\n<h2 id=\"section-07\">持久化方法论</h2>\n<p>把用户手动改的设置变成声明式：</p>\n<pre><code>dconf dump / &gt; user-settings.ini   # 导出用户数据库显式保存的值</code></pre>\n<ol>\n<li>筛选<strong>用户主动改的</strong>（主题/外设/行为偏好）</li>\n<li>区分<strong>应用状态</strong>与稳定偏好：窗口尺寸通常不迁移；键盘布局、快捷键或应用网格布局是否迁移由使用目标决定，不应一律剔除</li>\n<li>判断是否已有其他声明在管（如主题归 theme.nix）——<strong>不重复</strong></li>\n<li>用 gsettings 查对应 schema ID、键名与类型，把 dconf 路径分组转换成 schema 分组后写入 <code>extraGSettingsOverrides</code>（宽松默认）；补上提供 schema 的 packages</li>\n</ol>\n<blockquote>\n<p>优先级判断</p>\n<ul>\n<li>外观/交互偏好 → extraGSettingsOverrides（默认，可重现）</li>\n<li>希望每次 activation 写回 → Home Manager dconf.settings</li>\n<li>真正限制用户修改 → dconf system profile/locks</li>\n<li>应用内部状态 → 根据迁移目标判断，避免把频繁变化的运行状态全量塞入声明</li>\n</ul>\n</blockquote>\n<h2 id=\"section-08\">关联</h2>\n<ul>\n<li><a href=\"/writing/nix-gnome-declarative-management/\">GNOME 声明式管理</a> — GNOME 模块层面</li>\n<li><a href=\"/writing/declarative-and-state/\">NixOS 声明层与运行时层</a> — dconf 就是典型的运行时层</li>\n</ul>\n<h2 id=\"section-09\">导出格式与生效检查</h2>\n<p><code>dconf dump /</code> 的 section 形如 <code>[org/gnome/desktop/interface]</code>，是数据库路径；GSettings override 则使用 <code>[org.gnome.desktop.interface]</code>，是 schema ID。一般 schema 可能采用不同路径或 relocatable schema，不能机械把所有斜杠替换成点。用 <code>gsettings list-schemas</code>、<code>gsettings list-keys</code>、<code>gsettings describe</code> 和 <code>gsettings range</code> 查明对应关系。</p>\n<p>新默认被已有用户值遮盖时，可先备份，再用 <code>gsettings reset &lt;SCHEMA_ID&gt; &lt;KEY&gt;</code> 清除特定键的用户值。不要为让一个主题生效而重置整棵 dconf 数据库。构建完成后还需 activation/重新登录及 <code>gsettings get</code> 核对实际有效值。</p>\n",
+  "refs": [
+    [
+      "Nixpkgs GNOME 模块",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/desktop-managers/gnome.nix"
+    ],
+    [
+      "Nixpkgs GNOME 文档",
+      "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/nixos/modules/services/desktop-managers/gnome.md"
+    ],
+    [
+      "GLib GSettings 与 vendor overrides",
+      "https://docs.gtk.org/gio/class.Settings.html"
+    ],
+    [
+      "Home Manager dconf 模块",
+      "https://github.com/nix-community/home-manager/blob/master/modules/misc/dconf.nix"
+    ],
+    [
+      "GNOME dconf 默认值管理",
+      "https://help.gnome.org/admin/system-admin-guide/stable/dconf-custom-defaults.html.en"
+    ]
+  ],
+  "date": "2026-10-08",
+  "kind": "技术笔记整理",
+  "related_work": [],
+  "category_id": "linux-desktop",
+  "tags": [
+    "linux",
+    "nixos",
+    "gnome"
+  ]
+}
