@@ -1,4 +1,38 @@
-/* The persistent header carries loading progress; the router animates only main. */
+/* Root snapshots are viewport-sized; the shared header stays in place. */
+.topbar {
+  view-transition-name: site-header;
+}
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(root) {
+  animation: none;
+}
+::view-transition-image-pair(root), ::view-transition-image-pair(site-header) {
+  isolation: auto;
+}
+::view-transition-old(root), ::view-transition-new(root),
+::view-transition-old(site-header), ::view-transition-new(site-header) {
+  mix-blend-mode: normal;
+}
+/* Keep the old frame opaque below the incoming one: a single source-over
+   fade avoids additive blending and resampling two moving full-screen layers. */
+::view-transition-old(root), ::view-transition-old(site-header) {
+  animation: none;
+  opacity: 1;
+}
+::view-transition-group(site-header) {
+  z-index: 1;
+  animation: none;
+}
+::view-transition-new(root), ::view-transition-new(site-header) {
+  animation: route-fade-in 360ms ease-in-out both;
+}
+@keyframes route-fade-in {
+  from { opacity: 0; }
+}
+
+/* Brief cache hits do not flash a loading bar. Slow requests keep the old page. */
 .topbar::before  {
   content: '';
   position: absolute;
@@ -13,19 +47,30 @@
   pointer-events: none;
 }
 .route-loading .topbar::before  {
-  opacity: 1;
-  animation: route-progress 900ms var(--ease-out) forwards;
+  animation: route-progress 900ms var(--ease-out) 160ms forwards;
 }
 @keyframes route-progress  {
   from  {
+    opacity: 1;
     transform: scaleX(.05);
   }
   to  {
+    opacity: 1;
     transform: scaleX(.9);
   }
 }
 html[data-reduced-motion="true"] .select-options  {
   animation: none;
+}
+html[data-reduced-motion="true"]::view-transition-group(*),
+html[data-reduced-motion="true"]::view-transition-old(*),
+html[data-reduced-motion="true"]::view-transition-new(*) {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
 html[data-reduced-motion="true"] *, html[data-reduced-motion="true"] *::before, html[data-reduced-motion="true"] *::after  {
   transition: none !important;

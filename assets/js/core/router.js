@@ -1,16 +1,17 @@
 import { reducedMotion } from './motion.js';
 import {createPageCache} from './page-cache.js';
-import {enterPage} from '../components/page-enter.js';
+import {createPageTransition} from '../components/page-transition.js';
 
 /* Progressive navigation: static documents remain independently readable. */
 export function createRouter(mountPage) {
-  let current = new URL(location.href), page, request, sequence = 0, cancelEntrance = () => {};
+  let current = new URL(location.href), page, request, sequence = 0;
   let scrollTimer = 0, navigating = false, failedURL;
   const root = document.documentElement;
   const notice = document.querySelector('.route-status');
   const error = document.querySelector('.route-error');
   history.scrollRestoration = 'manual';
   const cache = createPageCache();
+  const transition = createPageTransition();
   cache.put(current.pathname, document.documentElement.outerHTML);
 
   const remember = () => {
@@ -50,7 +51,7 @@ export function createRouter(mountPage) {
     if (url.origin !== location.origin) return;
     const id = ++sequence;
     request?.abort();
-    cancelEntrance();
+    transition.cancel();
     request = new AbortController();
     if (mode !== 'none') remember();
     error.hidden = true;
@@ -88,8 +89,7 @@ export function createRouter(mountPage) {
         page = mountPage(nextMain, {navigate, updateUrl});
         position(url, saved, true);
       };
-      commit();
-      cancelEntrance = enterPage(nextMain);
+      await transition.run(commit, nextMain);
       if (id === sequence) { notice.textContent = document.title; remember(); }
     } catch (failure) {
       if (id !== sequence || failure.name === 'AbortError') return;

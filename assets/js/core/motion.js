@@ -8,6 +8,7 @@ export function initMotion() {
   try { preference = localStorage.getItem('offset-reduced-motion'); } catch {}
   const apply = () => {
     const reduced = system.matches || preference === 'true';
+    const changed = root.dataset.reducedMotion !== String(reduced);
     root.dataset.reducedMotion = String(reduced);
     root.classList.toggle('motion-ready', !reduced);
     button?.setAttribute('aria-pressed', String(reduced));
@@ -15,6 +16,7 @@ export function initMotion() {
       button.disabled = system.matches;
       button.title = system.matches ? '遵循系统的减少动效设置' : '';
     }
+    if (changed) document.dispatchEvent(new Event('offset:motion-change'));
   };
   button?.addEventListener('click', () => {
     preference = String(!reducedMotion());

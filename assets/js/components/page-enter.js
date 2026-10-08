@@ -9,8 +9,8 @@ export function enterPage(root) {
     const rect = node.getBoundingClientRect();
     if (rect.bottom < 0 || rect.top >= innerHeight || rect.height > innerHeight) continue;
     animations.push(node.animate(
-      [{opacity: .65, transform: 'translateY(7px)'}, {opacity: 1, transform: 'none'}],
-      {duration: 200, easing: 'cubic-bezier(.16,1,.3,1)'}));
+      [{opacity: 0, transform: 'translateY(12px)'}, {opacity: 1, transform: 'none'}],
+      {duration: 360, easing: 'cubic-bezier(.16,1,.3,1)'}));
   }
   return () => animations.forEach(animation => animation.cancel());
 }
