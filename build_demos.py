@@ -1,6 +1,6 @@
 """Copy local-only visual demos after build_site.py. Never publishes."""
 from pathlib import Path
-from stellar_template import render_stellar
+from site_builder.templates.stellar import render_stellar
 import shutil
 root=Path(__file__).parent
 assert (root/'dist/assets/fonts/fonts.css').exists(), 'Build the main site first'

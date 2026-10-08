@@ -1,9 +1,9 @@
 /* Original perspective geometry. All simulation is local and illustrative. */
-(() => {
+export function initStellar(root, scope) {
   const reducedQuery=matchMedia('(prefers-reduced-motion: reduce)');
   const fine=matchMedia('(hover: hover) and (pointer: fine)');
   const TAU=Math.PI*2;
-  document.querySelectorAll('.galaxy-experience').forEach(hero=>{
+  root.querySelectorAll('.galaxy-experience').forEach(hero=>{
     const field=hero.querySelector('.galaxy-field'), canvas=hero.querySelector('canvas');
     const ctx=canvas.getContext('2d',{alpha:false});
     const pause=hero.querySelector('.stellar-pause'), pulseButton=hero.querySelector('.galaxy-pulse');
@@ -12,7 +12,7 @@
     const chargeLabel=hero.querySelector('.charge-label'), chargeValue=hero.querySelector('.charge-value');
     let journeyTop=0,journeyHeight=1,journeyTarget=0,journeyProgress=0;
     let charging=false,charge=0,chargeStart=0,chargePointer=null,orbitalTime=0,burst=0,ignoreClickUntil=0;
-    let heldPointer=null,keyboardHeld=false,portalTimer=0;
+    let heldPointer=null,keyboardHeld=false;
     if(!ctx){[pause,pulseButton,reset].forEach(b=>b.hidden=true);return;}
     let W=1,H=1,dpr=1,mobile=false,frame=0,last=0,drawTime=0,t=0,visible=false,manual=false,reduced=false,paused=false;
     let scroll=0,scrollTarget=0,dragging=false,dragTravel=0,downX=0,downY=0,yawDrag=0,pitchDrag=0,inertia=0;
@@ -156,7 +156,7 @@
       if(pointer.gain>.02&&!mobile){ctx.globalAlpha=pointer.gain*.5;ctx.strokeStyle='#ff6742';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(pointer.px,pointer.py,dragging?19:9,0,TAU);ctx.moveTo(pointer.px-16,pointer.py);ctx.lineTo(pointer.px-11,pointer.py);ctx.moveTo(pointer.px+11,pointer.py);ctx.lineTo(pointer.px+16,pointer.py);ctx.stroke();ctx.globalAlpha=1;}
     }
     function tick(now){
-      frame=requestAnimationFrame(tick);
+      frame=scope.frame(tick);
       if(now-drawTime<(mobile?32:18))return;
       const dt=last?Math.min((now-last)/1000,.06):.016;last=now;drawTime=now;t+=dt;
       if(charging)charge=clamp((t-chargeStart)/1.65,0,1);
@@ -178,6 +178,7 @@
       draw();
     }
     function sync(){
+      if (scope.disposed) return;
       reduced=reducedQuery.matches||document.documentElement.dataset.reducedMotion==='true';paused=manual||reduced;
       hero.dataset.paused=String(paused);pause.disabled=reduced;pulseButton.disabled=paused;reset.disabled=reduced;
       pause.setAttribute('aria-pressed',String(paused));pause.innerHTML=reduced?'静态星系 <span aria-hidden="true">○</span>':manual?'继续运行 <span aria-hidden="true">▷</span>':'暂停星系 <span aria-hidden="true">Ⅱ</span>';
@@ -186,9 +187,10 @@
       if(paused||document.hidden||!visible)cancelCharge();
       if(reduced){pointer.x=pointer.y=pointer.gain=0;flares=[];hero.style.setProperty('--type-kick','0px');}
       measureJourney();
-      draw();if(visible&&!document.hidden&&!paused)frame=requestAnimationFrame(tick);
+      draw();if(visible&&!document.hidden&&!paused)frame=scope.frame(tick);
     }
     function resize(){
+      if (scope.disposed) return;
       W=innerWidth;H=innerHeight;const previous=mobile;mobile=W<701;dpr=Math.min(devicePixelRatio||1,mobile?1.5:1.4);
       canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
       if(!mesh.length||previous!==mobile)geometry();measureJourney();draw();field.classList.add('ready');
@@ -221,57 +223,56 @@
       const power=charge*2;cancelCharge();ignoreClickUntil=performance.now()+450;ignite(centerX,centerY,power);
     }
     const interactive=e=>e.target.closest('a,button,input,select,summary');
-    hero.addEventListener('pointermove',e=>{
+    scope.on(hero,'pointermove',e=>{
       if(paused||e.pointerType==='touch')return;
       pointer.px=e.clientX;pointer.py=e.clientY;pointer.tx=(e.clientX/W-.5)*2;pointer.ty=(e.clientY/H-.5)*2;pointer.inside=!interactive(e);
       if(dragging){const dx=e.clientX-downX,dy=e.clientY-downY;yawDrag+=dx*.006;pitchDrag=clamp(pitchDrag+dy*.004,-.95,.95);inertia=dx*.003;dragTravel+=Math.abs(dx)+Math.abs(dy);downX=e.clientX;downY=e.clientY;}
     });
-    hero.addEventListener('pointerleave',()=>{if(!dragging){pointer.inside=false;pointer.tx=pointer.ty=0;}});
-    hero.addEventListener('pointerdown',e=>{
+    scope.on(hero,'pointerleave',()=>{if(!dragging){pointer.inside=false;pointer.tx=pointer.ty=0;}});
+    scope.on(hero,'pointerdown',e=>{
       if(paused||interactive(e)||e.button!==0)return;
       downX=e.clientX;downY=e.clientY;dragTravel=0;heldPointer=e.pointerId;
       if(e.pointerType!=='touch'&&fine.matches){dragging=true;hero.classList.add('is-dragging');hero.setPointerCapture(e.pointerId);status.textContent='轨道牵引';}
     });
-    hero.addEventListener('pointerup',e=>{
+    scope.on(hero,'pointerup',e=>{
       if(paused||interactive(e)||e.pointerId!==heldPointer)return;
       heldPointer=null;
       if(dragging){dragging=false;hero.classList.remove('is-dragging');if(hero.hasPointerCapture(e.pointerId))hero.releasePointerCapture(e.pointerId);if(dragTravel<7)ignite(e.clientX,e.clientY);else status.textContent='自由运行';}
       else if(e.pointerType==='touch'&&Math.hypot(e.clientX-downX,e.clientY-downY)<10)ignite(e.clientX,e.clientY);
     });
-    hero.addEventListener('pointercancel',()=>{heldPointer=null;dragging=false;hero.classList.remove('is-dragging');pointer.inside=false;});
-    pause.addEventListener('click',()=>{manual=!manual;sync();});
-    pulseButton.addEventListener('pointerdown',e=>{
+    scope.on(hero,'pointercancel',()=>{heldPointer=null;dragging=false;hero.classList.remove('is-dragging');pointer.inside=false;});
+    scope.on(pause,'click',()=>{manual=!manual;sync();});
+    scope.on(pulseButton,'pointerdown',e=>{
       if(e.button!==0||paused)return;e.stopPropagation();beginCharge();chargePointer=e.pointerId;pulseButton.setPointerCapture(e.pointerId);
     });
-    pulseButton.addEventListener('pointerup',e=>{if(e.pointerId!==chargePointer)return;e.stopPropagation();releaseCharge();});
-    pulseButton.addEventListener('pointercancel',()=>{cancelCharge();status.textContent=paused?'静态轨道':'自由运行';});
-    pulseButton.addEventListener('lostpointercapture',()=>{if(charging)cancelCharge();});
-    pulseButton.addEventListener('contextmenu',e=>e.preventDefault());
-    pulseButton.addEventListener('keydown',e=>{
+    scope.on(pulseButton,'pointerup',e=>{if(e.pointerId!==chargePointer)return;e.stopPropagation();releaseCharge();});
+    scope.on(pulseButton,'pointercancel',()=>{cancelCharge();status.textContent=paused?'静态轨道':'自由运行';});
+    scope.on(pulseButton,'lostpointercapture',()=>{if(charging)cancelCharge();});
+    scope.on(pulseButton,'contextmenu',e=>e.preventDefault());
+    scope.on(pulseButton,'keydown',e=>{
       if(e.code!=='Space'||paused)return;e.preventDefault();if(!e.repeat){keyboardHeld=true;beginCharge();}
     });
-    pulseButton.addEventListener('keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();releaseCharge();}});
-    pulseButton.addEventListener('blur',()=>{if(charging)cancelCharge();});
-    pulseButton.addEventListener('click',()=>{if(performance.now()>ignoreClickUntil&&!charging)ignite();});
-    reset.addEventListener('click',()=>{cancelCharge();yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?'静态轨道':'自由运行';draw();});
-    hero.querySelectorAll('.orbit-node').forEach(link=>link.addEventListener('click',e=>{
-      if(paused||e.button!==0||e.metaKey||e.ctrlKey||e.altKey||e.shiftKey)return;
-      e.preventDefault();if(portalTimer)return;
-      const box=link.querySelector('.planet-body').getBoundingClientRect();
-      const portal=document.createElement('div');portal.className='planet-portal';portal.setAttribute('aria-hidden','true');
-      portal.style.setProperty('--portal-x',`${box.x+box.width/2}px`);portal.style.setProperty('--portal-y',`${box.y+box.height/2}px`);
-      const img=link.querySelector('img').cloneNode();img.alt='';portal.append(img);document.body.append(portal);
-      requestAnimationFrame(()=>requestAnimationFrame(()=>portal.classList.add('enter')));
-      portalTimer=setTimeout(()=>{location.href=link.href;},540);
-    }));
-    addEventListener('pageshow',()=>{clearTimeout(portalTimer);portalTimer=0;document.querySelectorAll('.planet-portal').forEach(p=>p.remove());sync();});
-    addEventListener('scroll',updateScroll,{passive:true});
-    new ResizeObserver(resize).observe(field);
-    new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;sync();},{threshold:.01}).observe(field);
-    new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['data-reduced-motion']});
-    document.addEventListener('visibilitychange',sync);reducedQuery.addEventListener('change',sync);
-    addEventListener('blur',cancelCharge);
-    hero.addEventListener('stellar:replay',()=>{cancelCharge();t=orbitalTime=0;manual=false;yawDrag=pitchDrag=inertia=0;flares=[];sync();});
+    scope.on(pulseButton,'keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();releaseCharge();}});
+    scope.on(pulseButton,'blur',()=>{if(charging)cancelCharge();});
+    scope.on(pulseButton,'click',()=>{if(performance.now()>ignoreClickUntil&&!charging)ignite();});
+    scope.on(reset,'click',()=>{cancelCharge();yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?'静态轨道':'自由运行';draw();});
+    scope.on(window,'pageshow',sync);
+    scope.on(window,'scroll',updateScroll,{passive:true});
+    const resizeObserver = new ResizeObserver(resize);
+    const intersectionObserver = new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;sync();},{threshold:.01});
+    const motionObserver = new MutationObserver(sync);
+    resizeObserver.observe(field);
+    intersectionObserver.observe(field);
+    motionObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-reduced-motion']});
+    scope.on(document,'visibilitychange',sync);
+    scope.on(reducedQuery,'change',sync);
+    scope.on(window,'blur',cancelCharge);
+    scope.on(hero,'stellar:replay',()=>{cancelCharge();t=orbitalTime=0;manual=false;yawDrag=pitchDrag=inertia=0;flares=[];sync();});
+    scope.own(() => {
+      resizeObserver.disconnect(); intersectionObserver.disconnect(); motionObserver.disconnect();
+      cancelAnimationFrame(frame); cancelCharge();
+      if (heldPointer !== null && hero.hasPointerCapture(heldPointer)) hero.releasePointerCapture(heldPointer);
+    });
     resize();sync();
   });
-})();
+}

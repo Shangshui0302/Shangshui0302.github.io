@@ -72,6 +72,26 @@ for path, page in pages.items():
         elif url.fragment and target in pages and unquote(url.fragment) not in pages[target].ids:
             errors.append(f'Missing anchor {value}: {route}')
 
+for topic in topics:
+    assert OUT.joinpath('writing/topics', topic['slug'], 'index.html').is_file()
+
+# Refactors must keep native module imports and bundled stylesheet assets resolvable.
+for path in (OUT / 'assets').rglob('*'):
+    if path.suffix == '.js':
+        refs = re.findall(r"(?:from\s+|import\s*\()['\"]([^'\"]+)", path.read_text())
+    elif path.suffix == '.css':
+        refs = [match[1] for match in re.findall(r"url\((['\"]?)([^'\"\)]+)\1\)", path.read_text())]
+    else:
+        continue
+    for ref in refs:
+        if urlsplit(ref).scheme:
+            continue
+        target = OUT / ref.lstrip('/') if ref.startswith('/') else path.parent / ref
+        assert target.resolve().is_file(), f'Missing asset import: {path.name} -> {ref}'
+for path in OUT.rglob('index.html'):
+    if '/demos/' not in str(path):
+        assert re.findall(r'data-nav="([^" ]+)"', path.read_text()) == ['work', 'writing', 'index']
+
 for post in posts:
     for prefix in ('writing', 'journal'):
         assert OUT.joinpath(prefix, post['slug'], 'index.html').is_file()

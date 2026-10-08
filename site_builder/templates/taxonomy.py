@@ -38,8 +38,8 @@ def topic_row(topic, index, posts):
     return f'''<article class="topic-row">
       <div class="topic-number" aria-hidden="true">{index:02d}<i></i></div>
       <div class="topic-row-copy"><span class="eyebrow">READING PATH / {len(topic['articles'])} 篇</span>
-        <h2><a href="/topics/{topic['slug']}/">{esc(topic['title'])}</a></h2><p>{esc(topic['deck'])}</p>
-        <a class="text-link" href="/topics/{topic['slug']}/">进入专题</a></div>
+        <h2><a href="/writing/topics/{topic['slug']}/">{esc(topic['title'])}</a></h2><p>{esc(topic['deck'])}</p>
+        <a class="text-link" href="/writing/topics/{topic['slug']}/">进入专题</a></div>
       <ol class="topic-chapters" aria-label="专题文章">{chapters}</ol>
     </article>'''
 
@@ -52,13 +52,13 @@ def topic_page(topic, index, posts, taxonomy):
           <p class="path-guide">{esc(guide)}</p><h2><a href="/writing/{slug}/">{esc(post['title'])}</a></h2>
           <p>{esc(post['deck'])}</p>{taxonomy_links(post, taxonomy)}
           <a class="text-link" href="/writing/{slug}/">阅读文章</a></div></li>'''
-    return f'''<header class="topic-hero wrap"><div class="topic-hero-copy"><a class="back-link" href="/topics/">← 全部专题</a>
+    return f'''<header class="topic-hero wrap"><div class="topic-hero-copy"><a class="back-link" href="/writing/topics/">← 全部专题</a>
       <p class="eyebrow">DOSSIER {index:02d} / {len(topic['articles'])} 篇文章</p><h1>{esc(topic['title'])}</h1>
       <p class="topic-deck">{esc(topic['deck'])}</p><a class="text-link" href="/writing/{topic['articles'][0]}/">从第一篇开始</a></div>
       <div class="topic-cover-art" aria-hidden="true"><span>{index:02d}</span><i></i><i></i><i></i><b>FOLLOW THE THREAD</b></div></header>
       <section class="topic-introduction wrap"><h2>沿着问题，继续读。</h2><p>{esc(topic['description'])}</p></section>
       <section class="topic-reading wrap" aria-label="专题阅读顺序"><ol>{chapters}</ol></section>
-      <div class="topic-exit wrap"><a href="/topics/">← 浏览其他专题</a><a href="/writing/">查看全部文章 ↗</a></div>'''
+      <div class="topic-exit wrap"><a href="/writing/topics/">← 浏览其他专题</a><a href="/writing/">查看全部文章 ↗</a></div>'''
 
 
 def article_topics(post, topics, posts):
@@ -66,12 +66,12 @@ def article_topics(post, topics, posts):
     if not memberships:
         return '', ''
     teaser = '<div class="article-topic-links"><span>所在专题</span>' + ''.join(
-        f'<a href="/topics/{topic["slug"]}/">{esc(topic["title"])} ↗</a>' for topic in memberships) + '</div>'
+        f'<a href="/writing/topics/{topic["slug"]}/">{esc(topic["title"])} ↗</a>' for topic in memberships) + '</div>'
     continuation = '<section class="series-reading"><h2>沿专题继续阅读</h2>'
     for topic in memberships:
         chapters = ''
         for i, slug in enumerate(topic['articles'], 1):
             current = ' aria-current="page"' if slug == post['slug'] else ''
             chapters += f'<li><a href="/writing/{slug}/"{current}><span>{i:02d}</span>{esc(posts[slug]["title"])}</a></li>'
-        continuation += f'<h3><a href="/topics/{topic["slug"]}/">{esc(topic["title"])}</a></h3><ol>{chapters}</ol>'
+        continuation += f'<h3><a href="/writing/topics/{topic["slug"]}/">{esc(topic["title"])}</a></h3><ol>{chapters}</ol>'
     return teaser, continuation + '</section>'

@@ -1,0 +1,32 @@
+/* The persistent header carries loading progress; the router animates only main. */
+.topbar::before  {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  height: 2px;
+  left: 0;
+  width: 100%;
+  background: var(--red);
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+}
+.route-loading .topbar::before  {
+  opacity: 1;
+  animation: route-progress 900ms var(--ease-out) forwards;
+}
+@keyframes route-progress  {
+  from  {
+    transform: scaleX(.05);
+  }
+  to  {
+    transform: scaleX(.9);
+  }
+}
+html[data-reduced-motion="true"] .select-options  {
+  animation: none;
+}
+html[data-reduced-motion="true"] *, html[data-reduced-motion="true"] *::before, html[data-reduced-motion="true"] *::after  {
+  transition: none !important;
+}
