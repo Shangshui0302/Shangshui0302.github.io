@@ -1,13 +1,17 @@
 import { reducedMotion } from './motion.js';
+import {createPageCache} from './page-cache.js';
+import {enterPage} from '../components/page-enter.js';
 
 /* Progressive navigation: static documents remain independently readable. */
 export function createRouter(mountPage) {
-  let current = new URL(location.href), page, request, sequence = 0, exitAnimation, enterAnimation;
+  let current = new URL(location.href), page, request, sequence = 0, cancelEntrance = () => {};
   let scrollTimer = 0, navigating = false, failedURL;
   const root = document.documentElement;
   const notice = document.querySelector('.route-status');
   const error = document.querySelector('.route-error');
   history.scrollRestoration = 'manual';
+  const cache = createPageCache();
+  cache.put(current.pathname, document.documentElement.outerHTML);
 
   const remember = () => {
     if (location.href === current.href) history.replaceState({...history.state, offset: {x: scrollX, y: scrollY}}, '', current);
@@ -46,8 +50,7 @@ export function createRouter(mountPage) {
     if (url.origin !== location.origin) return;
     const id = ++sequence;
     request?.abort();
-    exitAnimation?.cancel();
-    enterAnimation?.cancel();
+    cancelEntrance();
     request = new AbortController();
     if (mode !== 'none') remember();
     error.hidden = true;
@@ -63,9 +66,9 @@ export function createRouter(mountPage) {
     root.classList.add('route-loading');
     notice.textContent = '正在加载';
     try {
-      const response = await fetch(url, {signal: request.signal, headers: {'Accept': 'text/html'}});
-      if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('Invalid page');
-      const incoming = new DOMParser().parseFromString(await response.text(), 'text/html');
+      const html = await cache.read(url, request.signal);
+      if (id !== sequence) return;
+      const incoming = new DOMParser().parseFromString(html, 'text/html');
       const nextMain = incoming.querySelector('#main');
       if (!nextMain || !incoming.querySelector('[data-site-shell]')) throw new Error('Missing site shell');
       if (id !== sequence) return;
@@ -85,21 +88,8 @@ export function createRouter(mountPage) {
         page = mountPage(nextMain, {navigate, updateUrl});
         position(url, saved, true);
       };
-      if (!reducedMotion()) {
-        exitAnimation = document.querySelector('#main').animate(
-          [{opacity: 1}, {opacity: 0, transform: 'translateY(-6px)'}],
-          {duration: 110, easing: 'ease-in', fill: 'forwards'});
-        await exitAnimation.finished.catch(() => {});
-        if (id !== sequence) return;
-      }
       commit();
-      exitAnimation?.cancel();
-      if (!reducedMotion()) {
-        enterAnimation = nextMain.animate(
-          [{opacity: .25, clipPath: 'polygon(0 0,100% 0,100% 20%,0 5%)', transform: 'translateY(12px)'},
-           {opacity: 1, clipPath: 'polygon(0 0,100% 0,100% 100%,0 100%)', transform: 'none'}],
-          {duration: 360, easing: 'cubic-bezier(.16,1,.3,1)'});
-      }
+      cancelEntrance = enterPage(nextMain);
       if (id === sequence) { notice.textContent = document.title; remember(); }
     } catch (failure) {
       if (id !== sequence || failure.name === 'AbortError') return;

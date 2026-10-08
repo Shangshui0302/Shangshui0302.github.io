@@ -10,6 +10,12 @@ export function initStellar(root, scope) {
     const reset=hero.querySelector('.galaxy-reset'), status=hero.querySelector('.galaxy-state');
     const journey=hero.querySelector('.galaxy-journey'), depth=hero.querySelector('.journey-depth');
     const chargeLabel=hero.querySelector('.charge-label'), chargeValue=hero.querySelector('.charge-value');
+    const styleValues = new Map();
+    const setStyle = (name, value) => {
+      if (styleValues.get(name) !== value) { styleValues.set(name, value); hero.style.setProperty(name, value); }
+    };
+    const setText = (node, value) => { if (node && node.textContent !== value) node.textContent = value; };
+    const setCharge = value => { if (hero.dataset.charge !== value) hero.dataset.charge = value; };
     let journeyTop=0,journeyHeight=1,journeyTarget=0,journeyProgress=0;
     let charging=false,charge=0,chargeStart=0,chargePointer=null,orbitalTime=0,burst=0,ignoreClickUntil=0;
     let heldPointer=null,keyboardHeld=false;
@@ -24,7 +30,7 @@ export function initStellar(root, scope) {
     let centerX=0,centerY=0,R=1,camera=1,rotY=0,rotX=0,rotZ=0,cy=1,sy=0,cx=1,sx=0,cz=1,sz=0,energy=0;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
     function geometry(){
-      mesh=[];const meridians=mobile?18:32,latitudes=mobile?17:25,steps=mobile?64:104;
+      mesh=[];const meridians=mobile?18:32,latitudes=mobile?17:25,steps=mobile?48:80;
       for(let i=0;i<meridians;i++){
         const a=i*TAU/meridians,curve=[];
         for(let j=0;j<=steps;j++){const b=-Math.PI/2+j*Math.PI/steps;curve.push([Math.cos(b)*Math.cos(a),Math.sin(b),Math.cos(b)*Math.sin(a)]);}
@@ -56,18 +62,20 @@ export function initStellar(root, scope) {
     }
     function particles(){
       const count=mobile?440:dust.length;
+      const paths=Array.from({length:8},()=>new Path2D());
       for(let i=0;i<count;i++){
         const p=dust[i],a=p.a+t*.025,r=p.r*R;
         const x=Math.cos(a)*r,y=Math.sin(a)*r*.26,z=Math.sin(a)*r*.95+p.z*R;
         const v=project(rotate(x,y,z));
         if(v.x<-10||v.x>W+10||v.y<-10||v.y>H+10)continue;
         const dx=pointer.px-v.x,dy=pointer.py-v.y,dist=dx*dx+dy*dy;
-        const pull=Math.exp(-dist/30000)*.13*pointer.gain;
+        const pull=pointer.gain>.005?Math.exp(-dist/30000)*.13*pointer.gain:0;
         let px=v.x+dx*pull,py=v.y+dy*pull;
         for(const f of flares){const age=t-f.time,len=Math.hypot(px-f.x,py-f.y)||1,wave=Math.exp(-Math.pow((len-age*(390+f.power*230))/90,2))*(1-age/2.7)*(28+f.power*55);px+=(px-f.x)/len*wave;py+=(py-f.y)/len*wave;}
-        ctx.fillStyle=p.light>.87?'rgba(241,239,233,.65)':`rgba(255,92,58,${.20+p.light*.37})`;
-        const size=p.s*clamp(v.k,.4,1.8);ctx.fillRect(px,py,size,size);
+        const bucket=p.light>.87?7:Math.min(6,Math.floor(p.light/.87*7));
+        const size=p.s*clamp(v.k,.4,1.8);paths[bucket].rect(px,py,size,size);
       }
+      paths.forEach((path,i)=>{ctx.fillStyle=i===7?'rgba(241,239,233,.65)':`rgba(255,92,58,${.20+(i+.5)/7*.87*.37})`;ctx.fill(path);});
     }
     function spiralArms(){
       // Fine luminous curves carry the stellar disc across the entire viewport.
@@ -92,15 +100,16 @@ export function initStellar(root, scope) {
       const paths=[new Path2D(),new Path2D(),new Path2D(),new Path2D()];
       const heat=clamp(charge+burst*.5,0,1),green=Math.round(77+162*heat),blue=Math.round(46+187*heat);
       const colors=[.15,.48,.76,1].map(alpha=>`rgba(255,${green},${blue},${alpha})`);
-      for(const line of mesh){let previous=null;
+      const mx=(pointer.px-centerX)/R,my=(pointer.py-centerY)/R;
+      const interacting=pointer.gain>.005, ripple=energy*.012+charge*.018;
+      for(const line of mesh){let previous=null,previousBucket=-1;
         for(const point of line){
           const rotated=rotate(point[0]*R,point[1]*R,point[2]*R);
-          const mx=(pointer.px-centerX)/R,my=(pointer.py-centerY)/R;
-          const near=Math.exp(-((rotated.x/R-mx)**2+(rotated.y/R-my)**2)*9)*pointer.gain;
-          const warp=1+near*.07*(rotated.z>0?1:0)+(energy*.012+charge*.018)*Math.sin(point[1]*16-t*3);
+          const near=interacting&&rotated.z>0?Math.exp(-((rotated.x/R-mx)**2+(rotated.y/R-my)**2)*9)*pointer.gain:0;
+          const warp=1+near*.07+(ripple>.0001?ripple*Math.sin(point[1]*16-t*3):0);
           rotated.x*=warp;rotated.y*=warp;rotated.z*=warp;
           const q=project(rotated);
-          if(previous){const z=(q.z+previous.z)/2/R,bucket=z<0?0:z<.35?1:z<.75?2:3;const path=paths[bucket];path.moveTo(previous.x,previous.y);path.lineTo(q.x,q.y);}
+          if(previous){const z=(q.z+previous.z)/2/R,bucket=z<0?0:z<.35?1:z<.75?2:3;const path=paths[bucket];if(bucket!==previousBucket)path.moveTo(previous.x,previous.y);path.lineTo(q.x,q.y);previousBucket=bucket;}
           previous=q;
         }
       }
@@ -164,14 +173,14 @@ export function initStellar(root, scope) {
       const smooth=1-Math.exp(-dt*5);pointer.x+=(pointer.tx-pointer.x)*smooth;pointer.y+=(pointer.ty-pointer.y)*smooth;
       pointer.gain+=((pointer.inside?1:0)-pointer.gain)*smooth;scroll+=(scrollTarget-scroll)*smooth;
       journeyProgress+=(journeyTarget-journeyProgress)*smooth;
-      hero.style.setProperty('--journey',journeyProgress.toFixed(3));
-      hero.style.setProperty('--journey-shift',`${-journeyProgress*70}px`);
-      if(depth)depth.textContent=String(Math.round(journeyProgress*100)).padStart(3,'0')+'%';
-      hero.style.setProperty('--charge',charge.toFixed(3));
-      hero.dataset.charge=String(Math.round(charge*100));
-      if(charging)chargeValue.textContent=charge>=1?'RELEASE TO IGNITE':String(Math.round(charge*100)).padStart(3,'0')+'%';
+      setStyle('--journey',journeyProgress.toFixed(3));
+      setStyle('--journey-shift',`${(-journeyProgress*70).toFixed(1)}px`);
+      setText(depth,String(Math.round(journeyProgress*100)).padStart(3,'0')+'%');
+      setStyle('--charge',charge.toFixed(3));
+      setCharge(String(Math.round(charge*100)));
+      if(charging)setText(chargeValue,charge>=1?'RELEASE TO IGNITE':String(Math.round(charge*100)).padStart(3,'0')+'%');
       const recoil=flares.reduce((sum,f)=>{const age=t-f.time;return sum+f.power*Math.sin(age*25)*Math.exp(-age*4)*12;},0);
-      hero.style.setProperty('--type-kick',`${charge*8+recoil}px`);
+      setStyle('--type-kick',`${(charge*8+recoil).toFixed(1)}px`);
       if(!dragging){yawDrag+=inertia;inertia*=Math.pow(.91,dt*60);}
       const hadFlares=flares.length;flares=flares.filter(f=>t-f.time<2.7);
       if(hadFlares&&!flares.length&&!dragging&&!charging)status.textContent='自由运行';
@@ -185,15 +194,19 @@ export function initStellar(root, scope) {
       status.textContent=paused?'静态轨道':'自由运行';
       if(frame)cancelAnimationFrame(frame);frame=0;last=0;
       if(paused||document.hidden||!visible)cancelCharge();
-      if(reduced){pointer.x=pointer.y=pointer.gain=0;flares=[];hero.style.setProperty('--type-kick','0px');}
+      if(reduced){pointer.x=pointer.y=pointer.gain=0;flares=[];setStyle('--type-kick','0px');}
       measureJourney();
-      draw();if(visible&&!document.hidden&&!paused)frame=scope.frame(tick);
+      if(visible&&!document.hidden&&!paused)frame=scope.frame(tick);
+      else if(visible)draw();
     }
     function resize(){
       if (scope.disposed) return;
-      W=innerWidth;H=innerHeight;const previous=mobile;mobile=W<701;dpr=Math.min(devicePixelRatio||1,mobile?1.5:1.4);
+      // Bound background raster cost independently of text and layout resolution.
+      const nextMobile=innerWidth<701,nextDpr=Math.min(devicePixelRatio||1,1.15,Math.sqrt(1_000_000/(innerWidth*innerHeight)));
+      if(W===innerWidth&&H===innerHeight&&dpr===nextDpr)return;
+      W=innerWidth;H=innerHeight;const previous=mobile;mobile=nextMobile;dpr=nextDpr;
       canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
-      if(!mesh.length||previous!==mobile)geometry();measureJourney();draw();field.classList.add('ready');
+      if(!mesh.length||previous!==mobile)geometry();measureJourney();if(!frame)draw();field.classList.add('ready');
     }
     function measureJourney(){
       if(journey){journeyTop=journey.getBoundingClientRect().top+scrollY;journeyHeight=journey.offsetHeight;}
@@ -214,7 +227,7 @@ export function initStellar(root, scope) {
     function cancelCharge(){
       charging=false;charge=0;keyboardHeld=false;
       if(chargePointer!==null&&pulseButton.hasPointerCapture(chargePointer))pulseButton.releasePointerCapture(chargePointer);
-      chargePointer=null;hero.classList.remove('is-charging');hero.style.setProperty('--charge','0');hero.dataset.charge='0';
+      chargePointer=null;hero.classList.remove('is-charging');setStyle('--charge','0');setCharge('0');
       chargeLabel.textContent='长按蓄能';chargeValue.textContent='HOLD TO IGNITE';
       status.textContent=paused?'静态轨道':'自由运行';
     }
@@ -262,14 +275,17 @@ export function initStellar(root, scope) {
     const intersectionObserver = new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;sync();},{threshold:.01});
     const motionObserver = new MutationObserver(sync);
     resizeObserver.observe(field);
-    intersectionObserver.observe(field);
+    intersectionObserver.observe(hero);
+    const atlas = hero.querySelector('.galaxy-atlas');
+    const atlasObserver = new IntersectionObserver(entries => { hero.dataset.atlasVisible = String(entries[0].isIntersecting); });
+    if(atlas)atlasObserver.observe(atlas);
     motionObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-reduced-motion']});
     scope.on(document,'visibilitychange',sync);
     scope.on(reducedQuery,'change',sync);
     scope.on(window,'blur',cancelCharge);
     scope.on(hero,'stellar:replay',()=>{cancelCharge();t=orbitalTime=0;manual=false;yawDrag=pitchDrag=inertia=0;flares=[];sync();});
     scope.own(() => {
-      resizeObserver.disconnect(); intersectionObserver.disconnect(); motionObserver.disconnect();
+      resizeObserver.disconnect(); intersectionObserver.disconnect(); motionObserver.disconnect(); atlasObserver.disconnect();
       cancelAnimationFrame(frame); cancelCharge();
       if (heldPointer !== null && hero.hasPointerCapture(heldPointer)) hero.releasePointerCapture(heldPointer);
     });

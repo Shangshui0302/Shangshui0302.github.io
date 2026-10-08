@@ -672,7 +672,9 @@ html[data-reduced-motion="true"] .galaxy-experience * {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: calc(var(--charge, 0) * 100%);
+  width: 100%;
+  transform: scaleX(var(--charge, 0));
+  transform-origin: left;
   height: 3px;
   background: #f1efe9;
   box-shadow: 0 0 22px #ff4d2e;
@@ -763,7 +765,9 @@ html[data-reduced-motion="true"] .galaxy-experience * {
 }
 .journey-progress i  {
   display: block;
-  width: calc(var(--journey, 0) * 100%);
+  width: 100%;
+  transform: scaleX(var(--journey, 0));
+  transform-origin: left;
   height: 100%;
   background: #ff4d2e;
 }
@@ -1151,3 +1155,12 @@ html[data-reduced-motion="true"] .journey-copy, html[data-reduced-motion="true"]
     min-height:30px
   }
 }
+
+/* Orbit labels keep their last pose while their own section is offscreen. */
+.galaxy-experience:not([data-atlas-visible="true"]) .planet-body img {
+  animation-play-state: paused;
+}
+
+/* Isolate the continuously painted background from the editorial document. */
+.galaxy-field { contain: strict; }
+.galaxy-field canvas { will-change: transform; }
