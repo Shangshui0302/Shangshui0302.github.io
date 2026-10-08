@@ -55,7 +55,8 @@
 .nav-actions {
   justify-self:end;
   display:flex;
-  gap:22px;
+  flex-direction:row;
+  gap:14px;
   align-items:center
 }
 .search-link {
@@ -88,7 +89,7 @@
   border:0;
   border-left:1px solid var(--line);
   background:none;
-  padding:5px 0 5px 20px;
+  padding:5px 0;
   white-space:nowrap
 }
 .motion:before {
@@ -102,7 +103,7 @@
 .motion[aria-pressed="true"]:before {
   background:var(--ink)
 }
-.no-js .motion {
+.no-js .topbar .motion {
   display:none
 }
 /* Stable shell and nested library navigation. */
@@ -147,7 +148,7 @@
   margin-top: 26px;
   padding: 4px;
   width: fit-content;
-  background: #e3dfd6;
+  background: var(--surface);
   font-size: .875rem;
 }
 .writing-navigation a  {
@@ -163,7 +164,7 @@
   font-weight: 500;
 }
 .writing-navigation a:hover:not([aria-current])  {
-  background: #d4cfc4;
+  background: var(--surface-hover);
 }
 .category-navigation  {
   font-size: .875rem;
@@ -211,7 +212,7 @@
   text-decoration: underline;
   padding: 5px;
 }
-@media (max-width: 760px)  {
+@media (max-width: 980px)  {
   .topbar  {
     grid-template-columns: 1fr auto;
     gap: 4px 16px;
@@ -240,6 +241,8 @@
     padding: 5px 0;
     font-size: .75rem;
   }
+}
+@media (max-width:760px) {
   .page-intro  {
     padding-top: 32px;
     padding-bottom: 26px;
@@ -265,4 +268,40 @@
   .writing-list-status, .writing-list-status a  {
     font-size: .8125rem;
   }
+}
+
+/* The theme picker belongs to the persistent shell, not the routed content. */
+.topbar { color:var(--ink); }
+.theme-picker { width:130px; }
+.theme-picker .select-control .select-trigger {
+  min-height:38px;
+  padding:8px 10px;
+  gap:10px;
+  font-size:.75rem;
+  background:var(--paper);
+  color:var(--ink);
+  border-color:var(--line);
+}
+.theme-picker .select-trigger::before {
+  content:'';
+  flex-shrink:0;
+  width:12px;
+  height:12px;
+  border:1px solid currentColor;
+  border-radius:50%;
+  background:linear-gradient(90deg,currentColor 50%,transparent 50%);
+  transform:rotate(-35deg);
+}
+.theme-picker .select-trigger > span { flex:1; }
+.theme-picker .select-trigger > i { width:6px; height:6px; }
+.theme-picker .select-options { left:auto; width:160px; }
+body, .topbar { transition:background-color 180ms ease, color 180ms ease; }
+@media (max-width:480px) {
+  .topbar { gap:4px 10px; }
+  .topbar .brand { font-size:1.05rem; gap:9px; }
+  .topbar .brand span:last-child { display:none; }
+  .nav-actions { gap:8px; }
+  .theme-picker { width:116px; }
+  .topbar .motion { font-size:0; width:32px; height:38px; }
+  .topbar .motion::before { margin:0; width:10px; height:10px; }
 }

@@ -2,7 +2,7 @@
 
 作品与文章组成的独立技术刊物。纸白、墨黑与朱红，横向切面动效。SECTION 是设计方向代号；网站名称可在 `site_config.json` 中调整。
 
-线上地址：[偏移 / OFFSET](https://offset-digital-garden.shimmeringobsidian.chatgpt.site)。当前为仅作者可访问的私有站点，本地预览继续保留。
+线上地址：[偏移 / OFFSET](https://offset-digital-garden.shimmeringobsidian.chatgpt.site)。网站已开放访问，GitHub 源码仓库保持私有。本地预览继续保留。
 
 三个轻量视觉 Demo 位于 `demos/`。运行 `python3 build_demos.py` 后访问 `/demos/`，在切面、暗室档案、折叠场之间切换。它们仅用于比较视觉，正式站点构建不会自动包含 Demo；再次执行 `build_site.py` 会移除生成目录中的 Demo。暗室档案使用本机 Source Serif 4 / Noto Serif CJK SC 回退字体，不额外分发字体文件。
 
@@ -27,7 +27,7 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 - `site_builder/content.py`：读取明确清单，验证首页引用与案例场景；不涉及页面或交互。
 - `site_builder/search.py`：从同一份公开内容生成带内容哈希的全文索引，与目录 HTML 分离。
 - `site_builder/templates/`：页面与服务端组件。`layout.py` 管理共享导航与页脚，`library.py` 管理文章/专题/标签视图，`search.py` 管理统一搜索，`components.py` 放复用条目；文章、作品、星系和技术图示各自独立。
-- `assets/js/app.js`：装配页面组件。`core/` 管理路由、页面资源清理与动效偏好；`pages/` 管理文章筛选、搜索、阅读进度；`components/` 放选择框、代码复制、进入视口动效；`scenes/` 放按需加载的星系。
+- `assets/js/app.js`：装配页面组件。`core/` 管理路由、页面资源清理、动效与外观偏好；`pages/` 管理文章筛选、搜索、阅读进度；`components/` 放选择框、代码复制、进入视口动效；`scenes/` 放按需加载的星系。
 - `assets/css/design/`：颜色、字体、间距和动效规则；`components/`：导航、控件；`pages/`：文章、作品、专题、首页星系。`site_builder/assets.py` 在构建时合并为一个 CSS 入口，避免浏览器逐层请求样式。
 - `components/stellar.html`：首页与切面 Demo 共用的星系结构。Canvas 保留鼠标牵引、拖动旋转、点击脉冲、长按蓄能与滚动穿越；六个行星通过统一路由进入作品。只作视觉表达，不作天文模拟；无脚本时显示 SVG 后备画面。
 - `build_site.py`：只读取清单列出的内容，生成页面、搜索目录和含分类标签的 RSS；未知分类、标签、文章引用及不完整阅读路线会阻止构建。
@@ -48,7 +48,7 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 
 顶部包含首页、作品、文章和搜索四个入口。文章中心包含全部文章、专题、标签视图；搜索同时展示完整索引。
 
-站内 HTML 导航通过 `fetch` 读取页面，只替换 `main`，同步标题、描述、页面主题和导航状态；顶部导航与动效偏好保持。页面数据就绪后，用原生 View Transition 对视口做 360 毫秒叠化，顶栏单独保持位置并衔接配色。旧快照保持不透明，只让新画面淡入，使用普通合成，避免双层加法混合与大画面位移的逐帧重采样。只捕获视口，不复制长页面 DOM，也不给整个 `main` 创建动画图层。网络读取在快照前完成，没有固定退场等待；不支持该 API 时，仅对可见标题和筛选控件做 360 毫秒入场。实现依据 [Chrome 同文档 View Transitions 文档](https://developer.chrome.com/docs/web-platform/view-transitions/same-document)。修饰键、新窗口、外链、RSS、下载和独立视觉 Demo 保留浏览器默认行为。没有 JavaScript 时，静态页面和阅读链接照常可用。
+站内 HTML 导航通过 `fetch` 读取页面，只替换 `main`，同步标题、描述、页面主题和导航状态；顶部导航、动效与外观偏好保持。页面数据就绪后，用原生 View Transition 对视口做 360 毫秒叠化，顶栏单独保持位置并衔接配色。旧快照保持不透明，只让新画面淡入，使用普通合成，避免双层加法混合与大画面位移的逐帧重采样。只捕获视口，不复制长页面 DOM，也不给整个 `main` 创建动画图层。网络读取在快照前完成，没有固定退场等待；不支持该 API 时，仅对可见标题和筛选控件做 360 毫秒入场。实现依据 [Chrome 同文档 View Transitions 文档](https://developer.chrome.com/docs/web-platform/view-transitions/same-document)。修饰键、新窗口、外链、RSS、下载和独立视觉 Demo 保留浏览器默认行为。没有 JavaScript 时，静态页面和阅读链接照常可用。
 
 - 路由是唯一的 history 写入者。筛选 push、搜索 replace，前进/后退恢复查询和滚动位置；段落链接仍可分享。
 - 每次挂载建立一个 `scope`。卸载时中止监听、断开 observer、取消 RAF 与定时器；异步字体/星系加载检查页面是否已卸载。
@@ -57,13 +57,14 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 - 星系按明暗批量绘制网格和粒子，背景 Canvas 使用约百万像素预算；离开星系区域或切换到后台时停止绘制，作品行星只在所在区域可见时转动。DOM 状态仅在数值变化时写入，进度条使用 `transform`，避免逐帧触发布局。
 - 阅读进度只在文章和案例页监听滚动，同一帧先读取几何信息，再更新变化的进度与目录状态。
 - 选择框保留原生 `select` 作为值与 change 接口，增强为 combobox/listbox。箭头/Home/End/typeahead 浏览，Enter/空格/Tab 提交，Escape 取消，外点关闭；URL 恢复后同步显示。
+- 外观默认跟随系统，顶部选择器可切换浅色、深色或恢复跟随。CSS 实时响应系统外观；手动偏好在首屏样式前恢复，避免闪白，跨标签页同步。文章、目录、控件共用语义颜色，星系、作品图片与深色代码展板保留独立配色；不增加框架或轮询。
 - 系统和站内“减少动效”同时约束页面过渡、控件和星系；全局只关闭动画与过渡，图标旋转等静态几何保留，揭示组件自行解除动画裁切。拖拽在暂停、失焦、取消、失去指针捕获和卸载时统一清理。焦点随新页面/段落移动，阅读历史仅在当前浏览器 history 中。
 
 组件键盘行为参考 [WAI select-only combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-select-only/)。保持无运行依赖，不为页面展示引入框架或组件包。
 
 ## 字体与隐私
 
-字体、CSS 与脚本均由本站提供，无第三方分析、远程头像或字体请求。动效开关仅将偏好存入本站 localStorage，并尊重系统减少动效设置。外部链接不发送 referrer。
+字体、CSS 与脚本均由本站提供，无第三方分析、远程头像或字体请求。外观与动效开关仅将偏好存入本站 localStorage，并尊重系统减少动效设置。外部链接不发送 referrer。
 
 Archivo Variable、IBM Plex Mono 与思源黑体的许可证位于 `assets/fonts/`。中文字体为按当前内容裁剪并改名的 Offset Han Sans，保留原版权和 SIL OFL；缺失字符使用系统中文字体。来源记录见 `FONT-SOURCES.md`。
 

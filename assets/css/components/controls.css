@@ -93,7 +93,7 @@
   background: transparent;
 }
 .select-option[aria-selected="true"]  {
-  color: #a33824;
+  color: var(--accent-text);
   font-weight: 650;
 }
 .select-option[aria-selected="true"]::after  {
@@ -159,7 +159,7 @@
   width: 100%;
   padding: 19px 20px;
   font-size: 1.125rem;
-  background: #e5e2da;
+  background: var(--surface);
   border: 1px solid transparent;
   border-bottom: 2px solid var(--ink);
   border-radius: 0;
@@ -179,7 +179,7 @@
 }
 .search-form > button:hover  {
   background: var(--red);
-  color: var(--ink);
+  color: var(--on-accent);
 }
 @keyframes select-arrive  {
   from  {

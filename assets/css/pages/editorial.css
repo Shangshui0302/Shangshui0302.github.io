@@ -215,6 +215,9 @@
   text-decoration:none
 }
 .theme-figure {
+  --paper:#f1efe9;
+  --ink:#17191c;
+  --muted:#63635e;
   background:var(--ink);
   color:var(--paper);
   padding:30px;
@@ -408,7 +411,8 @@
   gap:40px;
   padding-top:52px;
   padding-bottom:52px;
-  background:var(--red)
+  background:var(--red);
+  color:var(--on-accent)
 }
 .index-callout h2 {
   font-size:clamp(2rem,4.3vw,4rem);
@@ -527,7 +531,7 @@
   line-height:1.8
 }
 .work-row:focus-within,.work-row:hover {
-  background:#e9e6de
+  background:var(--surface-hover)
 }
 .listing-controls {
   display:flex;
@@ -876,14 +880,14 @@
 .prose code {
   font-family:var(--mono);
   font-size:.86em;
-  background:#e4e1d8;
+  background:var(--surface);
   padding:.1em .3em;
   overflow-wrap:anywhere
 }
 .code-wrap {
   position:relative;
   margin:28px 0;
-  background:#e8e5dc;
+  background:var(--surface);
   border:1px solid var(--line);
   min-width:0
 }

@@ -1,25 +1,4 @@
-/* An immersive layer for the home page; article layouts keep their own palette. */
-body.orbit-home {
-  background:#111214;
-  color:#f1efe9
-}
-.orbit-home .topbar {
-  background:rgba(17,18,20,.90);
-  border-color:#f1efe926;
-  color:#f1efe9
-}
-.orbit-home .brand-mark {
-  background:linear-gradient(#f1efe9 0 36%,transparent 36% 47%,#ff4d2e 47% 63%,transparent 63% 72%,#f1efe9 72%)
-}
-.orbit-home .motion:before {
-  border-color:#f1efe9
-}
-.orbit-home .motion[aria-pressed="true"]:before {
-  background:#ff4d2e
-}
-.orbit-home .topbar a:focus-visible,.orbit-home .topbar button:focus-visible {
-  outline-color:#ff4d2e
-}
+/* Fixed cosmic artwork sits behind adaptive editorial surfaces. */
 .orbit-home main {
   position:relative
 }
@@ -38,41 +17,46 @@ body.orbit-home {
   color:#292322
 }
 .orbit-home .section:not(.writing-preview) {
-  background:rgba(17,18,20,.88);
+  background:var(--paper);
+  color:var(--ink);
   padding-top:60px
 }
 .orbit-home .section-label {
-  border-color:#f1efe94d
+  border-color:var(--line)
 }
 .orbit-home .section-label .mono,.orbit-home .project-copy .mono {
-  color:#aba9a3
+  color:var(--muted)
 }
 .orbit-home .editorial-project {
-  border-color:#f1efe92e;
+  border-color:var(--line);
   padding:48px 0
 }
 .orbit-home .project-copy h3 {
   font-weight:650
 }
 .orbit-home .skills-figure {
+  --paper:#f1efe9;
+  --ink:#17191c;
+  --muted:#63635e;
+  --line:#c8c5bd;
   background:#f1efe9;
   color:#17191c
 }
 .orbit-home .writing-preview {
-  background:#f1efe9;
-  color:#17191c
+  background:var(--paper);
+  color:var(--ink)
 }
 .orbit-home .writing-preview .section-label {
-  border-color:#17191c
+  border-color:var(--ink)
 }
 .orbit-home .writing-preview .section-label .mono,.orbit-home .writing-preview .writing-row .mono,.orbit-home .writing-preview .writing-row p {
-  color:#63635e
+  color:var(--muted)
 }
 .orbit-home .writing-preview .writing-row {
-  border-color:#c8c5bd
+  border-color:var(--line)
 }
 .orbit-home .writing-preview a:focus-visible {
-  outline-color:#17191c
+  outline-color:var(--ink)
 }
 .orbit-home .index-callout {
   color:#17191c

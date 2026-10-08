@@ -23,7 +23,7 @@
 }
 .category-link {
   font-weight:650;
-  color:#a33824
+  color:var(--accent-text)
 }
 .tag-link {
   color:var(--muted)
@@ -34,10 +34,10 @@
   opacity:.6
 }
 .writing-preview .category-link {
-  color:#ff947e
+  color:var(--accent-text)
 }
 .writing-preview .tag-link {
-  color:#c8c5bd
+  color:var(--muted)
 }
 .writing-preview .note-taxonomy {
   font-size:11px
@@ -76,7 +76,7 @@
   color:var(--muted)
 }
 .category-navigation [aria-current="page"] {
-  color:#a33824;
+  color:var(--accent-text);
   font-weight:650
 }
 .writing-intro {
@@ -166,7 +166,7 @@
   font-size:23px
 }
 .tag-directory a:hover span {
-  color:#a33824
+  color:var(--accent-text)
 }
 .tag-directory b {
   font:11px var(--mono);
@@ -210,7 +210,7 @@
 }
 .topic-row-copy .eyebrow {
   font-size:10px;
-  color:#a33824
+  color:var(--accent-text)
 }
 .topic-row-copy h2 {
   font-size:clamp(24px,2.7vw,40px);
@@ -250,7 +250,7 @@
 .topic-chapters li::before {
   content:counter(chapter,decimal-leading-zero);
   font:10px/2.4 var(--mono);
-  color:#a33824
+  color:var(--accent-text)
 }
 .topic-chapters a {
   text-decoration:none
@@ -262,7 +262,7 @@
   display:grid;
   grid-template-columns:minmax(0,7fr) minmax(0,5fr);
   gap:48px;
-  background:#e9e5da;
+  background:var(--surface);
   overflow:hidden;
   padding-top:30px;
   padding-bottom:48px;
@@ -277,7 +277,7 @@
 }
 .topic-hero .eyebrow {
   margin-top:55px;
-  color:#a33824;
+  color:var(--accent-text);
   font-size:10px
 }
 .topic-hero h1 {
@@ -291,7 +291,7 @@
   font-size:17px;
   line-height:1.9;
   max-width:650px;
-  color:#625c54
+  color:var(--muted)
 }
 .topic-hero .text-link {
   margin-top:30px;
@@ -334,7 +334,7 @@
   right:0;
   font:9px var(--mono);
   letter-spacing:.16em;
-  color:#9e402b
+  color:var(--accent-text)
 }
 .topic-introduction {
   display:grid;
@@ -367,14 +367,14 @@
 }
 .path-step {
   font:550 50px/1 var(--display);
-  color:#b6412a
+  color:var(--accent-text)
 }
 .path-chapter>div {
   max-width:850px
 }
 .path-chapter .path-guide {
   font-size:12px;
-  color:#a33824;
+  color:var(--accent-text);
   line-height:1.9
 }
 .path-chapter h2 {
@@ -418,7 +418,7 @@
   color:var(--muted)
 }
 .article-topic-links>a {
-  color:#973823
+  color:var(--accent-text)
 }
 .series-reading {
   border-top:1px solid var(--line);
@@ -452,7 +452,7 @@
   color:var(--muted)
 }
 .series-reading [aria-current="page"] {
-  color:#a33824;
+  color:var(--accent-text);
   font-weight:600
 }
 .series-reading [aria-current="page"]::after {

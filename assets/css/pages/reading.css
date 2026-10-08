@@ -1,18 +1,4 @@
-/* The orbit opens into an editorial case, then a paper reading surface. */
-.case-page .topbar {
-  background:#111214;
-  color:#f1efe9;
-  border-color:#ffffff25
-}
-.case-page .brand-mark {
-  background:linear-gradient(#f1efe9 0 36%,transparent 36% 47%,#ff4d2e 47% 63%,transparent 63% 72%,#f1efe9 72%)
-}
-.case-page .motion:before {
-  border-color:#f1efe9
-}
-.case-page .topbar a:focus-visible,.case-page .topbar button:focus-visible {
-  outline-color:#ff4d2e
-}
+/* Cases retain dark exhibit panels inside adaptive editorial surfaces. */
 .reading-progress {
   position:fixed;
   top:var(--topbar-height,76px);
@@ -157,13 +143,13 @@
   grid-template-columns:1fr 2fr;
   gap:60px;
   padding:52px var(--gutter);
-  border-bottom:1px solid #17191c25
+  border-bottom:1px solid var(--line)
 }
 .case-premise>span {
   font:11px var(--mono);
   letter-spacing:.08em;
   padding-top:8px;
-  color:#787770
+  color:var(--muted)
 }
 .case-premise p {
   font-size:clamp(20px,2vw,28px);
@@ -316,7 +302,7 @@
 .case-page .section-index {
   font:10px/1.5 var(--mono);
   letter-spacing:.12em;
-  color:#a03c28;
+  color:var(--accent-text);
   margin-bottom:14px
 }
 .case-page .prose>section>h2 {
@@ -329,7 +315,7 @@
 }
 .case-page .limitations {
   padding:23px 26px;
-  background:#e7e3d8;
+  background:var(--surface);
   border:0;
   margin:0 0 60px
 }
@@ -344,26 +330,26 @@
   font:10px/1.5 var(--mono);
   margin-top:36px;
   padding-top:20px;
-  border-top:1px solid #c8c5bd;
-  color:#73716b;
+  border-top:1px solid var(--line);
+  color:var(--muted);
   display:flex;
   justify-content:space-between
 }
 .reading-status span {
-  color:#a73b24
+  color:var(--accent-text)
 }
 .toc-return {
   display:inline-block;
   margin-top:20px;
   font-size:11px!important;
-  color:#73716b
+  color:var(--muted)
 }
 .local-toc a[aria-current="location"],.article-toc a[aria-current="location"] {
-  color:#b83c24;
+  color:var(--accent-text);
   font-weight:650
 }
 .local-toc a[aria-current="location"] span,.article-toc a[aria-current="location"] span {
-  color:#b83c24
+  color:var(--accent-text)
 }
 .case-code {
   margin:32px 0!important
@@ -398,7 +384,7 @@
 }
 .case-code .code-caption {
   font-size:11px!important;
-  color:#76736c;
+  color:var(--muted);
   margin:12px 0 0
 }
 .case-page .evidence-list {
@@ -660,7 +646,7 @@
   overflow:hidden;
   padding-top:30px;
   padding-bottom:0;
-  background:#e9e5da;
+  background:var(--surface);
   border:0
 }
 .article-masthead {
@@ -668,7 +654,7 @@
   gap:24px;
   justify-content:space-between;
   align-items:baseline;
-  border-bottom:1px solid #17191c3a;
+  border-bottom:1px solid var(--line);
   padding-bottom:24px;
   font:10px/1.6 var(--mono);
   letter-spacing:.07em
@@ -680,7 +666,7 @@
   letter-spacing:0
 }
 .article-masthead>span:last-child {
-  color:#ae3923
+  color:var(--accent-text)
 }
 .article-cover-copy {
   position:relative;
@@ -691,7 +677,7 @@
 .reading-page .article-meta {
   font-size:10px;
   letter-spacing:.08em;
-  color:#a73b24
+  color:var(--accent-text)
 }
 .reading-page .article-heading h1 {
   max-width:1000px;
@@ -705,7 +691,7 @@
 .reading-page .article-heading .deck {
   font-size:18px;
   line-height:1.8;
-  color:#67635c;
+  color:var(--muted);
   max-width:680px
 }
 .article-folio {
@@ -737,7 +723,7 @@
   bottom:-24px;
   right:45px;
   font:9px var(--mono);
-  color:#a73b24;
+  color:var(--accent-text);
   letter-spacing:.17em
 }
 .article-cover-footer {
@@ -746,19 +732,19 @@
   display:flex;
   align-items:center;
   gap:25px;
-  border-top:1px solid #17191c3a;
+  border-top:1px solid var(--line);
   padding:20px 0;
   font:10px/1.7 var(--mono);
-  color:#716c63
+  color:var(--muted)
 }
 .article-cover-footer>a {
   margin-left:auto;
-  color:#17191c;
+  color:var(--ink);
   text-decoration:none
 }
 .article-cover-footer>a>span {
   margin-left:28px;
-  color:#ae3923
+  color:var(--accent-text)
 }
 .reading-page .article-layout {
   padding-top:60px;
@@ -778,7 +764,7 @@
 }
 .reading-page .article-toc .reading-status>span {
   margin:0;
-  color:#a73b24
+  color:var(--accent-text)
 }
 @media(min-width:761px) {
   .reading-page .article-toc {
@@ -809,7 +795,7 @@
 .reading-page .prose blockquote {
   margin:32px 0;
   padding:23px 26px;
-  background:#e6e1d6;
+  background:var(--surface);
   font-size:19px;
   line-height:1.8;
   font-weight:550
@@ -858,29 +844,29 @@
   border-top-width:2px
 }
 .reading-page .permission-grid strong {
-  color:#b73b24;
+  color:var(--accent-text);
   font-size:58px
 }
 .reading-page .permission-grid h3 {
   font-size:18px
 }
 .reading-page .session-flow>div {
-  background:#e6e1d6;
+  background:var(--surface);
   border:0;
-  border-left:2px solid #b73b24;
+  border-left:2px solid var(--accent-text);
   padding:23px 27px
 }
 .reading-page .session-flow small {
   font:10px var(--mono);
-  color:#a73b24
+  color:var(--accent-text)
 }
 .reading-page .session-flow strong {
   font-size:21px
 }
 .reading-page .flow-label {
   font-size:11px;
-  border-color:#b73b24;
-  color:#716c63
+  border-color:var(--accent-text);
+  color:var(--muted)
 }
 .reading-page .references h2,.reading-page .related h2 {
   font-size:19px;
@@ -1137,7 +1123,7 @@
   padding:24px 8px;
   min-height:82px;
   font-size:14px;
-  background:#e9e5da
+  background:var(--surface)
 }
 .slice-grid>strong {
   background:#ff4d2e;
@@ -1145,7 +1131,7 @@
   font-weight:650
 }
 .slice-grid>span:nth-child(even) {
-  background:#d7d1c4
+  background:var(--surface-hover)
 }
 @media(max-width:760px) {
   .slice-grid>span,.slice-grid>strong {

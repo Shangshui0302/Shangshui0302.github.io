@@ -104,6 +104,7 @@ export function enhanceSelects(root, scope) {
     scope.on(root, 'select:open', e => { if (e.detail !== trigger) close(); });
     scope.on(trigger, 'blur', close);
     scope.on(select, 'change', sync);
+    scope.on(select, 'select:sync', sync);
     scope.on(root, 'filters:restore', () => { close(); sync(); });
     sync();
   });

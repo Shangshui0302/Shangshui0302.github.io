@@ -44,7 +44,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible,s
 }
 ::selection {
   background:var(--red);
-  color:var(--ink)
+  color:var(--on-accent)
 }
 [hidden] {
   display:none!important

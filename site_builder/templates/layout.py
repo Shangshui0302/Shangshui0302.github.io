@@ -1,5 +1,8 @@
 """Persistent site shell; every route shares the same assets and navigation."""
 from html import escape as esc
+from pathlib import Path
+
+THEME_BOOTSTRAP = (Path(__file__).resolve().parents[2] / "assets/js/core/theme-bootstrap.js").read_text()
 
 
 def render_page(config, title, body, active='', description='', is_article=False, stellar=False, is_case=False):
@@ -13,13 +16,15 @@ def render_page(config, title, body, active='', description='', is_article=False
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)} · {esc(name)} / {esc(wordmark)}</title>
 <meta name="description" content="{esc(description or config['description'])}"><meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<script>{THEME_BOOTSTRAP}</script>
 <link rel="icon" type="image/svg+xml" href="{favicon}"><link rel="stylesheet" href="/assets/site.css">
 <link rel="alternate" type="application/rss+xml" title="{esc(name)}文章" href="/feed.xml">
 <script type="module" src="/assets/js/app.js"></script></head>
 <body class="{body_class}" data-section="{active}" data-site-shell>
 <a class="skip" href="#main">跳到正文</a>
 <header class="topbar wrap"><a class="brand" href="/" aria-label="{esc(name)} {esc(wordmark)} 首页"><span class="brand-mark" aria-hidden="true"></span>{esc(wordmark)}<span>{esc(name)}</span></a>
-<nav aria-label="主导航">{entries}</nav><div class="nav-actions"><button class="motion" type="button" aria-pressed="false">减少动效</button></div></header>
+<nav aria-label="主导航">{entries}</nav><div class="nav-actions"><div class="theme-picker" hidden><label class="sr-only" for="color-theme">外观</label><select id="color-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div><button class="motion" type="button" title="减少动效" aria-pressed="false">减少动效</button></div></header>
 <main id="main" tabindex="-1">{body}</main>
 <footer class="footer wrap"><div><a class="footer-brand" href="/">{esc(wordmark)} / {esc(name)}</a><p class="footer-note">作品与文章，按问题组织。</p></div><div class="footer-links"><a href="{config['github_url']}" target="_blank" rel="noopener noreferrer">GitHub</a><a href="/feed.xml">RSS</a><a href="/index/">搜索与目录</a></div><span class="mono">© {config['year']} {esc(wordmark)}</span></footer>
 <div class="route-status sr-only" role="status" aria-live="polite"></div>

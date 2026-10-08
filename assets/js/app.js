@@ -1,4 +1,5 @@
 import {createScope} from './core/scope.js';
+import {initTheme} from './core/theme.js';
 import {initMotion} from './core/motion.js';
 import {createRouter} from './core/router.js';
 import {enhanceSelects} from './components/select.js';
@@ -23,5 +24,6 @@ function mountPage(root, navigation) {
   }
   return {dispose: () => scope.dispose(), restore: () => { restoreLibrary(); restoreSearch(); }};
 }
+initTheme();
 initMotion();
 createRouter(mountPage);
