@@ -2,7 +2,7 @@
 
 作品与文章组成的独立技术刊物。纸白、墨黑与朱红，横向切面动效。SECTION 是设计方向代号；网站名称可在 `site_config.json` 中调整。
 
-当前只有本地预览，内容处于作者审阅阶段，尚未发布。
+线上地址：[偏移 / OFFSET](https://offset-digital-garden.shimmeringobsidian.chatgpt.site)。当前为仅作者可访问的私有站点，本地预览继续保留。
 
 三个轻量视觉 Demo 位于 `demos/`。运行 `python3 build_demos.py` 后访问 `/demos/`，在切面、暗室档案、折叠场之间切换。它们仅用于比较视觉，正式站点构建不会自动包含 Demo；再次执行 `build_site.py` 会移除生成目录中的 Demo。暗室档案使用本机 Source Serif 4 / Noto Serif CJK SC 回退字体，不额外分发字体文件。
 
@@ -71,7 +71,7 @@ Archivo Variable、IBM Plex Mono 与思源黑体的许可证位于 `assets/fonts
 
 ## 发布边界
 
-Sites 项目已经注册，尚未部署。后续发布必须先取得作者对预览和内容的确认，复用 `.openai/hosting.json` 的现有项目。确认后填写 `site_config.json` 的正式 `site_url`，再构建，以确保 RSS 使用正式域名。当前 RSS 使用本机预览地址。正式发布应运行以下独立门禁（仅构建与检查，不会部署）：
+Sites 项目已部署，复用 `.openai/hosting.json` 的现有项目。后续发布保持现有访问权限，变更访问范围由作者指定。`site_config.json` 的 `site_url` 使用首次成功部署返回的正式地址，RSS 使用相同域名。正式发布应运行以下独立门禁（仅构建与检查，不会部署）：
 
 ```sh
 python3 build_site.py --release
