@@ -10,19 +10,38 @@
   border-bottom:1px solid var(--line);
   background:var(--paper)
 }
-/* Opaque by default, including before preference initialization. Only the
-   sticky header is filtered; reduced motion removes the entire glass layer. */
+/* Keep the shell geometry stable. Only its inset surface is glass; menus,
+   reading offsets and the route-loading indicator retain their own layers. */
 @media (prefers-reduced-motion:no-preference) {
   @supports (backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px)) {
     html[data-reduced-motion="false"] .topbar {
-      background:linear-gradient(115deg,var(--glass-highlight),transparent 48%),var(--glass-surface);
-      -webkit-backdrop-filter:blur(20px) saturate(135%);
-      backdrop-filter:blur(20px) saturate(135%);
-      border-bottom-color:color-mix(in srgb,var(--ink) 14%,transparent);
-      box-shadow:inset 0 1px 0 var(--glass-highlight),0 6px 24px #0000000c;
+      --glass-inset:clamp(6px,1vw,12px);
+      isolation:isolate;
+      background:transparent;
+      border-bottom-color:transparent;
+    }
+    html[data-reduced-motion="false"] .topbar::after {
+      content:'';
+      position:absolute;
+      inset:6px var(--glass-inset);
+      z-index:-1;
+      pointer-events:none;
+      border:1px solid var(--glass-edge);
+      border-radius:12px;
+      background:linear-gradient(115deg,var(--glass-highlight),transparent 24%,transparent 76%,color-mix(in srgb,var(--glass-highlight) 35%,transparent)),var(--glass-surface);
+      -webkit-backdrop-filter:blur(10px) saturate(115%);
+      backdrop-filter:blur(10px) saturate(115%);
+      box-shadow:inset 0 1px 0 var(--glass-highlight),inset 0 -1px 0 color-mix(in srgb,var(--ink) 6%,transparent),0 4px 16px var(--glass-shadow);
+    }
+    html[data-reduced-motion="false"] .topbar::before {
+      left:calc(var(--glass-inset) + 12px);
+      width:calc(100% - 2 * var(--glass-inset) - 24px);
+      bottom:6px;
     }
     html[data-reduced-motion="false"] .topbar .theme-picker .select-trigger {
-      background:color-mix(in srgb,var(--paper) 48%,transparent);
+      background:transparent;
+      border-color:color-mix(in srgb,var(--ink) 16%,transparent);
+      border-radius:6px;
     }
   }
 }
