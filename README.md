@@ -2,7 +2,7 @@
 
 作品与文章组成的独立技术刊物。纸白、墨黑与朱红，横向切面动效。SECTION 是设计方向代号；网站名称可在 `site_config.json` 中调整。
 
-线上地址：[偏移 / OFFSET](https://offset-digital-garden.shimmeringobsidian.chatgpt.site)。网站已开放访问，GitHub 源码仓库保持私有。本地预览继续保留。
+个人主页：[偏移 / OFFSET](https://shangshui0302.github.io/)。[原 Sites 地址](https://offset-digital-garden.shimmeringobsidian.chatgpt.site) 与本地预览继续保留，GitHub 源码仓库为公开仓库。
 
 三个轻量视觉 Demo 位于 `demos/`。运行 `python3 build_demos.py` 后访问 `/demos/`，在切面、暗室档案、折叠场之间切换。它们仅用于比较视觉，正式站点构建不会自动包含 Demo；再次执行 `build_site.py` 会移除生成目录中的 Demo。暗室档案使用本机 Source Serif 4 / Noto Serif CJK SC 回退字体，不额外分发字体文件。
 
@@ -100,14 +100,14 @@ Node 检查需要先完成本地构建，验证实际搜索页面能进入缓存
 支持根域名与项目子路径；默认构建仍读取原有 `site_config.json`，不改动现有 Sites 项目或 `.openai/hosting.json`。两个脚本共享同一配置规则：`--site-url` 参数优先，其次是 `SITE_URL` 环境变量，最后是配置文件。构建与检查必须使用相同地址。
 
 ```sh
-# 仅演示项目路径的本地构建与检查；此命令不会发布网站。
-python3 build_site.py --release --site-url https://shangshui0302.github.io/offset
-python3 check_site.py --release --site-url https://shangshui0302.github.io/offset
+# 按账号主页的根路径构建与检查；此命令不会发布网站。
+python3 build_site.py --release --site-url https://shangshui0302.github.io
+python3 check_site.py --release --site-url https://shangshui0302.github.io
 python3 -m unittest discover -s tests
 node --test tests/*.test.mjs
 ```
 
-上述 Pages 地址是部署配置示例，不表示已成功上线。生成文件仍直接位于 `dist/`，不是 `dist/offset/`；页面导航、图片、CSS 字体、搜索索引和 RSS 都包含一致的 `/offset` 前缀。路由只接管相同源且位于当前站点子路径内的 HTML 导航，其他仓库站点、下载和 Demo 交给浏览器。默认根路径预览请重新运行不带覆盖参数的构建命令。
+账号主页仓库为 `Shangshui0302/Shangshui0302.github.io`，Pages 地址为 `https://shangshui0302.github.io/`。生成文件直接位于 `dist/`；页面导航、图片、CSS 字体、搜索索引和 RSS 使用根路径，不再带 `/offset` 前缀。工作流从 GitHub Pages 配置读取实际发布地址，无需硬编码仓库名。仓库改名不会为旧 `/offset/` 网站地址提供自动跳转，请更新已分享的旧链接。项目子路径构建仍作为回归检查保留；默认 Sites 预览请重新运行不带覆盖参数的构建命令。
 
 `.github/workflows/pages.yml` 使用 GitHub 官方 Actions 并固定完整提交 SHA。流程先检查根路径及 `/offset`，再以 `configure-pages` 返回的 `base_url` 构建实际发布文件，最后只上传 `dist/`。构建任务仅有源码和 Pages 元数据读取权限；独立部署任务才有 Pages 写入和 OIDC 权限。流程不创建密钥、不保存检出凭据、不自动开启 Pages，也不改变仓库可见性。运行环境使用 GitHub 托管 Ubuntu 的 Python 3 与 Node.js，无额外运行依赖。
 
