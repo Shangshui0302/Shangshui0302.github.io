@@ -14,19 +14,22 @@
     html[data-reduced-motion="false"] .topbar[data-glass-on-dark="true"] {
       color:#f5f5f7;
     }
+    html[data-reduced-motion="false"] .topbar[data-glass-on-dark="true"] .brand,
+    html[data-reduced-motion="false"] .topbar[data-glass-on-dark="true"] nav {
+      text-shadow:0 1px 3px #000b;
+    }
     html[data-reduced-motion="false"] .liquid-glass {
       display:block;
       position:absolute;
-      inset:5px var(--glass-inset);
+      inset:7px var(--glass-inset);
       z-index:-1;
       pointer-events:none;
-      border-radius:24px;
-      background:rgb(255 255 255 / .055);
-      -webkit-backdrop-filter:blur(14px) saturate(135%);
-      backdrop-filter:var(--liquid-refraction,blur(14px) saturate(135%));
-      box-shadow:inset 0 1.5px 1px #ffffffd9,inset 1.5px 0 1px #ffffff59,
-        inset -1px 0 1px #ffffff38,inset 0 -1.5px 1px #ffffff80,
-        inset 0 0 9px #ffffff26,0 2px 3px #00000017,0 8px 22px #00000012;
+      border-radius:18px;
+      background:rgb(255 255 255 / .025);
+      -webkit-backdrop-filter:blur(10px) saturate(110%);
+      backdrop-filter:var(--liquid-refraction,blur(10px) saturate(110%));
+      box-shadow:inset 0 1px 0 #ffffff52,inset 0 -1px 0 #ffffff17,
+        0 3px 12px #00000012;
     }
     html[data-reduced-motion="false"] .liquid-glass::before,
     html[data-reduced-motion="false"] .liquid-glass::after {
@@ -38,28 +41,28 @@
     }
     /* Specular rim stays separate from refraction, so labels never distort. */
     html[data-reduced-motion="false"] .liquid-glass::before {
-      padding:1.5px;
+      padding:1px;
       background:conic-gradient(from 120deg at var(--glass-x,35%) var(--glass-y,0%),
-        #ffffff00,#ffffffff 12%,#ffffff12 26%,#ffffff08 48%,#ffffffff 63%,#ffffff00 80%);
+        #ffffff00,#ffffff61 12%,#ffffff00 30%,#ffffff00 48%,#ffffff42 63%,#ffffff00 80%);
       -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
       -webkit-mask-composite:xor;
       mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
       mask-composite:exclude;
     }
     html[data-reduced-motion="false"] .liquid-glass::after {
-      background:radial-gradient(ellipse 260px 100px at var(--glass-x,35%) var(--glass-y,0%),
-        #ffffff30,transparent 75%),linear-gradient(178deg,#ffffff0f,transparent 42%,#ffffff0a);
+      background:radial-gradient(ellipse 220px 70px at var(--glass-x,35%) var(--glass-y,0%),
+        #ffffff10,transparent 75%);
     }
     html[data-reduced-motion="false"] .topbar[data-glass-ready]::before {
       left:calc(var(--glass-inset) + 24px);
       width:calc(100% - 2 * var(--glass-inset) - 48px);
-      bottom:5px;
+      bottom:7px;
     }
     html[data-reduced-motion="false"] .topbar[data-glass-ready] .theme-picker .select-trigger {
       color:inherit;
       background:transparent;
-      border-color:color-mix(in srgb,currentColor 18%,transparent);
-      border-radius:12px;
+      border-color:transparent;
+      border-radius:8px;
     }
     .liquid-glass-defs { display:block; position:absolute; width:0; height:0; pointer-events:none; }
   }
