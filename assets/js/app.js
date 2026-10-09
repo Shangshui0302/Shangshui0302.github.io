@@ -1,6 +1,7 @@
 import {createScope} from './core/scope.js';
 import {initTheme} from './core/theme.js';
 import {initMotion} from './core/motion.js';
+import {initLiquidGlass} from './components/liquid-glass.js';
 import {createRouter} from './core/router.js';
 import {enhanceSelects} from './components/select.js';
 import {initCopyCode} from './components/copy-code.js';
@@ -26,4 +27,5 @@ function mountPage(root, navigation) {
 }
 initTheme();
 initMotion();
+initLiquidGlass();
 createRouter(mountPage);
