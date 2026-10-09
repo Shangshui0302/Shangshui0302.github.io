@@ -1,3 +1,5 @@
+import {createStellarResponse} from './stellar-response.js';
+
 /* Original perspective geometry. All simulation is local and illustrative. */
 export function initStellar(root, scope) {
   const reducedQuery=matchMedia('(prefers-reduced-motion: reduce)');
@@ -18,6 +20,7 @@ export function initStellar(root, scope) {
     const setCharge = value => { if (hero.dataset.charge !== value) hero.dataset.charge = value; };
     let journeyTop=0,journeyHeight=1,journeyTarget=0,journeyProgress=0;
     let charging=false,charge=0,chargeStart=0,chargePointer=null,orbitalTime=0,burst=0,ignoreClickUntil=0;
+    const response=createStellarResponse();
     let heldPointer=null,keyboardHeld=false;
     if(!ctx){[pause,pulseButton,reset].forEach(b=>b.hidden=true);return;}
     let W=1,H=1,dpr=1,mobile=false,frame=0,last=0,drawTime=0,t=0,visible=false,manual=false,reduced=false,paused=false;
@@ -98,10 +101,10 @@ export function initStellar(root, scope) {
       ctx.fillStyle=glow;ctx.fillRect(centerX-R*1.6,centerY-R*1.6,R*3.2,R*3.2);
       ctx.beginPath();ctx.arc(centerX,centerY,R*1.023,0,TAU);ctx.fillStyle='#111214';ctx.fill();
       const paths=[new Path2D(),new Path2D(),new Path2D(),new Path2D()];
-      const heat=clamp(charge+burst*.5,0,1),green=Math.round(77+162*heat),blue=Math.round(46+187*heat);
+      const heat=clamp(response.heat+burst*.5,0,1),green=Math.round(77+162*heat),blue=Math.round(46+187*heat);
       const colors=[.15,.48,.76,1].map(alpha=>`rgba(255,${green},${blue},${alpha})`);
       const mx=(pointer.px-centerX)/R,my=(pointer.py-centerY)/R;
-      const interacting=pointer.gain>.005, ripple=energy*.012+charge*.018;
+      const interacting=pointer.gain>.005, ripple=energy*.012+response.heat*.018;
       for(const line of mesh){let previous=null,previousBucket=-1;
         for(const point of line){
           const rotated=rotate(point[0]*R,point[1]*R,point[2]*R);
@@ -139,7 +142,7 @@ export function initStellar(root, scope) {
       burst=flares.reduce((sum,f)=>sum+f.power*Math.max(0,1-(t-f.time)/1.25),0);
       const passage=reduced?0:Math.sin(journeyProgress*Math.PI)**2;
       const arrival=clamp((journeyProgress-.70)/.30,0,1);
-      R=baseR*(1+passage*4.6)*(1-arrival*.58)*(1-charge*.27+energy*.024+(dragging?.028:0));
+      R=baseR*(1+passage*4.6)*(1-arrival*.58)*(1+response.displacement+(dragging?.028:0));
       centerX=W*((mobile?.66:.725)-passage*.5-arrival*.14)+pointer.x*(mobile?8:27);
       centerY=H*((mobile?.35:.47)+passage*.32-arrival*.02)+pointer.y*18;
       camera=R*7;
@@ -169,7 +172,8 @@ export function initStellar(root, scope) {
       if(now-drawTime<(mobile?32:18))return;
       const dt=last?Math.min((now-last)/1000,.06):.016;last=now;drawTime=now;t+=dt;
       if(charging)charge=clamp((t-chargeStart)/1.65,0,1);
-      orbitalTime+=dt*(1+charge*5);
+      response.step(charge,dt);
+      orbitalTime+=dt*(1+response.heat*5);
       const smooth=1-Math.exp(-dt*5);pointer.x+=(pointer.tx-pointer.x)*smooth;pointer.y+=(pointer.ty-pointer.y)*smooth;
       pointer.gain+=((pointer.inside?1:0)-pointer.gain)*smooth;scroll+=(scrollTarget-scroll)*smooth;
       journeyProgress+=(journeyTarget-journeyProgress)*smooth;
@@ -179,8 +183,7 @@ export function initStellar(root, scope) {
       setStyle('--charge',charge.toFixed(3));
       setCharge(String(Math.round(charge*100)));
       if(charging)setText(chargeValue,charge>=1?'RELEASE TO IGNITE':String(Math.round(charge*100)).padStart(3,'0')+'%');
-      const recoil=flares.reduce((sum,f)=>{const age=t-f.time;return sum+f.power*Math.sin(age*25)*Math.exp(-age*4)*12;},0);
-      setStyle('--type-kick',`${(charge*8+recoil).toFixed(1)}px`);
+      setStyle('--type-kick',`${(-response.displacement/.27*8).toFixed(1)}px`);
       if(!dragging){yawDrag+=inertia;inertia*=Math.pow(.91,dt*60);}
       const hadFlares=flares.length;flares=flares.filter(f=>t-f.time<2.7);
       if(hadFlares&&!flares.length&&!dragging&&!charging)status.textContent='自由运行';
@@ -201,6 +204,7 @@ export function initStellar(root, scope) {
       status.textContent=paused?'静态轨道':'自由运行';
       if(frame)cancelAnimationFrame(frame);frame=0;last=0;
       if(paused||document.hidden||!visible)cancelInteraction();
+      if(paused){response.reset();setStyle('--type-kick','0px');}
       if(reduced){pointer.x=pointer.y=pointer.gain=0;flares=[];setStyle('--type-kick','0px');}
       measureJourney();
       if(visible&&!document.hidden&&!paused)frame=scope.frame(tick);
@@ -225,6 +229,7 @@ export function initStellar(root, scope) {
     }
     function ignite(x=centerX,y=centerY,power=0){
       if(paused)return;
+      if(!power)response.velocity+=.42;
       flares.push({x,y,time:t,power});if(flares.length>3)flares.shift();status.textContent=power>.3?'恒星爆发':'脉冲扩散';
     }
     function beginCharge(){
@@ -233,8 +238,9 @@ export function initStellar(root, scope) {
     }
     function cancelCharge(){
       charging=false;charge=0;keyboardHeld=false;
-      if(chargePointer!==null&&pulseButton.hasPointerCapture(chargePointer))pulseButton.releasePointerCapture(chargePointer);
-      chargePointer=null;hero.classList.remove('is-charging');setStyle('--charge','0');setCharge('0');
+      const captured=chargePointer;chargePointer=null;
+      if(captured!==null&&pulseButton.hasPointerCapture(captured))pulseButton.releasePointerCapture(captured);
+      hero.classList.remove('is-charging');setStyle('--charge','0');setCharge('0');
       chargeLabel.textContent='长按蓄能';chargeValue.textContent='HOLD TO IGNITE';
       status.textContent=paused?'静态轨道':'自由运行';
     }
@@ -266,19 +272,19 @@ export function initStellar(root, scope) {
     scope.on(hero,'lostpointercapture',e=>{if(e.pointerId===heldPointer)cancelInteraction();});
     scope.on(pause,'click',()=>{manual=!manual;sync();});
     scope.on(pulseButton,'pointerdown',e=>{
-      if(e.button!==0||paused)return;e.stopPropagation();beginCharge();chargePointer=e.pointerId;pulseButton.setPointerCapture(e.pointerId);
+      if(e.button!==0||paused||charging)return;e.stopPropagation();beginCharge();chargePointer=e.pointerId;pulseButton.setPointerCapture(e.pointerId);
     });
     scope.on(pulseButton,'pointerup',e=>{if(e.pointerId!==chargePointer)return;e.stopPropagation();releaseCharge();});
-    scope.on(pulseButton,'pointercancel',()=>{cancelCharge();status.textContent=paused?'静态轨道':'自由运行';});
-    scope.on(pulseButton,'lostpointercapture',()=>{if(charging)cancelCharge();});
+    scope.on(pulseButton,'pointercancel',e=>{if(e.pointerId===chargePointer)cancelCharge();});
+    scope.on(pulseButton,'lostpointercapture',e=>{if(e.pointerId===chargePointer&&charging)cancelCharge();});
     scope.on(pulseButton,'contextmenu',e=>e.preventDefault());
     scope.on(pulseButton,'keydown',e=>{
-      if(e.code!=='Space'||paused)return;e.preventDefault();if(!e.repeat){keyboardHeld=true;beginCharge();}
+      if(e.code!=='Space'||paused)return;e.preventDefault();if(!e.repeat&&!charging){keyboardHeld=true;beginCharge();}
     });
     scope.on(pulseButton,'keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();releaseCharge();}});
     scope.on(pulseButton,'blur',()=>{if(charging)cancelCharge();});
     scope.on(pulseButton,'click',()=>{if(performance.now()>ignoreClickUntil&&!charging)ignite();});
-    scope.on(reset,'click',()=>{cancelInteraction();yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?'静态轨道':'自由运行';draw();});
+    scope.on(reset,'click',()=>{cancelInteraction();response.reset();setStyle('--type-kick','0px');yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?'静态轨道':'自由运行';draw();});
     scope.on(window,'pageshow',sync);
     scope.on(window,'scroll',updateScroll,{passive:true});
     const resizeObserver = new ResizeObserver(resize);
@@ -293,7 +299,7 @@ export function initStellar(root, scope) {
     scope.on(document,'visibilitychange',sync);
     scope.on(reducedQuery,'change',sync);
     scope.on(window,'blur',cancelInteraction);
-    scope.on(hero,'stellar:replay',()=>{cancelInteraction();t=orbitalTime=0;manual=false;yawDrag=pitchDrag=inertia=0;flares=[];sync();});
+    scope.on(hero,'stellar:replay',()=>{cancelInteraction();response.reset();setStyle('--type-kick','0px');t=orbitalTime=0;manual=false;yawDrag=pitchDrag=inertia=0;flares=[];sync();});
     scope.own(() => {
       resizeObserver.disconnect(); intersectionObserver.disconnect(); motionObserver.disconnect(); atlasObserver.disconnect();
       cancelAnimationFrame(frame); cancelInteraction();
