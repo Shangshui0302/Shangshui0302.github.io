@@ -1,0 +1,41 @@
+{
+  "source_sha256": "d09823f38aa5c62efe51b7ede515496bbfa6088af41be763ba61bc2ff37e0371",
+  "segments": [
+    "Kernels, compressed swap, and memory pressure",
+    "<code>linux-zen</code> is a kernel option focused on the desktop experience. Test its benefits with actual workloads; its name does not tell you which scheduler it uses at any given time or guarantee smoother performance.",
+    "Keep a tested fallback kernel, and check boot entries and DKMS module support for each kernel.",
+    "zram compresses swap pages in memory, which can help relieve memory pressure. It still consumes CPU and RAM and cannot provide persistent storage or a hibernation target.",
+    "Example <code>/etc/systemd/zram-generator.conf</code>:",
+    "Adjust the size and algorithm for your workload. After the generated configuration takes effect, check it with <code>zramctl</code> and <code>swapon --show</code>. Keep separate disk-backed swap if hibernation is needed.",
+    "Experiment in <code>/etc/sysctl.d/99-zram.conf</code>:",
+    "A higher swappiness can make compressed swap more actively used, but monitor latency, compression ratios, and CPU overhead. Not every system needs 180.",
+    "oomd chooses what to terminate using pressure information such as PSI and policies on managed cgroups; it does not merely look for “processes with memory leaks.” Check desktop session integration and <code>ManagedOOM*</code> policies. Selected applications may lose unsaved work.",
+    "Weekly maintenance",
+    "Read <a href=\"https://archlinux.org/news/\" target=\"_blank\" rel=\"noopener noreferrer\">Arch News</a> before updating, then complete <code>sudo pacman -Syu</code>.",
+    "After updating the kernel or important libraries, restart the affected processes and reboot the system if necessary.",
+    "<code>paccache -r</code> keeps the latest <strong>3</strong> cached versions by default. To keep 2, use <code>sudo paccache -rk2</code>. You can inspect and enable <code>paccache.timer</code>.",
+    "Use <code>systemctl --failed</code> to check for failed services, then inspect their logs.",
+    "Monthly maintenance",
+    "Merging configuration",
+    "Use <code>pacdiff</code> or a diff tool to review <code>.pacnew</code> and <code>.pacsave</code> files. Merge new defaults with the configuration this machine requires; do not simply overwrite the original files.",
+    "Orphaned packages",
+    "First check which packages are still needed, and adjust installation reasons if necessary. When removing packages, explicitly select those you have confirmed are no longer needed:",
+    "<code>-n</code> prevents pacman-managed configuration from being saved as <code>.pacsave</code>; it does not delete all configuration in home directories. Avoid passing unchecked query results directly to a removal command.",
+    "Log storage",
+    "This deletes archived journal files until the space limit is met; active logs may not be included in this cleanup. If logs must be retained for incident investigation, export the relevant records first, then configure long-term retention according to your capacity policy.",
+    "Choosing power management",
+    "GNOME’s power-profiles-daemon and TLP provide different policies. Choose one primary manager and check for conflicts; do not disable the entire desktop power or session component.",
+    "Example TLP setup:",
+    "Decide whether to switch to TLP based on tests of power consumption, hibernation, and hardware support, rather than treating one tool as the default choice for every laptop.",
+    "Troubleshooting performance problems in order",
+    "Identify CPU, memory, storage, or device errors before changing parameters. Record response time, power consumption, or load before and after testing. Avoid changing the kernel, swap, and power management at the same time, which makes it hard to identify the cause.",
+    "How updates relate to recovery"
+  ],
+  "reference_labels": [
+    "ArchWiki: System maintenance",
+    "ArchWiki: Zram",
+    "ArchWiki: Systemd/oomd",
+    "ArchWiki: Power management",
+    "paccache(8)"
+  ]
+}

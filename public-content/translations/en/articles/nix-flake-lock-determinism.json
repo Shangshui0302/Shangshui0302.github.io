@@ -1,0 +1,26 @@
+{
+  "source_sha256": "46fdc4b29ab6102f3596b097cffb2c4de408ccc4051d6be3e3b85a2f14d9e76d",
+  "segments": [
+    "What Is flake.lock?",
+    "The first time you run <code>nix build</code> or <code>nixos-rebuild switch</code>, Nix uses the URL in <code>flake.nix</code>, such as <code>github:nixos/nixpkgs/nixos-unstable</code>, to fetch the repository's latest Commit ID from GitHub.\nThese specific Commit IDs and their corresponding hashes are recorded in a JSON file: <code>flake.lock</code>.",
+    "Why Is It So Important?",
+    "1. Strong Reproducibility",
+    "With the traditional <code>nix-channel</code> workflow, two machines running <code>nix-channel --update</code> at different times may download different package versions.\n<strong>With Flakes</strong>: as long as <code>flake.lock</code> stays unchanged, dependency sources can remain consistent for the same platform and configuration. Final outputs still depend on the platform, build determinism, availability of external resources, and impure evaluation.",
+    "2. A Powerful Collaboration Tool",
+    "If you push your NixOS configuration to GitHub, others can clone it and build with the same dependency versions. Hardware configuration, platform differences, and machine state still need to be handled individually.",
+    "Manage the Lock File",
+    "1. Update Dependencies",
+    "<strong>Update everything</strong>: <code>nix flake update</code>\nThis refreshes all dependencies to the latest Commit in their respective repositories.",
+    "<strong>Update a specific dependency</strong>: <code>nix flake update nixpkgs</code>\nThis updates only <code>nixpkgs</code>.",
+    "2. Inspect the Locked State",
+    "Open <code>flake.lock</code>, which is human-readable JSON:",
+    "<strong><code>rev</code></strong>: the specific Git Commit ID. This is the core of the lock.",
+    "Practical Advice: Commit It to Git",
+    "You <strong>must</strong> commit <code>flake.lock</code> to your Git repository. It is an integral part of your system configuration."
+  ],
+  "reference_labels": [
+    "Nix Flake Manual",
+    "Nix flake update",
+    "Nix flake check"
+  ]
+}

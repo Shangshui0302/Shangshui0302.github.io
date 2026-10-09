@@ -1,0 +1,28 @@
+{
+  "source_sha256": "8ed9cdb1bfec7cf36a0e4a8ed908ba716f7c752850ac050042223b39424cd732",
+  "segments": [
+    "The command interfaces in this article were checked against the official Distrobox 1.8.2.5 scripts. Image tags and distribution package names are examples; before using them, confirm that the images are still supported, repositories are available, and the examples match your installed version. The examples have not been tested at runtime.",
+    "This article collects several miscellaneous but important observations about Distrobox internals: package duplication, how the Starship prompt becomes available, and why an eza alias might fail.",
+    "1. Are packages duplicated inside containers?",
+    "<strong>Yes.</strong> A container has its own view of the image root filesystem (<code>/</code>), with host bind mounts layered on top. The host has its own <code>/usr/bin</code> and <code>/lib</code>, and the Arch container has its own separate <code>/usr/bin</code> and <code>/lib</code>.",
+    "So basic packages such as <code>bash</code>, <code>gcc</code>, and <code>python</code> are installed on the host and separately in the Arch and Ubuntu containers. These are independent package environments; base image layers can be shared within the same backend, so this does not mean that every byte is copied repeatedly.",
+    "<strong>They can run simultaneously without interfering with each other.</strong> When you open a terminal in the host environment, <code>python</code> invokes the host copy. After entering a container with <code>distrobox-enter arch</code>, <code>python</code> invokes the copy inside the container. You can open two terminals and run python on the host and in the container separately. Guest tools are searched by default, but shared shell configuration, PATH, HOME, networking, or explicit host-exec calls can affect resolution. Entering a container alone does not establish which executable is actually invoked.",
+    "2. Why does Starship work in the Arch container?",
+    "The prompt may still work even if Starship was not installed through the guest's pacman, but the prompt alone does not prove that it comes from a host Nix package.",
+    "<strong>Shared configuration</strong>: the default HOME mount makes <code>~/.config/starship.toml</code> and shell initialization files readable. This explains only where the configuration comes from, not whether the binary can execute.",
+    "<strong>Command resolution</strong>: distrobox-enter combines the host PATH with standard guest directories, and profile symlinks may also be visible through HOME. However, a path string does not establish that <code>/nix/store</code>, the ELF loader, and libraries are available at the same paths in the guest. A preinstalled guest package, another PATH entry, or a wrapper may also provide a command with the same name.",
+    "Once you have established the source, choose a native guest installation, complete read-only access to the Nix paths, or an explicit host-exec call. Sharing configuration does not mean sharing the entire software environment.",
+    "3. Why does Starship work while eza fails?",
+    "Different commands may resolve to different sources. Other possible causes include shell aliases or functions, broken symlinks, PATH ordering, and a missing dynamic loader. There is no universal rule that &quot;the user Nix profile is 100% exposed while the system profile is always omitted.&quot;",
+    "If <code>command -v</code> cannot find the command, first address the alias or PATH, or install the tool in the guest. If the file exists but launching it returns ENOENT, check the ELF interpreter and visibility of the <code>/nix/store</code> paths. Use <code>ldd</code> only on trusted executables; for an unknown binary, inspect its interpreter with <code>readelf -l</code> first to avoid executing untrusted content during diagnosis.",
+    "<code>distrobox-host-exec eza</code> explicitly selects the host tool, but its working directory, path arguments, and effects also belong to the host. A guest path such as <code>/run/host/...</code> may not work through the host bridge; use the actual host path or an explicit working directory instead.",
+    "Ultimately, check three things separately: which configuration the shell loaded, where the command resolves, and which side provides the required loader, libraries, and directories. A visible prompt or alias alone is not enough for a complete conclusion."
+  ],
+  "reference_labels": [
+    "Distrobox security implications",
+    "Distrobox create",
+    "Distrobox enter",
+    "Distrobox 1.8.2.5 enter implementation",
+    "host-spawn"
+  ]
+}

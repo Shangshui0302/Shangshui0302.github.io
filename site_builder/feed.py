@@ -4,10 +4,12 @@ from .templates.components import url
 
 def render_feed(config, posts, taxonomy):
     site_name, wordmark = config["site_name"], config["wordmark"]
+    language = config.get('language', 'zh-CN').lower()
+    title = wordmark if language == 'en' else f'{site_name} / {wordmark}'
     # All feed entries are explicitly allowlisted. Preview uses local URLs until approved publication.
     origin=(config.get('site_url') or 'http://127.0.0.1:4173').rstrip('/')
     rss=Element('rss',{'version':'2.0'});channel=SubElement(rss,'channel')
-    for key,value in [('title',f'{site_name} / {wordmark}'),('link',origin+'/writing/'),('description',config['description']),('language','zh-cn')]:SubElement(channel,key).text=value
+    for key,value in [('title',title),('link',origin+'/writing/'),('description',config['description']),('language',language)]:SubElement(channel,key).text=value
     for post in posts:
         node=SubElement(channel,'item')
         for key,value in [('title',post['title']),('link',origin+url('writing',post)),('guid',origin+url('writing',post)),('description',post['deck'])]:SubElement(node,key).text=value

@@ -1728,3 +1728,5 @@
     transform:none!important
   }
 }
+
+html[lang="en"] .map-line::after { content:'Template mapping'; }

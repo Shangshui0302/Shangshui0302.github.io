@@ -1,0 +1,26 @@
+{
+  "source_sha256": "f924d2744336ab8768131f689503d6260883997243a9bbf0c57161de6183e2d9",
+  "segments": [
+    "Version scope: the examples below retain the tutorial's NixOS 24.05 context; that release is no longer maintained. For a real project, choose a supported release, pin the nixpkgs revision, and check the corresponding options. <code>system.stateVersion</code> defines a compatibility baseline and should not be changed mechanically on every upgrade. The commands in this article are teaching examples and have not been run or verified on the target system.",
+    "Overview",
+    "NixOS can build custom bootable ISO images for:",
+    "Creating custom installation media",
+    "Making system maintenance media",
+    "Deploying preconfigured systems",
+    "Basic configuration",
+    "Create an <code>iso.nix</code> file:",
+    "Building the ISO",
+    "The generated ISO is in <code>./result/iso/</code>. Its filename depends on the build configuration; confirm it with <code>ls ./result/iso/</code> rather than assuming a fixed name.",
+    "A graphical ISO",
+    "An ISO with the GNOME desktop environment:",
+    "Building with Flakes",
+    "Build:",
+    "Writing the ISO to a USB drive",
+    "Writing the image overwrites the entire target drive. Back up the target USB drive first, confirm its model, capacity, and device path, and unmount its mounted partitions. The target must be the whole drive, not an individual partition. Replace the placeholder below; do not run the command as written.",
+    "A successful ISO build does not guarantee a successful boot on physical hardware. You can first test the boot menu and required software in QEMU, then check UEFI/BIOS support, drivers, and networking on the target hardware."
+  ],
+  "reference_labels": [
+    "nix.dev ISO tutorial",
+    "NixOS installation manual"
+  ]
+}

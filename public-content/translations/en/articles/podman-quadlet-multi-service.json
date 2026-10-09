@@ -1,0 +1,24 @@
+{
+  "source_sha256": "a4e5432f8a10781daa50d9502a8dea046088da703d7499e4450eb6402dffc9a1",
+  "segments": [
+    "First read <a href=\"/writing/quadlet-service-lifecycle/\">Quadlet Service Lifecycle</a> for generation, loading, startup, logs, persistence, and boot-time requirements. This article provides in-depth examples of Pods and complete multi-service configurations.",
+    "Environment variables and sensitive information",
+    "Networking and ports",
+    ".pod files: declarative Pod definitions",
+    "Reference a Pod in a <code>.container</code> file:",
+    "A multi-container application: database, API, and proxy",
+    "This example uses an Nginx reverse proxy + Python API + PostgreSQL.",
+    "File structure",
+    "Deployment",
+    "Template prerequisites and boundaries",
+    "These code blocks represent separate files. The image <code>registry.example.com/demo/myapi:latest</code> is a nonfunctional placeholder that must be replaced; the API image must provide curl, a health endpoint, and database connection retries. Prepare the Nginx configuration file yourself, pointing its upstream to app-api:3000; the example does not present an unspecified application as a ready-to-deploy product. EnvironmentFile must exist, have restricted permissions, and contain variables only in the application’s required format. Keep it out of git/the Nix store; environment variables themselves can also be read by processes with permission to inspect them.",
+    "<code>.volume</code> references give data an independent lifecycle, while <code>.network</code> provides name resolution. Use SELinux’s Z only for dedicated directories. Pod files suit containers that need to share localhost; do not mechanically mix them into an existing bridge-based multi-service design, since containers in the same Pod share ports and can conflict. <code>HealthCmd</code> runs inside the container, and <code>Notify=healthy</code> requires support in the installed version; design application readiness and ongoing health recovery separately.",
+    "For automatic updates, linger, generator checks, and service removal, refer to the lifecycle article. Do not run enable on generated services."
+  ],
+  "reference_labels": [
+    "Official Podman run Manual",
+    "Official Podman Overview and Rootless Documentation",
+    "Official Quadlet Syntax",
+    "Quadlet Container Health and Notifications"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "source_sha256": "2395d31a86d43df01f3b76f8ca5cbb96d7ad7274d62bf83bd81d8d359bf0d25a",
+  "segments": [
+    "Pacman efficiency and hooks",
+    "Parallel downloads",
+    "In <code>/etc/pacman.conf</code>, set the following under <code>[options]</code>:",
+    "Adjust this to suit your bandwidth and the load on the mirror. More parallel downloads do not guarantee better speed; server connection or rate limits may apply.",
+    "A hook to report orphaned packages",
+    "You can configure the following in <code>/etc/pacman.d/hooks/orphan-check.hook</code>:",
+    "This example only reports packages; it does not remove them. <code>pacman -Qtd</code> returns a nonzero status when there are no matches. The fallback message in the script may also conceal a genuine query failure, so automated maintenance should log stderr and distinguish the causes.",
+    "AUR helpers: Paru and Yay",
+    "The AUR provides user-submitted build scripts, which are not the same as prebuilt packages from the official repositories. AUR helpers are not officially supported and do not replace a review of <code>PKGBUILD</code>, installation scripts, and changes.",
+    "Tool",
+    "Implementation language",
+    "What to check when using it",
+    "diff/pager review settings, build directories, and whether chroot integration is enabled",
+    "diff/cleanbuild prompts, dependency handling, and the actual build mode",
+    "Preview features, resource usage, and chroot support vary by version and configuration; do not infer performance advantages without measurements. A clean build can prevent interference from old artifacts, but <code>CleanBuild</code> does not automatically provide security isolation.",
+    "Review and clean builds",
+    "Why review a PKGBUILD?",
+    "A <code>PKGBUILD</code> is itself executable shell code: reading files, accessing the network, and running other programs can all happen during the build. Do not run <code>makepkg</code> as root or build unreviewed scripts in a working directory that contains sensitive credentials.",
+    "Clean chroots with devtools",
+    "The main purpose of a clean chroot is to provide consistent build dependencies and environments, preventing packages installed on the host from hiding missing dependencies. It is not equivalent to a sandbox with no network, no host mounts, or absolute protection from malicious code. Untrusted builds can be further confined to a dedicated virtual machine or a restricted account/environment.",
+    "Performance settings in makepkg.conf",
+    "Adjust parallel compilation to suit available memory. High compression levels increase packaging time and resource use, so use them only when smaller artifacts are genuinely needed. Experiment in the user-level makepkg configuration rather than treating machine-specific settings as optimal for every system.",
+    "Reproducible builds and distribution integrity",
+    "Reproducible builds concern whether the same inputs and environment produce identical artifacts. <code>archlinux-repro</code> is one of the relevant tools:",
+    "The <code>repro verify &lt;package_name&gt;</code> command from the original notes cannot be assumed to work across versions. Identical artifacts are evidence of reproducibility; they do not by themselves prove that source code is free of malicious behavior. Package signature verification, trusted keys, source code review, and independent rebuilds each serve different purposes.",
+    "The package management workflow",
+    "When synchronizing repository databases, perform a full system upgrade: <code>sudo pacman -Syu</code>. Do not use <code>pacman -Sy package</code> and create an unsupported partial upgrade."
+  ],
+  "reference_labels": [
+    "ArchWiki: Pacman",
+    "ArchWiki: Arch User Repository",
+    "ArchWiki: DeveloperWiki:Building in a clean chroot",
+    "ArchWiki: Reproducible builds",
+    "alpm-hooks(5)"
+  ]
+}

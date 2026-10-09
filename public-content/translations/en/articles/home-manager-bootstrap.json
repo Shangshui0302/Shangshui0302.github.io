@@ -1,0 +1,33 @@
+{
+  "source_sha256": "5ad240c2c4c077ade0f62fc3ecf411b6a9d2d2948db226957f878db4c477492c",
+  "segments": [
+    "Trade-offs between the two installation modes",
+    "Feature",
+    "1. Standalone mode",
+    "2. NixOS module mode",
+    "<strong>Command to apply changes</strong>",
+    "<strong>Independence</strong>",
+    "High; no system configuration changes required",
+    "Low; must be included in the system configuration",
+    "<strong>Rollback</strong>",
+    "System and HM rollbacks are separate",
+    "Rolls back with the system (closely synchronized)",
+    "<strong>Recommended for</strong>",
+    "People who want to use Nix on Arch/macOS",
+    "<strong>NixOS users (strongly recommended)</strong>",
+    "In practice: integrate as a module in a flake",
+    "This approach ensures that your system and personal configuration are managed through the same <code>flake.lock</code>.",
+    "1. Edit flake.nix",
+    "2. Create home.nix",
+    "This is the core of your personal configuration.",
+    "Modularize your home.nix",
+    "As your configuration grows, <code>home.nix</code> can become very unwieldy. Use <code>imports</code> to split it up:",
+    "Why choose module mode?",
+    "When you select an older version in the boot menu to roll back, module mode includes the corresponding Home Manager activation entry in the system configuration. Still check the activation service to confirm whether the user configuration has actually switched. Mutable application data, running processes, and databases do not automatically revert to a historical snapshot."
+  ],
+  "reference_labels": [
+    "Home Manager manual",
+    "Home Manager command source code",
+    "Home Manager file option source code"
+  ]
+}

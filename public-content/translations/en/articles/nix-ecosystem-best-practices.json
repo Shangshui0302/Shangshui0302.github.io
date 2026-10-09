@@ -1,0 +1,38 @@
+{
+  "source_sha256": "29b63f273ab2ecfb3c5bb0eb773514c308d2b6fde5045a79f5cc2d92b7e372d9",
+  "segments": [
+    "1. Version management",
+    "Version scope: the original notes use examples centered on NixOS 24.05, Python 3.11, Node 20, and similar versions. Historical pins are retained below for context; 24.05 should not be treated as a currently security-supported branch. When migrating, choose inputs that are still supported and assess changes to the pinned source and options.",
+    "Pinning the Nixpkgs version",
+    "Avoid configuration drift and ensure reproducibility:",
+    "Enabling Flakes",
+    "2. Configuration organization",
+    "Recommended directory structure",
+    "A modular configuration example",
+    "3. Routine maintenance",
+    "System updates",
+    "Disk cleanup",
+    "Backup strategy",
+    "4. Security recommendations",
+    "5. Development environments",
+    "Using direnv",
+    "Project-specific development environments",
+    "6. Performance optimization",
+    "7. Troubleshooting",
+    "Unable to boot because of a configuration error",
+    "Clearing swap",
+    "Disable swap only after confirming that free memory can accommodate the swapped-out pages and that no critical workloads are running. Otherwise, you may run out of memory. This is not a general-purpose performance fix.",
+    "Viewing system logs",
+    "8. Recommended tools",
+    "9. Learning resources",
+    "<a href=\"https://nixos.org/manual/nixos/stable/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS manual</a>",
+    "<a href=\"https://nixos-cn.org/\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Chinese community</a>",
+    "The limits of reproducibility, updates, and backups",
+    "<code>flake.lock</code> pins inputs; automatic updates deliberately change the inputs and system state. <code>allowReboot = false</code> only restricts automatic reboots, not the application of service changes. A Borg configuration also requires checking repository initialization, permissions, encryption, and recovery drills. System rollback is not a substitute for backing up <code>/home</code> data."
+  ],
+  "reference_labels": [
+    "NixOS manual",
+    "Nix GC options",
+    "Nixpkgs"
+  ]
+}

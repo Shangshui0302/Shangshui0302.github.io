@@ -1,0 +1,41 @@
+{
+  "source_sha256": "f329cb0e0998b9c374c0650d983a917040e06ffb92d7df558ee4d52fc33d590c",
+  "segments": [
+    "1. What it is",
+    "fzf (fuzzy finder) is a general-purpose command-line fuzzy search tool. Its operating model is simple: <strong>read a list from stdin → filter interactively → write the selected result to stdout</strong>.",
+    "Compared with <code>Ctrl+R</code> (history search), fzf is general-purpose: it can search file lists, process lists, git branches, or any list of text.",
+    "2. Basic usage",
+    "3. Common combinations",
+    "4. Keyboard shortcuts",
+    "Key",
+    "Action",
+    "Move up/down",
+    "Move up/down (vi style)",
+    "Confirm selection",
+    "Cancel",
+    "Jump to the beginning / end of the line",
+    "Mark multiple selections",
+    "5. Common options",
+    "6. Advanced bindings (shell integration)",
+    "After installing fzf, enable shell integration to replace the default <code>Ctrl+R</code> and <code>Ctrl+T</code>:",
+    "Once enabled, you get:",
+    "<code>Ctrl+R</code> — fuzzy-search command history (replaces the native binding)",
+    "<code>Ctrl+T</code> — fuzzy-search files in the current directory and paste the path",
+    "<code>Alt+C</code> — fuzzy-search directories and cd to one",
+    "Everyday use: quick reference",
+    "I want to...",
+    "Command",
+    "Quickly open a file",
+    "Use the NUL-delimited <code>read</code> example above",
+    "Switch to a git branch",
+    "Kill a process",
+    "Search command history",
+    "<code>Ctrl+R</code> (after enabling fzf shell integration)",
+    "Select a file and preview its contents",
+    "The assignment, <code>read -d</code>, and process-substitution examples above use Bash. <code>-r</code>, <code>-o</code>, and <code>-p</code> are the GNU xargs options used here. Terminating processes and running cherry-pick change state, so first inspect the selected PID or commit and the working tree. fzf is only a selector; you still need to check the upstream list and downstream operation. Ordinary newline-delimited lists are unsuitable for filenames containing newlines. <code>fzf --bash/--zsh/--fish</code> requires a version that supports that interface; for older versions, enable integration using the scripts supplied by the installed package."
+  ],
+  "reference_labels": [
+    "Official fzf documentation",
+    "GNU xargs options"
+  ]
+}

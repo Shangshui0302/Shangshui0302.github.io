@@ -1,0 +1,33 @@
+{
+  "source_sha256": "372c9b27a0d19c033d346108aaf8e23a5c2759cda068d5b654de913cf9add6df",
+  "segments": [
+    "Nix expressions can return values of any type. The build workflow discussed here begins only when evaluation produces a derivation and the build descriptions for its dependencies.",
+    "What is a derivation?",
+    "A derivation is a core Nix primitive. It is a text file with a <code>.drv</code> suffix that describes how to build a package:",
+    "<strong>Inputs</strong>: source code, dependency packages, and build scripts.",
+    "<strong>Build environment</strong>: the build platform, builder, and environment parameters. Sandbox isolation depends on the platform and Nix settings; not every build is guaranteed to be fully isolated.",
+    "<strong>Outputs</strong>: the binaries, libraries, and documentation produced by the build.",
+    "Breaking down the build process",
+    "<strong>Evaluation</strong>: The Nix interpreter runs your <code>.nix</code> code and generates <code>.drv</code> files.",
+    "<strong>Realisation</strong>: Nix checks for existing outputs, preferring to download substitutes from trusted caches; otherwise, it builds according to the <code>.drv</code> file. The traditional <code>nix-instantiate</code> command evaluates expressions to produce build descriptions; it does not run the builds.",
+    "<strong>Storage</strong>: Build results are stored in <code>/nix/store</code>.",
+    "Immutability, input addressing, and content addressing",
+    "<strong>Where the hash prefix comes from</strong>: Common derivation outputs are input-addressed: their paths are determined by the build description, dependencies, and related inputs. The prefix should not simply be described as a hash of the output contents. Fixed-output and content-addressed derivations use different path rules and need to be distinguished.",
+    "<strong>The magic of caching</strong>: If the hash of what you are building already exists in a binary cache such as <code>cache.nixos.org</code>, Nix can download the corresponding outputs from a trusted substituter and avoid building locally.",
+    "Why does your configuration go into /nix/store too?",
+    "When you run <code>nixos-rebuild switch</code>, module evaluation generates build descriptions for the system closure. The outputs include activation scripts, service definitions, generated configuration, and their dependencies. Activation then connects the generated files to locations such as <code>/etc</code>. Your source configuration may enter the store as part of the Flake source, but rolling back does not restore the source files in your working directory.",
+    "This is why you can <strong>roll back the system</strong>: the old configuration files are also in <code>/nix/store</code>, and switching back just changes the targets of the symbolic links again.",
+    "A developer's view: nix-shell",
+    "<code>nix-shell</code> provides a derivation's build dependencies and corresponding environment. It normally does not run the target package's final builder, though it may still build or download dependencies. <code>nix develop</code> is intended for Flake development environments, while <code>nix shell</code> primarily adds programs provided by packages to PATH. The three are not fully equivalent.",
+    "Summary: the three stages of Nix",
+    "<strong>Describe</strong>: Write attribute sets in <code>.nix</code> files.",
+    "<strong>Derive</strong>: Generate a <code>.drv</code> build plan.",
+    "<strong>Produce</strong>: Create read-only directories in <code>/nix/store</code>."
+  ],
+  "reference_labels": [
+    "NixOS manual",
+    "Nix language manual",
+    "Nix: Derivations",
+    "Nix: Store Path"
+  ]
+}

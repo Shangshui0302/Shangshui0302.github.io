@@ -1,0 +1,25 @@
+{
+  "source_sha256": "0e2e4f675fde3edeadbc97d897adcfad553b982916b4d13174370707289d9761",
+  "segments": [
+    "What is flake-utils?",
+    "Flake <code>outputs</code> often require the same attribute sets to be defined repeatedly for different architectures, such as <code>x86_64-linux</code> and <code>aarch64-linux</code>, making the code very verbose.\n<code>flake-utils</code> provides a simple helper function to eliminate this repetition.",
+    "1. The traditional approach",
+    "You need to iterate over all architectures manually.",
+    "2. A concise approach with flake-utils",
+    "<strong><code>eachDefaultSystem</code></strong>: generates outputs for the library’s default list of systems. Use <code>eachSystem</code> to specify your own set of platforms.",
+    "Flake templates",
+    "Flakes let you create templates that other people can use to initialize projects quickly with a single command.",
+    "1. View the official templates",
+    "2. Initialize a project from a template",
+    "3. Define templates in your own Flake",
+    "You can turn your configuration into a template to share with others:",
+    "Why does this matter?",
+    "On NixOS, defining your own Flake templates lets you set up development environments for different languages quickly, without having to configure <code>PATH</code> manually."
+  ],
+  "reference_labels": [
+    "Nix Flake manual",
+    "Nix flake update",
+    "Nix flake check",
+    "Upstream flake-utils"
+  ]
+}

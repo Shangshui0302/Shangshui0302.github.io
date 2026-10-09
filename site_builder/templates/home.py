@@ -5,7 +5,7 @@ from .stellar import render_stellar
 from .visuals import visual
 
 def render_home(ROOT, works, selection, topics, taxonomy):
-    stellar_hero = render_stellar(ROOT)
+    stellar_hero = render_stellar(ROOT, works)
     hero, featured_works, featured_posts = selection
     features = ''
     for item in featured_works:

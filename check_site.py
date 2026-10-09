@@ -10,8 +10,11 @@ from xml.etree import ElementTree
 import json
 import re
 import argparse
+from hashlib import sha256
 from site_builder.release import check_release_output
 from site_builder.urls import load_config, SiteURLs
+from site_builder.article_translation import apply_translation
+from site_builder.i18n import canonical_route
 
 ROOT = Path(__file__).parent
 OUT = ROOT / 'dist'
@@ -34,10 +37,24 @@ class Page(HTMLParser):
         super().__init__()
         self.ids, self.links, self.rows, self.h1 = [], [], [], 0
         self.nested_link, self.inside_link = False, False
+        self.language = None
+        self.language_links, self.alternates = {}, {}
+        self.canonical = None
+        self.content_hash = None
         self.feed(content)
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if 'data-content-hash' in attrs:
+            self.content_hash = attrs['data-content-hash']
+        if tag == 'html':
+            self.language = attrs.get('lang')
+        if tag == 'a' and 'data-language' in attrs:
+            self.language_links[attrs['data-language']] = attrs.get('href')
+        if tag == 'link' and attrs.get('rel') == 'canonical':
+            self.canonical = attrs.get('href')
+        if tag == 'link' and attrs.get('rel') == 'alternate' and 'hreflang' in attrs:
+            self.alternates[attrs['hreflang']] = attrs.get('href')
         if 'id' in attrs:
             self.ids.append(attrs['id'])
         if tag == 'h1':
@@ -61,6 +78,18 @@ assert pages, 'Build the site before checking it'
 errors, references = [], 0
 for path, page in pages.items():
     route = str(path.relative_to(OUT))
+    if not route.startswith('demos/'):
+        english = route.startswith('en/')
+        logical = route[3:] if english else route
+        logical = '/' + logical.removesuffix('index.html')
+        zh, en = urls.mount(logical), urls.mount('/en' + logical)
+        origin = config['site_url'][:-len(urls.base_path)] if urls.base_path else config['site_url']
+        assert page.language == ('en' if english else 'zh-CN'), f'Wrong document language: {route}'
+        assert page.language_links == {'zh-CN': zh, 'en': en}, f'Wrong language counterparts: {route}'
+        canonical_logical = canonical_route(logical)
+        meta_zh, meta_en = urls.mount(canonical_logical), urls.mount('/en' + canonical_logical)
+        assert page.canonical == origin + (meta_en if english else meta_zh), f'Wrong canonical: {route}'
+        assert page.alternates == {'zh-CN': origin + meta_zh, 'en': origin + meta_en, 'x-default': origin + meta_zh}, f'Wrong language alternates: {route}'
     if len(page.ids) != len(set(page.ids)):
         errors.append(f'Duplicate id: {route}')
     if page.nested_link:
@@ -75,6 +104,10 @@ for path, page in pages.items():
             if url.scheme in ('javascript', 'file'):
                 errors.append(f'Unsafe link scheme: {route}')
             continue
+        if route.startswith('en/') and tag in ('a', 'form') and key in ('href', 'action') and url.path.startswith('/') and attrs.get('data-language') != 'zh-CN':
+            local_route = '/' + urls.local_path(url.path)
+            if local_route == '/' or re.match(r'^/(?:work|writing|journal|topics|index)(?:/|$)', local_route):
+                errors.append(f'English link leaves its locale: {value}: {route}')
         references += 1
         target = (OUT / urls.local_path(url.path) if url.path.startswith('/') else path.parent / url.path).resolve() if url.path else path
         if target.is_dir():
@@ -83,6 +116,12 @@ for path, page in pages.items():
             errors.append(f'Missing {value}: {route}')
         elif url.fragment and target in pages and unquote(url.fragment) not in pages[target].ids:
             errors.append(f'Missing anchor {value}: {route}')
+
+# Every Chinese document has a separately addressable English counterpart.
+for path in list(pages):
+    route = path.relative_to(OUT)
+    if route.parts[0] not in ('en', 'demos'):
+        assert (OUT / 'en' / route).resolve() in pages, f'Missing English route: {route}'
 
 for topic in topics:
     assert OUT.joinpath('writing/topics', topic['slug'], 'index.html').is_file()
@@ -98,7 +137,7 @@ for path in (OUT / 'assets').rglob('*'):
     for ref in refs:
         if urlsplit(ref).scheme:
             continue
-        target = OUT / urls.local_path(ref) if ref.startswith('/') else path.parent / ref
+        target = OUT / urls.local_path(ref) if ref.startswith('/') else path.parent / urlsplit(ref).path
         assert target.resolve().is_file(), f'Missing asset import: {path.name} -> {ref}'
 for path in OUT.rglob('index.html'):
     if '/demos/' not in str(path):
@@ -107,6 +146,7 @@ for path in OUT.rglob('index.html'):
 for post in posts:
     for prefix in ('writing', 'journal'):
         assert OUT.joinpath(prefix, post['slug'], 'index.html').is_file()
+        assert pages[OUT.joinpath(prefix, post['slug'], 'index.html').resolve()].content_hash == sha256(post['body'].encode()).hexdigest(), f'Stale Chinese article output: {post["slug"]}'
     headings = [(anchor, unescape(label)) for anchor, label in re.findall(r'<h2 id="([^"]+)">([^<]+)</h2>', post['body'])]
     assert headings == [tuple(pair) for pair in post['sections']], f'Article outline mismatch: {post["slug"]}'
 
@@ -135,6 +175,20 @@ for post, item in zip(posts, feed):
         assert item.findtext(field) == f'{origin}/writing/{post["slug"]}/', f'RSS {field} mismatch: {post["slug"]}'
     assert [node.text for node in item.findall('category')] == [taxonomy['categories'][post['category_id']]['label'], *[taxonomy['tags'][tag] for tag in post['tags']]]
 
+# English subscribers receive translated titles, summaries, taxonomy and stable /en/ links.
+en_feed_root = ElementTree.parse(OUT / 'en/feed.xml')
+assert en_feed_root.findtext('channel/language') == 'en'
+assert en_feed_root.findtext('channel/link') == origin + '/en/writing/'
+en_feed = en_feed_root.findall('channel/item')
+assert len(en_feed) == len(posts)
+en_catalog = json.loads((ROOT / 'public-content/translations/en/catalog.json').read_text())
+for post, item in zip(posts, en_feed):
+    for field in ('link', 'guid'):
+        assert item.findtext(field) == f'{origin}/en/writing/{post["slug"]}/', f'English RSS {field} mismatch'
+    assert item.findtext('title') == en_catalog['writing'][post['slug']]['title']
+    assert item.findtext('description') == en_catalog['writing'][post['slug']]['deck']
+    assert [node.text for node in item.findall('category')] == [en_catalog['taxonomy']['categories'][post['category_id']]['label'], *[en_catalog['taxonomy']['tags'][tag] for tag in post['tags']]]
+
 # The directory shell stays small enough for the application's page cache.
 search_html = (OUT / 'index/index.html').read_text()
 assert len(search_html.encode('utf-16-le')) <= 800_000, 'Search HTML exceeds the page cache budget'
@@ -145,6 +199,32 @@ expected_urls = {f'/work/{slug}/' for slug in manifest['work']} | {f'/writing/{s
 expected_urls = {urls.mount(value) for value in expected_urls}
 assert len(records) == len(expected_urls) and {record['url'] for record in records} == expected_urls, 'Search index coverage mismatch'
 assert all(isinstance(record['text'], str) and record['text'] for record in records)
+
+en_search_html = (OUT / 'en/index/index.html').read_text()
+assert len(en_search_html.encode('utf-16-le')) <= 800_000, 'English search HTML exceeds cache budget'
+en_index_path = re.search(r'data-search-index="([^"]+)"', en_search_html)[1]
+en_records = json.loads((OUT / urls.local_path(en_index_path)).read_text())
+en_expected = {urls.mount('/en/' + urls.local_path(value)) for value in expected_urls}
+assert len(en_records) == len(en_expected) and {record['url'] for record in en_records} == en_expected, 'English search coverage mismatch'
+assert en_index_path != index_path, 'Language search indexes must be independently versioned'
+
+translated_count = 0
+for post in posts:
+    translation_path = ROOT / 'public-content/translations/en/articles' / (post['slug'] + '.json')
+    if translation_path.exists():
+        translated = apply_translation(post, json.loads(translation_path.read_text()))
+        assert re.findall(r'<pre>[\s\S]*?</pre>', translated['body']) == re.findall(r'<pre>[\s\S]*?</pre>', post['body']), f'Changed code blocks: {post["slug"]}'
+        assert re.findall(r'<code\b[^>]*>[\s\S]*?</code>', translated['body']) == re.findall(r'<code\b[^>]*>[\s\S]*?</code>', post['body']), f'Changed inline code: {post["slug"]}'
+        assert re.findall(r'(?:href|src)="[^"]*"', translated['body']) == re.findall(r'(?:href|src)="[^"]*"', post['body']), f'Changed content links: {post["slug"]}'
+        for prefix in ('writing', 'journal'):
+            rendered = pages[OUT.joinpath('en', prefix, post['slug'], 'index.html').resolve()]
+            assert rendered.content_hash == sha256(translated['body'].encode()).hexdigest(), f'Stale English article output: {post["slug"]}'
+            rendered_html = OUT.joinpath('en', prefix, post['slug'], 'index.html').read_text()
+            assert re.findall(r'<code\b[^>]*>[\s\S]*?</code>', rendered_html) == re.findall(r'<code\b[^>]*>[\s\S]*?</code>', post['body']), f'Changed rendered code: {post["slug"]}'
+        translated_count += 1
+if args.release:
+    assert translated_count == len(posts), 'Release requires every English article body'
+
 
 def json_text(value):
     """Inspect decoded strings so JSON quote escapes cannot become path characters."""
@@ -170,7 +250,7 @@ for path in OUT.rglob('*'):
         if Path.home().name not in ('root', 'user') and str(Path.home()) + '/' in local_text:
             errors.append(f'Local account name: {path.relative_to(OUT)}')
 
-report = {'pages': len(pages), 'local_references': references, 'articles': len(posts), 'topics': len(topics), 'categories': len({post['category_id'] for post in posts}), 'tags': len({tag for post in posts for tag in post['tags']}), 'errors': errors}
+report = {'pages': len(pages), 'local_references': references, 'articles': len(posts), 'translated_articles': translated_count, 'topics': len(topics), 'categories': len({post['category_id'] for post in posts}), 'tags': len({tag for post in posts for tag in post['tags']}), 'errors': errors}
 print(json.dumps(report, ensure_ascii=False))
 assert not errors, '\n'.join(errors)
 

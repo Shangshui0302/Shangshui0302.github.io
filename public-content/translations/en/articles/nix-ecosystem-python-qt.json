@@ -1,0 +1,36 @@
+{
+  "source_sha256": "8cca3895cf140785ad5655d00798bb77100832840d31acb92c40f746f6a5d70f",
+  "segments": [
+    "Technology stack: nix-shell + uv + direnv",
+    "Main issues: Python compilation problems and plotting problems with matplotlib.",
+    "Example shell.nix configuration",
+    "If you need to override the backend in code, do so before importing <code>pyplot</code>; this is unnecessary if <code>MPLBACKEND</code> is already set:",
+    "How to find missing dependencies",
+    "1. nix-locate (look up a package by its .so filename)",
+    "Install <code>nix-index</code> and build the index first: <code>nix-index</code> (the first run takes a few minutes).",
+    "2. Search the nixpkgs website",
+    "Package search primarily searches package metadata, not a complete file index. Once you know a candidate package name, confirm its attribute here: <a href=\"https://search.nixos.org/packages\" target=\"_blank\" rel=\"noopener noreferrer\">search.nixos.org</a>",
+    "3. Diagnose PyPI package dependencies with ldd",
+    "Use <code>ldd</code> only on trusted binaries; for untrusted files, first inspect dependencies statically with <code>readelf -d</code> or <code>objdump -p</code>. Paths vary with the Python and PyQt versions.",
+    "List all missing <code>.so</code> files at once, then look them up in bulk with <code>nix-locate</code>.",
+    "<strong>Recommended workflow</strong>: find all missing libraries with <code>ldd</code> → look up package names with <code>nix-locate</code> → add them to shell.nix in one pass",
+    "Interim summary (2026-04-08)",
+    "The central issue in this record is <strong>inconsistent search paths and ABIs when mixing PyPI wheels, Qt plugins, and system libraries supplied by Nix</strong>; uv and Nix do not inherently conflict.",
+    "<strong>uv’s design philosophy</strong>: it typically resolves Python dependencies and installs them into <code>.venv</code>; wheels with native extensions may still depend on system libraries supplied by the environment.",
+    "<strong>Nix’s design philosophy</strong>: all dependencies are in the Nix store (<code>/nix/store/…</code>), rather than standard system paths.",
+    "Pure Python packages pose no conflict, but the matplotlib+Qt chain requires system libraries:",
+    "Pitfalls encountered:",
+    "PyQt5 from PyPI bundles its platform plugin but lacks almost all X11 libraries",
+    "Adding libraries to <code>LD_LIBRARY_PATH</code> caused version mismatches and <code>undefined symbol</code> errors",
+    "PyQt5 was moved under Nix management, but uv’s <code>.venv</code> overrode PATH",
+    "<code>--python $(which python3)</code> selected Nix’s Python, but matplotlib was still in the venv",
+    "<strong>The solution this troubleshooting record settled on</strong>: manage matplotlib, PyQt, and the Qt5 system libraries through the same Nixpkgs to reduce ABI mixing. uv can also be used for projects with native dependencies, but it requires the correct dynamic-library environment, compatible wheels, and a Python path strategy; globally piling additions onto LD_LIBRARY_PATH is not enough.",
+    "Versions and the two dependency paths",
+    "This article retains the Python 3.12 / Qt5 examples from the 2026-04-08 record; backend names, plugin paths, and package attributes depend on the version in use. The pure <code>withPackages</code> approach uses that Python directly. If you also create a uv virtual environment, be explicit about which packages come from PyPI and which system libraries come from Nix, and plan for <code>--system-site-packages</code> if needed, rather than mixing two Qt/PyQt installations in the search paths. Before querying <code>nix-locate</code>, build or obtain a file index appropriate for the system."
+  ],
+  "reference_labels": [
+    "Nix Python development environments",
+    "Matplotlib backends",
+    "Python limitations of nix-ld"
+  ]
+}

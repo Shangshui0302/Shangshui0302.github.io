@@ -1,0 +1,39 @@
+{
+  "source_sha256": "938670361fd15f1c35e14f0472148e32322f61ddbd9c22b7550868e456a71abc",
+  "segments": [
+    "Verification scope: the nixpkgs <code>nixos-unstable</code> modules and upstream documentation consulted in October 2026. Group lists, package counts, and service defaults change with the revision; deployments should use the nixpkgs and Home Manager sources pinned by the project as the authority. No build, activation, or desktop runtime tests were performed for this article.",
+    "Why use it?",
+    "NixOS follows the idea of &quot;one flake describing the whole system.&quot; Sometimes, though, you want <strong>multiple variants</strong>: kmscon + Hyprland/niri by default, with a full GNOME desktop available occasionally. Adding GNOME directly would intrude on the main configuration by changing the display manager and adding a large set of packages. Specialisation lets you <strong>derive multiple independent system configurations within one flake</strong>, each with its own boot entry.",
+    "Uses",
+    "Coexisting desktop environments (for example, a TTY in the base configuration and GDM in the gnome variant)",
+    "Isolating experimental configurations, such as a different kernel or kernel parameters",
+    "Keeping the default system as a recovery option; user data, disks, and some runtime state are still shared",
+    "How it works: more than copying a configuration file",
+    "How Specialisation is built (nixpkgs source: <code>activation/specialisation.nix</code>):",
+    "Each <code>specialisation.&lt;name&gt;</code> uses <code>extendModules</code> to create an independent child configuration by <strong>extending the parent configuration's module graph</strong>. This is a native feature of the module system, not a copy of the configuration.",
+    "<code>inheritParentConfig = true</code> (the default) → the child inherits the entire main system, with its <code>configuration</code> block <strong>layered on top</strong>",
+    "Each variant produces a <strong>complete, independent toplevel</strong>, with its own systemd units, activation script, and /etc",
+    "The parent toplevel references them through symlinks at <code>$out/specialisation/&lt;name&gt;</code>",
+    "The bootloader discovers them through bootspec (RFC 0125) and creates boot entries",
+    "A variant therefore has an independent system toplevel, but it is not a VM or container and does not isolate user data. The Nix store shares identical dependencies; the actual costs are the additional closure references, differing packages, and build work.",
+    "Configuration",
+    "Inheritance and overrides: mkForce / mkDefault",
+    "A variant <strong>inherits</strong> the main configuration, which may include kmscon, other compositors, input methods, and Home Manager declarations, depending on the parent",
+    "To override options <strong>assigned directly</strong> in the main configuration (<code>enable = true</code>), a variant must use <code>lib.mkForce</code>. A different value at the same priority usually produces a conflicting definitions error; mergeable types such as lists instead follow their merge rules.",
+    "To make a value in the main configuration <strong>overridable by child variants</strong>, use <code>lib.mkDefault</code> in the main configuration to lower its priority",
+    "Nested specialisations are disabled\nA variant cannot contain further variants: no-clone.nix forces them to be empty. As a result, <code>/run/current-system/specialisation/</code> is empty in the gnome variant. <strong>Use <code>nixos-rebuild switch</code> to return to the base system</strong>; you cannot use the same script from inside gnome to switch back.",
+    "Switching",
+    "When returning to the base system, explicitly select the original parent flake, for example <code>sudo nixos-rebuild switch --flake .#workstation</code>, without <code>--specialisation</code>. Before building, you can record the parent system's store path and run its <code>bin/switch-to-configuration test</code> as part of your recovery plan; do not rely on a symlink to the parent path being present in the current variant.",
+    "Validation: build a variant without switching to it",
+    "Pitfall: new files need git add\nGit flakes normally include only tracked files; untracked new <code>.nix</code> files are filtered out. Add them to tracking as part of an appropriate Git workflow, or use <code>path:.#...</code> to explicitly include the current directory. <code>git add</code> is not a commit, and successful evaluation does not prove that a variant can boot.",
+    "Related",
+    "<a href=\"/writing/nix-gnome-declarative-management/\">Declarative GNOME Management</a> — the actual contents of the variant",
+    "<a href=\"/writing/declarative-and-state/\">The Declarative and Runtime Layers of NixOS</a> — variants as &quot;polymorphism&quot; in the declarative layer",
+    "Operational boundaries before switching",
+    "Changing display managers, desktop services, or kernels can affect the current graphical session. Save your work, keep a usable TTY/console and a known-bootable base generation available, and expect kernel, boot-parameter, or driver changes to require a reboot in many cases. <code>nix build</code> validates only the artifacts; it does not test GDM login, screen locking, input methods, or user services. These need actual session checks on the target machine."
+  ],
+  "reference_labels": [
+    "NixOS specialisation module",
+    "NixOS bootspec RFC"
+  ]
+}

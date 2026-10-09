@@ -1,0 +1,27 @@
+{
+  "source_sha256": "0b01c441d1c6e4e3f8d5f12404afe399beef9b0e46ea6b074e535f295305054c",
+  "segments": [
+    "&quot;Make your configuration ‘modern and portable’.&quot; This guide walks you through migrating from a traditional <code>/etc/nixos/configuration.nix</code> to Flakes.",
+    "Step 1: Create a project directory",
+    "Create a dedicated configuration directory (such as <code>~/nixos-config</code>). <strong>Do not</strong> make ad hoc changes directly inside <code>/etc/nixos</code>.",
+    "Step 2: Write flake.nix",
+    "Create <code>flake.nix</code> in the project root.",
+    "Step 3: Adjust configuration.nix",
+    "Because the Flake uses <code>nixpkgs.lib.nixosSystem</code>, you may need to adjust the top-level arguments in your existing <code>configuration.nix</code>:",
+    "Step 4: Build and apply",
+    "<strong>Note</strong>: In Flake mode, when a Flake is read from a local Git working tree, the files it references must be tracked by Git (you can <code>git add</code> new files first). Explicit <code>path:</code> sources behave differently. Inspect the staged contents first to avoid including private keys or unrelated files.",
+    "<strong><code>.</code></strong>: Refers to the current directory.",
+    "<strong><code>#my-host</code></strong>: Matches the name defined in <code>outputs.nixosConfigurations</code>.",
+    "Benefits of migrating",
+    "<strong>No dependence on a global Channel</strong>: The system version is determined entirely by <code>flake.lock</code>.",
+    "<strong>Easy to back up</strong>: Simply push this directory to GitHub.",
+    "<strong>Modular configuration</strong>: You can easily split the configuration into files such as <code>desktop.nix</code> and <code>user.nix</code>, then reference them in <code>configuration.nix</code> under <code>imports</code>.",
+    "Checks after activation",
+    "A successful build proves only that the build stage works. After activation, check the current system generation, service status, and desktop behavior before proceeding with Home Manager integration."
+  ],
+  "reference_labels": [
+    "Nix Flake manual",
+    "Nix flake update",
+    "Nix flake check"
+  ]
+}

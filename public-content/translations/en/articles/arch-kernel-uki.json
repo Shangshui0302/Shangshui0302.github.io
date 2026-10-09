@@ -1,0 +1,39 @@
+{
+  "source_sha256": "120b05dfb452b011960f4325c74401605486d41ef0f927af0fcfed1835390e54",
+  "segments": [
+    "Core Architecture: What Is a UKI?",
+    "A UKI (Unified Kernel Image) combines a UEFI boot stub, Linux kernel, initial RAM filesystem, and optional resources into a single <code>.efi</code> executable. It can include microcode, a command line, system identification, and a splash screen.",
+    "Reasons to Choose a UKI",
+    "<strong>Signature coverage of components</strong>: a signed UKI verified by Secure Boot can protect its kernel and initramfs. The protection still depends on trusted certificates, firmware policy, and the boot chain; it does not guarantee that arbitrary configuration files cannot be exploited.",
+    "<strong>Version coupling</strong>: keeping the kernel and initramfs together reduces mismatches between separate files; generation and upgrade failures still require a recovery entry point.",
+    "<strong>Automatic discovery</strong>: systemd-boot can discover conforming UKIs under <code>/EFI/Linux/</code> on the ESP or XBOOTLDR partition.",
+    "UKI Generation Workflow",
+    "Choosing Tools",
+    "<code>mkinitcpio</code> can generate UKIs; with <code>systemd-ukify</code> installed, ukify can assemble them. Choose one generation pipeline to avoid multiple tools overwriting each other's output.",
+    "These are example tools for the approach used in this article; they do not imply that every Arch installation must use a TPM.",
+    "Kernel Command Line",
+    "For example, <code>/etc/kernel/cmdline</code>:",
+    "Replace placeholders and add the parameters required by your encryption and subvolume layout. <code>loader.conf</code> still controls boot-loader settings such as the menu and default entry; it does not configure the command line embedded in the UKI.",
+    "mkinitcpio Presets",
+    "Retain fields such as the kernel path from the complete preset provided by the installed kernel, and adjust the UKI output. For example:",
+    "<code>/efi</code> is the ESP mount point in this example. Confirm that it is mounted, the directory exists, and unnecessary duplicate initramfs output is disabled in the corresponding preset. Not every version generates a fallback preset; choose according to the actual version.",
+    "Successful generation does not mean the system has booted from that image. After rebooting, check the running kernel and boot entry.",
+    "Initializing and Checking systemd-boot",
+    "In a UEFI environment, with the ESP mounted correctly and recovery media available:",
+    "Installation writes to the ESP and may create firmware boot entries. For automatic updates, also check whether <code>systemd-boot-update.service</code> is actually enabled and verify the signing workflow. Running <code>bootctl install</code> alone does not complete all maintenance configuration.",
+    "Secure Boot Signing Workflow",
+    "Key Creation, Enrollment, and Saving Signing Paths",
+    "Read the device's firmware documentation first, back up the existing keys, and preserve recovery options. The firmware must allow entering Setup Mode. Replacing keys incorrectly may prevent some devices' Option ROMs, displays, or other operating systems from starting.",
+    "<code>-m</code> adds Microsoft certificates, a trade-off between compatibility and the scope of trust. <code>sign -s</code> saves file paths for subsequent signing workflows. Automatic re-signing after updates also depends on sbctl's mkinitcpio, kernel-install, or pacman hooks actually taking effect.",
+    "TPM2 Measurements and Disk Unlocking",
+    "systemd-stub measures UKI components into PCR 11. Static PCR binding ties key unsealing to selected measurement values; it is not a blanket proof that “the system has never been tampered with.”",
+    "Direct binding to PCR 11 may stop working after a UKI update, and measurement values continue changing during boot phases. Design a signed PCR policy or another supported strategy for the actual systemd version, and test updates, firmware changes, and recovery paths. TPM-based automatic unlocking also does not replace access controls on the running system.",
+    "Boot Flow"
+  ],
+  "reference_labels": [
+    "ArchWiki: Unified kernel image",
+    "ArchWiki: Systemd-boot",
+    "ArchWiki: Unified Extensible Firmware Interface/Secure Boot",
+    "ArchWiki: Trusted Platform Module"
+  ]
+}

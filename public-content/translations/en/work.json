@@ -1,0 +1,364 @@
+{
+  "shell-switcher": {
+    "slug": "shell-switcher",
+    "number": "01",
+    "title": "shell-switcher",
+    "category": "Desktop utility",
+    "tech": "Rust / systemd",
+    "summary": "A sequenced handover for stopping, starting, and checking the state of desktop shells.",
+    "repo": "https://github.com/Shangshui0302/shell-switcher",
+    "revision": "1668dbdc427eb6b68796e8bbd4de287a112d9372",
+    "visual": "shell",
+    "headline": "Handover first.\nThen switch.",
+    "problem": "Multiple desktop shells can draw panels at the same time and compete for the notification service. When stopping the old service and starting the new one by hand, you also need to check their states. A command returning is not enough.",
+    "structure": "The program reads a mapping of names to systemd user services from TOML and identifies the session through environment variables. If the target is already the only active service, it only attempts to update the saved selection. Otherwise, it stops all registered services, checks that none still reports active, starts the target, waits for active, and finally attempts to save the selection. The boot entry point chooses a valid saved selection or the default service and issues a start command, without the same stop-and-poll sequence.",
+    "tradeoff": "systemd manages the processes; the Rust program handles sequencing and state checks. Stopping before starting reduces deliberate overlap, at the cost of a brief gap in the interface. Only Hyprland and niri are currently recognized, and session checks and fixed timeouts further limit where the tool applies.",
+    "result": "The source provides entry points for state queries, idempotent switching, and startup from a saved selection. If stop confirmation times out or the command to start the target fails, the program attempts to start the default service and returns an error, without checking whether recovery succeeded. If waiting for the target to become active times out, it returns an error directly, without that recovery attempt.",
+    "limitation": "A failed state query is also treated as non-active, so the check does not prove that a process has fully exited. Errors when creating the directory or writing the saved selection are ignored; a successful exit does not guarantee that the selection was saved to disk. This page describes behavior from a pinned source revision, without presenting source analysis as a live runtime test.",
+    "evidence": [
+      [
+        "README: use cases and switching flow",
+        "README.md"
+      ],
+      [
+        "main.rs: state polling and failure branches",
+        "src/main.rs"
+      ]
+    ],
+    "related": [
+      "login-and-session"
+    ],
+    "case_study": {
+      "steps": [
+        {
+          "title": "Success: hand over, then save",
+          "text": "Stop all registered services and confirm that they no longer report active. Start the target, poll until it reports active, then attempt to save the selection. If the target is already the only active service, only attempt to update the saved selection.",
+          "label": "Complete after state confirmation",
+          "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L249-L295",
+          "id": "normal",
+          "control_label": "Normal handover",
+          "nodes": [
+            "Stop registered services",
+            "Start the target service",
+            "Confirm active · Attempt to save"
+          ]
+        },
+        {
+          "title": "Stop timeout / Start command failure",
+          "text": "If a service still reports active after stopping, or the command to start the target fails, the program attempts to start the default service and returns an error. The outcome of recovery is not checked.",
+          "label": "Recovery attempt",
+          "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L261-L280",
+          "id": "recovery",
+          "control_label": "Stop timeout / Start failure",
+          "nodes": [
+            "Stop timeout / Start command failure",
+            "Attempt to start the default service",
+            "Return an error · Recovery unconfirmed"
+          ]
+        },
+        {
+          "title": "Timeout waiting for active",
+          "text": "If the start command succeeds but the target does not report active within the 15-second polling window, the program returns an error. This branch neither starts the default service nor updates the saved selection.",
+          "label": "Explicit limits",
+          "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L283-L296",
+          "id": "active-timeout",
+          "control_label": "Timeout waiting for active",
+          "nodes": [
+            "Start command succeeds",
+            "Poll for active",
+            "Timeout · No fallback"
+          ]
+        }
+      ],
+      "snippet": {
+        "language": "rust",
+        "code": "    // 确认真的起来了（systemd 可能还在 activating）\n    let deadline = Instant::now() + START_TIMEOUT;\n    loop {\n        if is_active(&target_entry.service) {\n            println!(\"{}\", t!(\"switched\", target = target));\n            write_current(target);\n            return ExitCode::SUCCESS;\n        }\n        if Instant::now() >= deadline {\n            eprintln!(\"{}\", t!(\"start_timeout\", target = target));\n            return ExitCode::from(1);\n        }\n        sleep(Duration::from_millis(200));\n    }",
+        "startLine": 283,
+        "endLine": 296,
+        "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L283-L296",
+        "caption": "After the command returns, keep checking for active. The timeout branch only returns an error."
+      },
+      "key_evidence": [
+        {
+          "text": "The state check tests whether stdout from systemctl --user is-active equals active. A failed query also returns false.",
+          "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L135-L140"
+        },
+        {
+          "text": "Errors when creating the selection directory or writing its file are ignored. A successful exit does not guarantee that the selection was saved to disk.",
+          "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L181-L186"
+        },
+        {
+          "text": "boot chooses a valid saved selection, or otherwise the default service, then calls start directly. It neither stops all services nor polls for active.",
+          "source": "https://github.com/Shangshui0302/shell-switcher/blob/1668dbdc427eb6b68796e8bbd4de287a112d9372/src/main.rs#L301-L329"
+        }
+      ],
+      "heading": "One switch. Three paths.",
+      "note": "Checks depend on whether systemd reports active. Saving the selection and restoring the default service can both fail."
+    }
+  },
+  "mellow-matugen": {
+    "slug": "mellow-matugen",
+    "number": "02",
+    "title": "Mellow × Matugen",
+    "category": "Interface theme",
+    "tech": "Nix / Matugen / SVG",
+    "summary": "Generate a palette, image-based highlights, and a complete theme configuration together, so input-method candidate windows follow the desktop colors.",
+    "repo": "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen",
+    "revision": "4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d",
+    "visual": "theme",
+    "headline": "Beyond color,\nthere is structure.",
+    "problem": "An image-based candidate highlight cannot be updated through a simple color field alone. Candidate windows embedded in GTK also need a complete theme configuration. Overriding a few scattered fields makes it difficult to keep highlights and text consistent across interfaces.",
+    "structure": "Matugen templates pair primary and on_primary for the highlight background and text, generating both the highlight SVG and a complete theme.conf. Base assets live in the theme package; Home Manager copies them into a user-writable directory for Matugen to update.",
+    "tradeoff": "Immutable base assets are kept separate from the mutable runtime theme. The shape and layout of Mellow WeChat are preserved. Wallpaper selection, light/dark mode state, and input-method restarts remain with the existing desktop setup, keeping the theme module focused.",
+    "result": "The repository provides light, dark, blurred, and solid-color variants, along with installation combinations. Its README records native blur verification on Hyprland. This page presents the verification documented by the project, without adding test claims that this site has not established.",
+    "limitation": "There is no equivalent record of native blur testing on niri, KWin, or Mutter. Background blur is not guaranteed for GTK candidate windows, and external input-method panels do not use this ClassicUI theme.",
+    "evidence": [
+      [
+        "README: generation and compatibility limits",
+        "README.md"
+      ],
+      [
+        "Home Manager: writable copies",
+        "home-manager.nix"
+      ],
+      [
+        "Complete theme template",
+        "templates/mellow-matugen/theme.conf.tpl"
+      ]
+    ],
+    "related": [
+      "theme-nine-slice",
+      "declarative-and-state"
+    ],
+    "preview": {
+      "revision": "4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d",
+      "caption": "Light theme · Preview from the README",
+      "images": [
+        {
+          "src": "/assets/project-previews/mellow-matugen.png",
+          "source": "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/preview/wallpaper-1-light.png",
+          "width": 2880,
+          "height": 1800,
+          "alt": "Mellow light input-method candidate window with a teal desktop palette, from the project README",
+          "sha256": "80127df38552276c69e5fc43afe3c250239294af2395622573552329c490fff2"
+        }
+      ],
+      "source_url": "https://github.com/Shangshui0302/fcitx5-mellow-themes-matugen/blob/4c73fb2b76c2ba19c804e86a87dbf76bc0a71c7d/README.md#效果展示",
+      "source_label": "Project README"
+    }
+  },
+  "some-nixos-skills": {
+    "slug": "some-nixos-skills",
+    "number": "03",
+    "title": "some-NixOS-skills",
+    "category": "Agent workflows",
+    "tech": "Agent Skills / Nix / Python",
+    "summary": "Separate evaluation, building, and live verification into evidence-aware Nix workflows for coding agents.",
+    "repo": "https://github.com/Shangshui0302/some-NixOS-skills",
+    "revision": "2dc36174a7932ca5396aa0774fd0a8e2f2cca98b",
+    "visual": "skills",
+    "headline": "The checks pass.\nWhat comes next?",
+    "problem": "A configuration evaluating, a package building, and a service running are three different conclusions. An automated collaborator can report unfinished work as successful if it substitutes evidence from one stage for proof of the next.",
+    "structure": "Three skill sets cover general packaging, upstream Nixpkgs maintenance, and system administration. They include reference material, structural checks, evaluation tasks, and source-freshness checks, plus installation entry points and Home Manager integration.",
+    "tradeoff": "Task routing and explicit verification boundaries guide execution, rather than a one-click deployment flow. The skills require checking the actual locked source and interfaces, while keeping activation and deployment as separate steps. Documentation and external API changes still require ongoing maintenance.",
+    "result": "The repository delivers three installable skill sets and flake check entry points. Public review records distinguish source verification, structural checks, and live operations that were not performed, making the basis for each conclusion traceable.",
+    "limitation": "The review records do not include host activation, remote deployment, or VM startup, and do not prove that every external example builds successfully. The workflows reduce confusion but do not replace verification in each project.",
+    "evidence": [
+      [
+        "README: skills and installation",
+        "README.md"
+      ],
+      [
+        "flake: packaging and check entry points",
+        "flake.nix"
+      ],
+      [
+        "Verification layers",
+        "skills/nix-packaging/references/validation.md"
+      ],
+      [
+        "Source review and verification limits",
+        "docs/freshness-review-2026-10-07.md"
+      ]
+    ],
+    "related": []
+  },
+  "nixos-config": {
+    "slug": "nixos-config",
+    "number": "04",
+    "title": "myNixOSConfig",
+    "category": "System configuration",
+    "tech": "Nix / Home Manager",
+    "summary": "Separate system settings, user settings, and desktop variants into composable modules, making the environment traceable and rebuildable.",
+    "repo": "https://github.com/Shangshui0302/myNixOSConfig",
+    "revision": "ac5ae38a66de003f1cfe69a8f40cd1ffb46023a0",
+    "visual": "nix",
+    "headline": "One environment,\nexpressed in layers.",
+    "problem": "The desktop, theme, input method, and development tools together form a working environment. When their configuration is scattered across live files, dependencies, reasons for changes, and recovery steps are hard to keep consistent.",
+    "structure": "The flake brings inputs and host entry points together. host describes the system layer, and home describes the user layer. Shared foundations, desktop sessions, and themes are organized separately, with GNOME added as an independent variant.",
+    "tradeoff": "NixOS and Home Manager declare the configuration, while local derivations provide packages not yet available in the channel. This requires maintaining locked inputs, module relationships, and hardware boundaries, and distinguishing reusable combinations from machine-specific configuration.",
+    "result": "The repository publishes a host configuration and a component-organized Wiki, with checking and activation treated as separate stages. The source provides a structure that can be reviewed; it does not establish that every configuration has run successfully on the current machine.",
+    "limitation": "This is a configuration project for a specific environment, rather than a general-purpose distribution for arbitrary devices. This site does not reproduce hostnames, user directories, or other machine-specific fields.",
+    "evidence": [
+      [
+        "README: organization",
+        "README.md"
+      ],
+      [
+        "flake: inputs and outputs",
+        "flake.nix"
+      ],
+      [
+        "User module composition",
+        "home/home.nix"
+      ]
+    ],
+    "related": [
+      "declarative-and-state"
+    ]
+  },
+  "github-kanban": {
+    "slug": "github-kanban",
+    "number": "05",
+    "title": "GitHub Kanban",
+    "category": "Desktop dashboard",
+    "tech": "Luau / Noctalia / GitHub CLI",
+    "summary": "Bring notifications, review requests, issues, and followed activity into a desktop panel, with scattered information in one view.",
+    "repo": "https://github.com/noctalia-dev/community-plugins",
+    "revision": "c87a385af76d0434048488c160a442bbb8081cd4",
+    "source_url": "https://github.com/noctalia-dev/community-plugins/tree/c87a385af76d0434048488c160a442bbb8081cd4/github-kanban",
+    "visual": "kanban",
+    "planet": "nixos-config",
+    "headline": "Scattered information.\nOne view.",
+    "problem": "Notifications, pull requests awaiting review, issues, Actions, and followed activity live on separate pages. The desktop dashboard brings them into one entry point: see what needs attention, then open the relevant GitHub page to act.",
+    "structure": "A status-bar entry opens five views: overview, notifications, work, following, and repositories. Background services use the existing gh login to read REST / GraphQL data, normalize it into cards, and cache it. A separate notification service handles pagination, polling, and read state. The interface is separate from the data services, and card links retain their specific context.",
+    "tradeoff": "The first version was read-only, leaving actions to GitHub. Legacy mode remains read-only by default in the current version. Synced mode optionally enables notification read-state synchronization; automatically marking a notification as read when opened requires a separate setting. Bulk marking affects only unread items in the current filtered list. The following feed combines public events and releases from starred repositories, so it differs from the GitHub web home feed.",
+    "result": "The original plugin was merged into the Noctalia community repository through PR #739. Subsequent work fixed refresh and caching behavior and added optional notification synchronization through PR #944. This page covers version 0.2.4. Public PR records include interface and real-data read checks on Hyprland; this site has not separately run the plugin.",
+    "limitation": "PR #944 did not exercise real read-state PATCH requests or bulk writes; those paths were verified with mock scenarios. Public records do not claim equivalent testing on Niri or Sway, and lists and the following feed are constrained by request limits. This page presents the information structure without connecting to visitors’ GitHub accounts.",
+    "evidence": [
+      [
+        "README: features, settings, and limits",
+        "github-kanban/README.md"
+      ],
+      [
+        "Plugin manifest and default settings",
+        "github-kanban/plugin.toml"
+      ],
+      [
+        "Data retrieval and queries",
+        "github-kanban/lib/github.luau"
+      ],
+      [
+        "Notification synchronization and rollback",
+        "github-kanban/lib/notifications.luau"
+      ]
+    ],
+    "references": [
+      [
+        "Original plugin merge · PR #739",
+        "https://github.com/noctalia-dev/community-plugins/pull/739"
+      ],
+      [
+        "Notification synchronization and verification scope · PR #944",
+        "https://github.com/noctalia-dev/community-plugins/pull/944"
+      ]
+    ],
+    "related": [],
+    "preview": {
+      "source_url": "https://github.com/noctalia-dev/community-plugins/blob/1b32132ad8211aa35e3ccebfab8004afff3aeb9a/github-kanban/thumbnail.webp",
+      "source_label": "Official preview",
+      "revision": "1b32132ad8211aa35e3ccebfab8004afff3aeb9a",
+      "caption": "GitHub Kanban · Official project preview",
+      "images": [
+        {
+          "src": "/assets/project-previews/github-kanban.webp",
+          "source": "https://github.com/noctalia-dev/community-plugins/blob/1b32132ad8211aa35e3ccebfab8004afff3aeb9a/github-kanban/thumbnail.webp",
+          "width": 960,
+          "height": 540,
+          "alt": "Official GitHub Kanban promotional image showing the project overview and contribution calendar panel",
+          "sha256": "a42c78a0ccef9c82162a599f2ea58b85ec6e59d067e54d7d1e797e36937e3498"
+        }
+      ]
+    }
+  },
+  "wallpaper-collection": {
+    "slug": "wallpaper-collection",
+    "number": "06",
+    "title": "Wallpaper collection",
+    "kind": "collection",
+    "category": "Visual collection",
+    "tech": "Image selection / PNG · JPG",
+    "summary": "Lunar landscapes, cities in the clouds, and pixel signals. Favorite scenes gathered into an evolving personal wallpaper collection.",
+    "repo": "https://github.com/Shangshui0302/myWallpaperCollection",
+    "revision": "f8aebff4d0a334f9a976a396146ea9558ddab639",
+    "visual": "wallpapers",
+    "planet": "mellow-matugen",
+    "headline": "Leave some screen space\nfor imagination.",
+    "problem": "From the gray-white lunar surface to deep blue skies above a city, then pixel screens and sea breezes. This collection brings different scenes together, leaving a little room for imagination on the everyday desktop.",
+    "structure": "This page selects four images, moving from the moon to the city, pixels, and the coast. Each retains its original aspect ratio and links to the corresponding file in the public collection repository. The full collection can be explored there.",
+    "tradeoff": "This is a personal collection and arrangement; the collected wallpapers are not claimed as original artwork. Each image keeps its own colors and visual detail, allowing different styles to sit together without forcing them into the site’s vermilion palette.",
+    "result": "The repository revision pinned on this page contains 29 PNG / JPG files, including some crops and visual variants. This site shows four previews; the repository is the source of truth for the complete file list.",
+    "limitation": "Copyright belongs to each image’s respective rights holder. The collection repository has no unified license statement; authorship and usage terms must be checked at each original source. The selection titles on this page are browsing labels, not original artwork titles or artist credits.",
+    "evidence": [
+      [
+        "Collection notes and preview index",
+        "README.md"
+      ],
+      [
+        "Lunar surface: repository file",
+        "cratered_moon.png"
+      ],
+      [
+        "Above the clouds: repository file",
+        "floating_city_runner.png"
+      ],
+      [
+        "Pixel signals: repository file",
+        "pixel_hacker_girl.png"
+      ],
+      [
+        "A letter from the coast: repository file",
+        "seaside_girl_lighthouse.png"
+      ]
+    ],
+    "related": [],
+    "gallery": [
+      {
+        "file": "cratered_moon.png",
+        "width": 3840,
+        "height": 2160,
+        "bytes": 2095933,
+        "sha256": "32642f5b0abc24913de614665d9ec3ee1cf01dcbd120e16702b727c1b659f92e",
+        "title": "Lunar surface",
+        "alt": "A gray-white lunar surface covered in craters against a black background"
+      },
+      {
+        "file": "floating_city_runner.png",
+        "width": 2048,
+        "height": 1228,
+        "bytes": 922339,
+        "sha256": "eee05283b86e9340a91956f2556864283daab298027daa5df0792f4a069078ae",
+        "title": "Above the clouds",
+        "alt": "A figure running through the air with a cat on a leash above huge clouds and a city skyline"
+      },
+      {
+        "file": "pixel_hacker_girl.png",
+        "width": 5090,
+        "height": 3590,
+        "bytes": 257756,
+        "sha256": "6f9fa5a997072247620a7783d5712bf29e82facb8739c6d8e85a49846d3e1803",
+        "title": "Pixel signals",
+        "alt": "A blue-purple pixel-art scene with an old computer screen, a character, and objects on a desk"
+      },
+      {
+        "file": "seaside_girl_lighthouse.png",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 600715,
+        "sha256": "cfcf8026eb7e4d877efa061ff5daee1ca1519e2baba9c05982da8a2e56011f52",
+        "title": "A letter from the coast",
+        "alt": "A portrait of a girl in the sea breeze, with turquoise water and a lighthouse in the distance"
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "source_sha256": "7748e825b968989abd8cba56f7a953e1fd20648a1d95206abee8960660ed6ef0",
+  "segments": [
+    "Configuration File Structure",
+    "The main NixOS configuration files are located in <code>/etc/nixos/</code>:",
+    "Basic Configuration Structure",
+    "Parameters:",
+    "<code>config</code>: the configuration state of the entire system",
+    "<code>pkgs</code>: the nixpkgs package set",
+    "<code>...</code>: allows additional arguments to be passed in, ignoring those not used",
+    "Common Configuration Options",
+    "Boot Configuration",
+    "UEFI/systemd-boot and BIOS/GRUB are two examples; choose the one matching your installation mode. Verify GRUB's whole-disk target rather than blindly copying <code>/dev/sda</code>.",
+    "Network Configuration",
+    "The static addresses below use a documentation-only address range, not a usable real network. Replace them with values for your network. When using desktop NetworkManager or static interface configuration, make clear which one manages a given interface.",
+    "Localization",
+    "User Configuration",
+    "The <code>docker</code> group has elevated privileges; join it only when genuinely necessary. Before disabling SSH password authentication, verify that key-based login works so you do not lock yourself out of administrative access.",
+    "Package Management",
+    "Service Configuration",
+    "Rebuild the System",
+    "<code>build</code> only builds; <code>dry-build</code> only shows the build plan; <code>test</code> activates immediately; <code>switch</code> activates immediately and makes the result the boot default. None of these alone proves that services actually work correctly.",
+    "After changing the configuration, rebuild the system to apply it:",
+    "Roll Back the Configuration",
+    "Modular Configuration",
+    "Split the configuration across multiple files:",
+    "Import them in <code>configuration.nix</code>:",
+    "Example: users.nix",
+    "Common Commands",
+    "Further Reading",
+    "<a href=\"https://search.nixos.org/options\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Option Search</a>",
+    "<a href=\"https://nixos.org/manual/nixos/stable/#ch-configuration\" target=\"_blank\" rel=\"noopener noreferrer\">NixOS Manual: Configuration</a>",
+    "<a href=\"https://nixos.org/manual/nixos/stable/#sec-writing-modules\" target=\"_blank\" rel=\"noopener noreferrer\">The NixOS Module System</a>"
+  ],
+  "reference_labels": [
+    "NixOS Manual",
+    "Nix Language Manual"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "source_sha256": "8573c32c83487e2e52a26b2f796c6444feb2027d9c468a5e39c9baf0a045b004",
+  "segments": [
+    "Division of responsibilities: system layer vs. user layer",
+    "<strong>System layer (NixOS)</strong>: installs base packages, enables the display manager (SDDM/GDM), and loads drivers.",
+    "<strong>User layer (Home Manager)</strong>: sets the wallpaper, desktop shortcuts, font sizes, and taskbar layout.",
+    "Hands-on: declarative Hyprland configuration",
+    "On NixOS, you do not even need to edit <code>hyprland.conf</code> manually.",
+    "Consistent styling: KDE Plasma",
+    "KDE has a large and intricate set of configuration options. If you want to bring all its settings into Nix, you can use <a href=\"https://github.com/nix-community/plasma-manager\" target=\"_blank\" rel=\"noopener noreferrer\">plasma-manager</a>.",
+    "Fonts and themes (GTK/Qt)",
+    "Giving GTK and Qt a consistent appearance is important.",
+    "Advice for going further",
+    "Do not get too absorbed in configuring every pixel at this stage. Start with a usable environment, then gradually bring individual settings into Nix as you use it day to day.",
+    "Module and version prerequisites",
+    "Home Manager's Hyprland configuration does not replace system-level session, permission, and portal configuration. Check desktop-theme examples against your pinned Home Manager, Hyprland, and plasma-manager versions; also verify the GTK/Qt appearance in an actual session."
+  ],
+  "reference_labels": [
+    "Home Manager Manual",
+    "Home Manager command source code",
+    "Home Manager file-option source code",
+    "plasma-manager upstream"
+  ]
+}

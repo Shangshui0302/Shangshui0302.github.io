@@ -1,0 +1,38 @@
+{
+  "source_sha256": "f9ac4213d7ff6ce72c9c1acce14bf14e4b65dea602dc1c6344dc2f62f55a645a",
+  "segments": [
+    "Firmware and physical security",
+    "TPM, firmware passwords, and Secure Boot can form part of boot protection, but must be considered alongside the device’s threat model and recovery needs:",
+    "Confirm that TPM 2.0 is enabled and accessible from both firmware and user space.",
+    "A firmware administrator password can restrict settings changes, but cannot prevent every attack involving disassembly or hardware.",
+    "Restrict booting from external media as needed, while retaining a way to temporarily restore those settings. Disabling USB boot should not be treated as an absolute requirement.",
+    "LUKS2 and TPM unlocking",
+    "LUKS2 is a disk-encryption metadata format; Argon2id is a password-based key derivation function. They are not the same kind of “encryption algorithm.” Actual defaults depend on the <code>cryptsetup</code> version, build configuration, and existing volume.",
+    "Initramfs hooks",
+    "When using a systemd-based initramfs and systemd-cryptenroll, use the <code>systemd</code> and <code>sd-encrypt</code> approach, for example:",
+    "Add any hooks required by your actual storage stack and regenerate the image. The traditional <code>encrypt</code> approach is not obsolete for every use; it simply does not directly provide the systemd TPM unlocking workflow described here.",
+    "TPM enrollment example",
+    "After creating a LUKS2 volume, backing up its header, and retaining a working recovery passphrase:",
+    "PCR 0 relates to firmware code measurements; PCR 7 relates to Secure Boot state and trusted certificates. Fixed measurement values may change after normal firmware or key updates, so you must test the recovery process. These PCRs do not directly verify all kernel contents; a UKI can use a signed policy involving PCR 11. Unattended unlocking also carries risks from cold-boot, hardware-bus, and runtime attacks. Add a TPM PIN if your needs warrant it.",
+    "Secure Boot key management",
+    "Deployment workflow",
+    "First confirm that the firmware can enter Setup Mode, back up the keys and recovery information for Windows or other systems, and then choose the scope of trust.",
+    "This assumes that the ESP is mounted at <code>/efi</code> and that the file paths have been checked. <code>-m</code> adds Microsoft certificates for better compatibility, while also expanding the scope of trust. Booting may also use <code>EFI/BOOT/BOOTX64.EFI</code>, so check every boot path. After saving the signing paths, verify that appropriate hooks re-sign files after every kernel and bootloader update.",
+    "Runtime hardening",
+    "Kernel parameters",
+    "Add the following as needed to the actual kernel command-line input used to generate the UKI, such as <code>/etc/kernel/cmdline</code>:",
+    "These respectively restrict some slab merging, zero memory, and disable the legacy vsyscall entry point, with trade-offs in performance or compatibility with older software. The <code>/etc/cmdline.d/security.conf</code> path in the original notes is not a universal path read by every UKI tool.",
+    "Also confirm that AppArmor is enabled in the current LSM list, for example by checking:",
+    "If you need to set <code>lsm=</code>, retain the modules currently required and their correct order, then rebuild the UKI or boot configuration and verify it. Starting the service does not mean that all applications are confined; you must load and maintain the relevant profiles. For an additional <code>apparmor.d</code> rule collection, review its source, current packaging, and compatibility with application versions. Do not insert unverified package names into an official-repository installation command.",
+    "Application sandboxing",
+    "Flatpak uses mechanisms such as Bubblewrap to isolate applications; the actual protection depends on the application’s permissions. Review access granted to the filesystem, devices, session bus, and other resources. Firejail is another option for isolating traditional applications, and also requires profiles suited to the use case. Sandboxing does not replace updates, trusted sources, or least privilege.",
+    "The chain of trust"
+  ],
+  "reference_labels": [
+    "ArchWiki: Trusted Platform Module",
+    "ArchWiki: Unified Extensible Firmware Interface/Secure Boot",
+    "ArchWiki: Dm-crypt",
+    "ArchWiki: AppArmor",
+    "ArchWiki: Security"
+  ]
+}

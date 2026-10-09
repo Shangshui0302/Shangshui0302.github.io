@@ -1,0 +1,32 @@
+{
+  "source_sha256": "c37b0c791e5390f6b0f9583ef7823d78c5ec8540a373b1fc25f9be97e3ee8ac7",
+  "segments": [
+    "A special workspace works like a drawer: it can show or hide a group of windows over the current regular workspace. It does not suspend processes, isolate permissions, or create a separate desktop session. Applications keep running when it is hidden.",
+    "This article reworks Ed's special-workspace tutorial, removes site navigation and personal information, and checks its older Hyprlang examples against the versioned Hyprland 0.54 documentation. Upstream configuration interfaces may change in later releases. If you use another version, check its documentation first, and do not mix Lua configuration with the Hyprlang syntax used here.",
+    "Name the drawer, then bind the toggle action",
+    "Names keep multiple special workspaces independent. The keybinding invokes <code>togglespecialworkspace</code>, whose argument is the name alone, without the <code>special:</code> prefix.",
+    "The binding specifies the modifier, key, dispatcher, and target name, in that order. A name is only a label; it does not automatically launch a program with that name. Opening an empty workspace displays no windows, which does not mean the keybinding failed.",
+    "The original clipping claimed that the number was unlimited. That is inaccurate: the 0.54 documentation gives a limit of 97 existing at the same time. In practice, create fixed entry points only for groups of windows that serve a real purpose.",
+    "Move an existing window to a specific workspace",
+    "Showing or hiding a workspace and moving a window are separate actions. The move command accepts ordinary workspaces as well, so its target must use the form <code>special:名称</code>.",
+    "The first command acts on the current window; the second shows or hides notes. For a silent move, check <code>movetoworkspacesilent</code> for your version. With multiple monitors, also check which output displays the workspace, so you do not conflate moving a window with changing the current focus.",
+    "Place applications there at session startup",
+    "<code>exec-once</code> launches the command; an execution rule assigns the new window to its target workspace. The applications below are generic examples and require the corresponding executables to be installed.",
+    "<code>silent</code> is intended to avoid immediately switching the current view to that workspace. <code>exec-once</code> runs at session startup and does not run again on an ordinary configuration reload. You do not need to reboot the whole machine to validate a window rule: launch a test instance manually and check its workspace assignment.",
+    "This mechanism depends on the association between the launched process and its window. If a command hands off to an already-running single-instance process, or passes through wrappers and child processes, the execution rule may miss the final window. That is why another layer of rules based on window properties is needed.",
+    "Use window rules for instances opened later",
+    "Read the actual window properties first, rather than assuming the executable's filename is its window class. <code>xprop</code> works only with X11 / XWayland windows; for native Wayland windows, use the information provided by the compositor.",
+    "The following example uses the 0.54 window-rule format:",
+    "The program name, class, initialClass, and window title serve different purposes. Check the actual output to confirm case and what you are matching; separately check whether the rule also captures dialog boxes. Do not copy the older tutorial's <code>windowrule = workspace ..., ^(...)$</code> into a new configuration without checking the version.",
+    "Validate in three steps to isolate problems",
+    "First, test only whether the keybinding opens and hides an empty workspace.",
+    "Manually move one window to the workspace and confirm that the display action and move action use the same target name.",
+    "Finally, add autostart and window rules. Close and reopen the test application, then check whether the new window still enters the target workspace.",
+    "If autostart works but reopening later fails, check the window rules first. If the rules have no effect at all, first check the actual class and your version's syntax. Hidden windows still consume resources; whether they should remain running depends on their purpose. Before deleting the rules, you can move the windows back to a regular workspace, then remove the associated keybindings and startup entries."
+  ],
+  "reference_labels": [
+    "Ed: Original special-workspace tutorial",
+    "Hyprland 0.54 Dispatchers",
+    "Hyprland 0.54 Window Rules"
+  ]
+}

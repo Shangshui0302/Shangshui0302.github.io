@@ -1,3 +1,4 @@
+import {initLanguage} from './core/language.js';
 import {createScope} from './core/scope.js';
 import {initTheme} from './core/theme.js';
 import {initMotion} from './core/motion.js';
@@ -25,6 +26,7 @@ function mountPage(root, navigation) {
   }
   return {dispose: () => scope.dispose(), restore: () => { restoreLibrary(); restoreSearch(); }};
 }
+initLanguage();
 initTheme();
 initMotion();
 initLiquidGlass();

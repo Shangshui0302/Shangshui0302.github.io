@@ -1,3 +1,4 @@
+import {t} from './language.js';
 /* A single preference shared by navigation, controls and the stellar scene. */
 export const reducedMotion = () => document.documentElement.dataset.reducedMotion === 'true';
 export function initMotion() {
@@ -14,7 +15,7 @@ export function initMotion() {
     button?.setAttribute('aria-pressed', String(reduced));
     if (button) {
       button.disabled = system.matches;
-      button.title = system.matches ? '遵循系统的减少动效设置' : '';
+      button.title = system.matches ? t('遵循系统的减少动效设置', 'Following your system’s reduced-motion preference') : '';
     }
     if (changed) document.dispatchEvent(new Event('offset:motion-change'));
   };

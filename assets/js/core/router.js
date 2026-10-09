@@ -1,3 +1,4 @@
+import {t} from './language.js';
 import {isSitePage} from './site-path.js';
 import { reducedMotion } from './motion.js';
 import {createPageCache} from './page-cache.js';
@@ -25,6 +26,7 @@ export function createRouter(mountPage) {
       history[mode === 'replace' ? 'replaceState' : 'pushState']({offset: {x: scrollX, y: scrollY}}, '', url);
     }
     current = new URL(url);
+    dispatchEvent(new Event('offset:url-change'));
   };
   const focus = element => {
     if (!element) return;
@@ -68,7 +70,7 @@ export function createRouter(mountPage) {
     }
     navigating = true;
     root.classList.add('route-loading');
-    notice.textContent = '正在加载';
+    notice.textContent = t('正在加载', 'Loading');
     try {
       const html = await cache.read(url, request.signal);
       if (id !== sequence) return;
@@ -76,12 +78,17 @@ export function createRouter(mountPage) {
       const nextMain = incoming.querySelector('#main');
       if (!nextMain || !incoming.querySelector('[data-site-shell]') || (incoming.documentElement.dataset.basePath || '') !== basePath) throw new Error('Missing site shell');
       if (id !== sequence) return;
+      if (incoming.documentElement.lang !== root.lang) { location.assign(url.href); return; }
       const commit = () => {
         if (id !== sequence) return;
         page.dispose();
         document.querySelector('#main').replaceWith(nextMain);
         document.title = incoming.title;
         document.querySelector('meta[name="description"]').content = incoming.querySelector('meta[name="description"]').content;
+        for (const selector of ['link[rel=canonical]', 'link[rel=alternate][hreflang=zh-CN]', 'link[rel=alternate][hreflang=en]', 'link[rel=alternate][hreflang=x-default]']) {
+          const next = incoming.querySelector(selector);
+          if (next) document.querySelector(selector)?.setAttribute('href', next.href);
+        }
         document.body.className = incoming.body.className;
         document.body.dataset.section = incoming.body.dataset.section;
         document.querySelectorAll('[data-nav]').forEach(link => {

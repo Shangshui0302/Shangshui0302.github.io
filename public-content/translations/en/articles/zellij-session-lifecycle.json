@@ -1,0 +1,35 @@
+{
+  "source_sha256": "2af93421c175cbddb9e96338bef0692a36dbe1ae6b6c7242ca02aa1d6b933dd8",
+  "segments": [
+    "Zellij organizes terminal work into sessions, tabs, and panes. It uses modal keybindings; whether it feels more comfortable or performs better than other multiplexers depends on the actual workload. This article focuses on session lifecycles, rather than untested performance comparisons.",
+    "Managing multiple terminals",
+    "Zellij primarily uses two concepts: panes and tabs. A pane is a split region, allowing terminals to be displayed side by side. Tabs work like browser tabs: only the current tab is shown. Each tab can contain many panes in different layouts.",
+    "Session management",
+    "This is the main feature. When used with Hyprland, tabs and panes may not be as convenient: Hyprland switches windows directly with <code>$SUPER</code> + an arrow key. But the core value of sessions remains irreplaceable:",
+    "Five key benefits of sessions",
+    "1. Active sessions retain scrollback",
+    "Scrollback belongs to the session: after detaching and reattaching, you can still view existing output as long as the session remains running. The buffer has a capacity limit, so save important logs to a separate file.",
+    "This is especially useful for debugging and long-running commands.",
+    "2. State persistence (Resurrect)",
+    "Each session records its current pane / tab state.",
+    "Closing a terminal window and ending the session process are different things. You can reconnect while the session is still alive. After the process ends or the system reboots, resurrection rebuilds the layout and may rerun commands; it does not restore process memory.",
+    "Whether pane output is saved depends on configuration and is also constrained by the retained history range. Confirm before rerunning commands with side effects; restoring a layout does not restore unsaved editor contents or arbitrary application state.",
+    "3. Share a workspace across multiple terminals",
+    "You can attach to the same session from different Foot windows.",
+    "Example: use vim in one window and view logs in another, jointly viewing and operating the same session. Each pane is still a separate process; environment variables do not automatically synchronize globally.",
+    "4. Manage work by project or task",
+    "Use one session per project.",
+    "Create a session when starting a new project; attach to the corresponding session when returning to an older one.",
+    "5. Simplify the Hyprland + Foot combination",
+    "Hyprland manages windows and layouts → quick switching",
+    "Zellij manages sessions, layouts, and configurable history retention",
+    "Whether to let the compositor handle split views depends on whether you prefer switching between windows or organizing panes inside a single terminal.",
+    "Before quitting, detaching, or restoring",
+    "Before leaving a window, distinguish closing the client, detaching, and terminating the session. If tasks need to keep running, use the detach action shown in the current keybinding help. To end tasks, inspect the processes inside the panes and exit them normally. Do not confuse <code>kill-all-sessions</code> with detach.",
+    "Zellij does not replace an application's own save function, writing logs to disk, or system backups. Save important state to files before deciding whether to rely on session resurrection; access from another machine still requires controlled connections and authentication."
+  ],
+  "reference_labels": [
+    "Zellij session resurrection",
+    "Zellij user guide"
+  ]
+}

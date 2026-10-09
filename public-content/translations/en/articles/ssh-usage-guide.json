@@ -1,0 +1,27 @@
+{
+  "source_sha256": "fbaffec54813a95c17258bd2366f38f05718917d69bd5ba18fe84d739606693b",
+  "segments": [
+    "This article covers common OpenSSH client interfaces; consult the manual for the installed version for available options. User configuration is usually in <code>~/.ssh/</code>.",
+    "ssh-keygen: generate and inspect keys",
+    "The passphrase prompt during generation\nWhen generating a new key, <code>ssh-keygen</code> asks <code>Enter passphrase</code>: press Enter for an unencrypted key, or enter a passphrase to encrypt it. Entering one is recommended.",
+    "ssh-add: manage keys in the agent",
+    "First confirm that <code>SSH_AUTH_SOCK</code> points to a working agent, then check loaded keys with <code>ssh-add -l</code>. Your desktop may provide integration through gcr or a similar service; automatic loading is not guaranteed in every session.",
+    "Connecting and debugging",
+    "A practical check for passphrase protection\n<code>ssh-keygen -y -f ~/.ssh/id_ed25519</code>: if it prints the public key immediately, the private key is unencrypted; if it waits for a passphrase, the key is encrypted.",
+    "Client configuration: GitHub and general-purpose development machines",
+    "On Windows, config is at $HOME.ssh/config",
+    "<strong>Everyday workflow</strong>:",
+    "config permissions\n<code>chmod 600 ~/.ssh/config</code> is a common conservative setting, not the only permitted value. User configuration must meet OpenSSH’s ownership and write-permission requirements; violations may cause an immediate error. For declaratively managed files, handle permissions in the configuration source.",
+    "Related articles",
+    "Concepts: <a href=\"/writing/ssh-authentication-model/\">The SSH authentication model</a>",
+    "agent and passphrase → <a href=\"/writing/ssh-agent-keyring/\">ssh-agent, passphrases, and keyrings</a>",
+    "References: <a href=\"https://man.openbsd.org/ssh-keygen\" target=\"_blank\" rel=\"noopener noreferrer\">ssh-keygen man</a> | <a href=\"https://man.openbsd.org/ssh_config\" target=\"_blank\" rel=\"noopener noreferrer\">ssh config man</a>",
+    "Place specific Host blocks before general defaults, because most settings use the first value obtained; options that permit multiple values, such as <code>IdentityFile</code>, accumulate. Successful GitHub authentication produces a message saying shell access is unavailable and usually returns exit code 1, so a nonzero exit code alone does not indicate authentication failure. On the first connection, check the host fingerprint against the official fingerprint or a trusted console. If a host key changes, investigate the cause before taking action; do not simply disable verification."
+  ],
+  "reference_labels": [
+    "OpenSSH ssh manual",
+    "OpenSSH ssh_config manual",
+    "OpenSSH ssh-keygen manual",
+    "Testing a GitHub SSH connection"
+  ]
+}

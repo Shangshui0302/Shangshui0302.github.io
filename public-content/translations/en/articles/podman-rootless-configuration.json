@@ -1,0 +1,24 @@
+{
+  "source_sha256": "85659f9feb053f4e54bc487038da80ab8ec397600485fabb93ee6bc6e6ad6e7b",
+  "segments": [
+    "First read <a href=\"/writing/podman-rootless-boundaries/\">Rootless permission boundaries</a> to understand UID translation, mount permissions, storage, and published ports. This article retains the details of further configuration and specialized operations.",
+    "Allocating and changing subordinate IDs",
+    "<code>/etc/subuid</code> and <code>/etc/subgid</code> authorize users to use additional UIDs/GIDs; <code>newuidmap/newgidmap</code> help set up the namespaces. An administrator must verify that the ranges do not overlap. No fixed range is a universal answer.",
+    "Explicit <code>usermod --add-*</code> commands allocate ranges manually, not automatically. There is no need to create files with <code>touch</code> to conceal missing system configuration. Changing a range already in use can affect the ownership of existing storage files and long-lived namespaces; logging in again does not guarantee a complete migration. During maintenance, check the effects of <code>podman system migrate</code> for your installed version and back up your data. On NixOS, declare <code>subUidRanges</code>, <code>subGidRanges</code>, or appropriate automatic-allocation options instead of editing managed files directly. Some single-UID cases may still work without subordinate IDs, but unpacking multi-user images or switching identities can fail. Diagnose the actual stage at which the error occurs.",
+    "System policies for low ports and ICMP",
+    "The low-port boundary depends on system configuration; it is not universally true that ordinary users cannot bind ports below 1024:",
+    "ICMP errors may also be caused by a missing ping command in the container, the user namespace, the network backend, or filtering policies. Permission to use raw sockets is distinct from the group range allowed to use ping sockets. Do not conclude that application networking is broken solely because ping fails. Relaxing restrictions on low ports or ping groups is a system-wide policy change. On NixOS, express it through <code>boot.kernel.sysctl</code> and stay within the authorization granted by the administrator. Replace the example group numbers with the groups actually authorized; do not copy them unchanged.",
+    "User-level storage and registry configuration",
+    "overlay is a driver name, while fuse-overlayfs may be its mount_program; they should not simply be listed as two separate drivers. <code>size</code> is not a global 20GB limit shared by images, volumes, and all containers. Its behavior depends on the quota support of the driver and filesystem. See the permission-boundaries article for limitations around migrating existing storage, NFS home directories, and changing the storage root.",
+    "The search list controls how unqualified short names are resolved, and prefix/location can be used for registry remapping. When configuring registry mirrors, verify their provenance, authentication, and availability. Tutorials favor fully qualified image names to avoid differences caused by search order on different machines. No commercial subscription or private image sources are disclosed here.",
+    "When rootful operation and additional capabilities are needed",
+    "An unchangeable low-port policy, specific devices or kernel features, or workflows that do not support rootless operation may require administrator-level execution. Adding <code>SYS_ADMIN</code> to a rootless container does not grant host root privileges. Host kernel modules should be loaded by the host administrator; this should not be delegated to an ordinary container merely for convenience.",
+    "Rootless containers can still read or damage personal files they have been authorized to access. Do not test security by mounting the entire <code>/</code> filesystem and attempting to read <code>/etc/shadow</code>. Checking the rootless flag, actual userns mappings, and a restricted demonstration directory is more appropriate."
+  ],
+  "reference_labels": [
+    "Official Podman run manual",
+    "Official Podman overview and rootless documentation",
+    "Podman system migrate",
+    "containers/storage configuration"
+  ]
+}

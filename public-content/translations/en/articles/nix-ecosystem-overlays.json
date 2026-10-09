@@ -1,0 +1,28 @@
+{
+  "source_sha256": "ae50a19a975df716352e7e2518741e740088e572751bd129734625d5b0219508",
+  "segments": [
+    "️ What are Overlays?",
+    "Overlays are a core Nixpkgs mechanism. Think of them as a layer of your own definitions applied over the official <code>pkgs</code>.",
+    "1. Basic syntax",
+    "️ Common uses for Overlays",
+    "1. Change build options (Override)",
+    "Some packages have certain features disabled by default at build time.",
+    "2. Apply patches (overrideAttrs)",
+    "If you have a <code>.patch</code> file:",
+    "3. Add a new package",
+    "You can define your own package in an Overlay and then reference it as <code>pkgs.my-app</code>.",
+    "Integrate Overlays into a Flake",
+    "Define your Overlays in the <code>outputs</code> section.",
+    "Why do this?",
+    "As an Arch user, you may be used to finding PKGBUILDs in the AUR. In NixOS, Overlays are your all-purpose customization tool. You do not need to repackage software from scratch; you can simply adjust an existing package.",
+    "Summary",
+    "<strong><code>override</code></strong>: Changes the arguments to a package function (usually the function arguments supplied by <code>callPackage</code>).",
+    "<strong><code>overrideAttrs</code></strong>: Changes the derivation attributes passed to <code>mkDerivation</code> (such as <code>patches</code> and <code>postInstall</code>), producing a new derivation.",
+    "final / prev and actual builds",
+    "<code>self: super:</code> is an older variable-naming convention; <code>final: prev:</code> is more descriptive, referring to the final package set after all overlays and the package set from the previous layer, respectively. After importing an overlay, you must still ensure that consumers actually use that package set. The original example only defined a local <code>pkgs</code> without connecting it to <code>nixosSystem</code>; here it has been changed to <code>nixpkgs.overlays</code> in a module. Patch changes require an actual build of the affected package: successful evaluation does not prove that a patch applies. The pinned Nixpkgs determines the package function's arguments and version."
+  ],
+  "reference_labels": [
+    "Nixpkgs Overlays",
+    "Nixpkgs Overrides"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "source_sha256": "83de8cb365290a6707930215402cb990a6283f4f6bb887b04a159f1a05efa20b",
+  "segments": [
+    "&quot;The heart of Nix configuration: finding the right merge point in a complex hierarchy.&quot;",
+    "Recursive Attribute Sets: rec { ... }",
+    "An ordinary attribute set does not add its own attributes to the lexical scope. To reference attributes by name from within the set, use <code>rec</code> or define shared bindings in a <code>let</code> expression first. If an outer variable has the same name, an ordinary attribute set references that outer variable.",
+    "<strong>Incorrect:</strong>",
+    "<strong>Correct:</strong>",
+    "How Attribute Merging Really Works",
+    "1. Using // (Merge)",
+    "This is merging at the Nix language level.",
+    "<strong>Note</strong>: <code>//</code> performs a <strong>shallow merge</strong>. If both sets contain nested sets with the same name, the latter replaces the former outright.",
+    "2. Using lib.mkMerge (NixOS Modules Only)",
+    "In NixOS configuration files, we rarely use <code>//</code> directly. The NixOS module system merges configuration for us:",
+    "Dotted Paths",
+    "Use dotted paths to define deeply nested attributes directly and reduce nesting.",
+    "<strong>Long form:</strong>",
+    "<strong>Concise form:</strong>",
+    "Practical Example: Dynamic Attribute Names",
+    "Use <code>${...}</code> to generate attribute names dynamically."
+  ],
+  "reference_labels": [
+    "NixOS Manual",
+    "Nix Language Manual"
+  ]
+}

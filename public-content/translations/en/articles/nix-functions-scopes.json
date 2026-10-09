@@ -1,0 +1,28 @@
+{
+  "source_sha256": "06bff7b8dfae5b0f49ed8fbf46bd45b489f51215b1bdf3c51068b246c483aa13",
+  "segments": [
+    "&quot;The key to understanding Nix code is knowing where each variable comes from.&quot;",
+    "Defining Variables: let ... in",
+    "This is the most common way to define local variables.",
+    "<strong>Rule</strong>: <code>let</code> bindings are visible within every binding's value and the expression after <code>in</code>, so bindings can refer to one another. They do not leak outside the expression.",
+    "Shorthand Magic: inherit",
+    "Use <code>inherit</code> when you want to assign a variable to an attribute with the same name.",
+    "<strong>Conventional form:</strong>",
+    "<strong>Shorthand with <code>inherit</code>:</strong>",
+    "This is extremely common in <code>flake.nix</code> and module configurations.",
+    "Caution: with pkgs;",
+    "<code>with set; body</code> adds an attribute-lookup scope for body. Existing lexical bindings take precedence; it does not turn the attributes into ordinary let bindings.",
+    "<strong>Risk</strong>: variable-name collisions become easy to introduce and difficult to debug, since it may be unclear whether a variable comes from <code>pkgs</code> or the global scope.",
+    "<strong>Recommendation</strong>: using it inside lists <code>[ ... ]</code> is fine, but use it sparingly in large configuration blocks.",
+    "Functions and Parameter Breakdown",
+    "The top level of a Nix file is often an anonymous function:",
+    "<strong><code>...</code> (Ellipsis)</strong>: indicates that the function accepts additional arguments it does not currently need, preventing errors from an argument mismatch.",
+    "<strong>Destructuring</strong>: specify the parameter names you need directly inside the braces.",
+    "Practical Tip: Nested Scopes",
+    "The ++ operator combines two lists."
+  ],
+  "reference_labels": [
+    "NixOS manual",
+    "Nix language manual"
+  ]
+}

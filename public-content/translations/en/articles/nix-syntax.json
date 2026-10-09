@@ -1,0 +1,34 @@
+{
+  "source_sha256": "69b565e40f5fc71ffb73226b5222c6394b0e110a43ac564d2409cd6f590562d9",
+  "segments": [
+    "Nix is a lazily evaluated functional expression language. Attribute sets and lists are common data structures in configurations, but functions, conditionals, recursion, and evaluation are also part of the language itself.",
+    "Basic data types",
+    "1. Attribute Sets",
+    "This is the most important data structure in Nix.",
+    "Access an attribute: <code>mySet.name</code>.",
+    "Merge attributes: use the <code>//</code> operator.",
+    "2. Lists",
+    "Separate items with spaces, <strong>not commas</strong>!",
+    "3. Strings",
+    "Double quotes are used for single-line strings; two single quotes delimit multiline strings (Indented Strings).",
+    "<strong>String interpolation</strong>: use <code>${variable}</code>.",
+    "Common operators",
+    "<strong><code>//</code> (Merge)</strong>: merges two attribute sets.\n<code>{ a = 1; } // { b = 2; }</code> produces <code>{ a = 1; b = 2; }</code>.",
+    "<strong><code>.</code> (Access)</strong>: accesses nested attributes.\n<code>pkgs.lib.mkIf</code>.",
+    "<strong><code>?</code> (Has Property)</strong>: checks whether an attribute exists.\n<code>set ? name</code> returns true/false.",
+    "Built-in functions (Builtins)",
+    "Nix provides many built-in functions that are used frequently in configurations:",
+    "<strong><code>import ./path.nix</code></strong>: loads another file.",
+    "<strong><code>builtins.elem x list</code></strong>: checks whether x is in the list.",
+    "<strong><code>builtins.attrNames set</code></strong>: returns all attribute names.",
+    ": although not built in, this is NixOS’s core function library.",
+    "<code>lib.mkIf condition config</code>: enables configuration conditionally.",
+    "<code>lib.mkMerge [ ... ]</code>: merges multiple configuration fragments.",
+    "Avoiding pitfalls: the semicolon ;",
+    "In Nix, <strong>attribute definitions must end with a semicolon</strong>."
+  ],
+  "reference_labels": [
+    "NixOS Manual",
+    "Nix Language Manual"
+  ]
+}

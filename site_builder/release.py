@@ -28,7 +28,7 @@ def release_origin(config):
 
 def check_release_output(output, config):
     release_origin(config)
-    allowed = {'assets', 'work', 'writing', 'journal', 'topics', 'index', 'index.html', 'feed.xml'}
+    allowed = {'en', 'assets', 'work', 'writing', 'journal', 'topics', 'index', 'index.html', 'feed.xml'}
     for path in output.iterdir():
         if path.name not in allowed:
             raise ValueError(f'Unexpected release output: {path.name}')

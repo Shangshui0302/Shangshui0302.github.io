@@ -1,0 +1,41 @@
+{
+  "source_sha256": "f2d9f0d5b49c4d216bd53cd35701a18fe6d8344a04357d3e2da5ecee9942589c",
+  "segments": [
+    "Podman pods let local containers share selected namespaces and provide a way to organize Kubernetes manifest workflows.",
+    "What is a pod? (A beginner’s introduction)",
+    "Start with a scenario",
+    "Imagine deploying a website that needs three components: a web server, a backend API, and a database.",
+    "<strong>The Docker approach</strong> (independent containers):",
+    "Separate network namespaces often communicate through a bridge network and container DNS. Actual overhead depends on the network implementation and workload; this alone does not mean that a database on the same machine must share a pod with the API.",
+    "<strong>The pod approach</strong> (sharing the same &quot;room&quot;):",
+    "<strong>A pod’s core feature</strong>: containers in the same pod share networking. They can communicate with each other through <code>localhost</code> without exposing ports externally.",
+    "How pods relate to Kubernetes",
+    "In Kubernetes, a pod is <strong>the smallest scheduling unit</strong>: you cannot run a container directly; it must be placed in a pod. Podman brings the pod concept to local development so you can use the same organizational model on a single machine.",
+    "Basic pod operations",
+    "Create an empty pod",
+    "What is an infra container?",
+    "When creating a pod, Podman creates an <strong>infra container</strong> by default. It acts like the pod’s &quot;landlord&quot;, holding shared namespaces such as networking and IPC. Other containers &quot;move into&quot; this landlord’s house when they join the pod.",
+    "Add containers to a pod",
+    "<strong>The key point</strong>: the <code>api</code> container can now use <code>localhost:80</code> to access <code>web</code>, and <code>web</code> can use <code>localhost:3000</code> to access <code>api</code>, all within the shared network namespace. Services must listen on the corresponding ports, and ports must not conflict.",
+    "Manage a pod",
+    "Bidirectional conversion: Podman ↔ Kubernetes",
+    "This is one of Podman’s standout capabilities.",
+    "Generate Kubernetes YAML from a pod",
+    "Example generated YAML (simplified):",
+    "Run local containers from Kubernetes YAML",
+    "Generate systemd service files",
+    "Practical example: WordPress + MySQL in a pod",
+    "Compared with Docker Compose: Compose’s <code>depends_on</code> controls dependencies, not addressing; services on the same network are usually resolved by service name. Pods can use localhost, but traffic still passes through the network stack, so the overhead is not zero. MariaDB initialization and WordPress startup still need readiness retries.",
+    "Shared storage in pods",
+    "Containers in the same pod can share volumes, but each must explicitly mount the same path:",
+    "The example env files are stored outside the repository with restricted permissions and provide required values such as matching database passwords; all strings shown are invalid demonstration values. Exported kube manifests may contain plaintext environment variables and must not be uploaded as though they were secure archives. <code>podman play kube</code> is an alias for <code>podman kube play</code>, and <code>generate kube</code> is the old entry point; renamed commands do not make the functionality a complete Kubernetes implementation. The namespaces shared by a pod are configurable; shared networking does not automatically share filesystems or volumes. <code>podman generate systemd</code> is deprecated and retained here only to identify older workflows. Use Quadlet for new services."
+  ],
+  "reference_labels": [
+    "Official Podman run manual",
+    "Official Podman overview and rootless mode",
+    "Pod creation and infra",
+    "Scope of kube play",
+    "kube generate",
+    "Legacy systemd generation command"
+  ]
+}

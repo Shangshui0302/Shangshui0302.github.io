@@ -1,0 +1,43 @@
+{
+  "source_sha256": "f91dae2efe7b6d98fe4df350d320e009ba716445b62a5b9f161c40289e973ca5",
+  "segments": [
+    "The File Exists, So Why ENOENT?",
+    "A dynamically linked ELF file needs not only the executable itself but also the interpreter recorded in the ELF. Ordinary x86_64 Linux distributions often place the glibc loader at <code>/lib64/ld-linux-x86-64.so.2</code>; packaged NixOS programs usually refer directly to a loader in <code>/nix/store</code>. When an unadapted downloaded binary cannot find its hard-coded loader path, <code>execve</code> returns <code>ENOENT</code>, and the shell may report <code>No such file or directory</code>.",
+    "The following historical example output illustrates this behavior; it is not a record from this machine:",
+    "From System Calls to the ELF Interpreter",
+    "A typical diagnostic sequence looks like this, with addresses, build IDs, and store hashes omitted:",
+    "<code>file</code> is a separately packaged tool, not part of binutils. <code>strace</code> shows system calls and return values; <code>file</code> and <code>patchelf</code> help distinguish problems with file permissions, architecture, interpreters, and dependent libraries. A missing loader path is only one cause of ENOENT; a script shebang pointing to a nonexistent interpreter can produce a similar error.",
+    "Compare this with a packaged system program:",
+    "Its loader is often <code>/nix/store/&lt;hash&gt;-glibc-&lt;version&gt;/lib/ld-linux-x86-64.so.2</code>. This is a difference in NixOS's path layout; NixOS itself is also Linux.",
+    "The Packaging-Time Solution: autoPatchelfHook",
+    "For closed-source software with fixed release archives, <code>autoPatchelfHook</code> is a Nixpkgs build hook that locates binary dependencies, rewrites the ELF interpreter, and sets library search paths during packaging. The appropriate dependencies must still be supplied in <code>buildInputs</code>; the hook does not conjure up downloads of missing libraries.",
+    "The historical notes use Master PDF Editor to illustrate the rewritten RPATH:",
+    "Package names, versions, and wrapped filenames depend on the Nixpkgs revision in use. The key point of the historical output is that RPATH contains multiple Nix store library directories:",
+    "The line breaks above are only for readability; the actual RPATH is one colon-separated line. Qt5 was a dependency of this historical package, which does not mean all current versions still use Qt5.",
+    "When Is Patching Every Time Impractical?",
+    "Executables downloaded by editor extensions or tools such as npm and pip must be patched again after updates.",
+    "Java JARs or other archives may contain binaries that are not extracted until runtime.",
+    "Games or proprietary software may verify binary integrity and refuse to start after modification.",
+    "Very large software, such as FPGA IDEs, can be inconvenient to copy into the store and then process.",
+    "nix-ld's Shim Mechanism",
+    "<code>nix-ld</code> is placed at the path used by ordinary distributions' loaders, then delegates to the real dynamic loader in the Nix store. It preserves the contents of unpatched files and does not require copying the entire software package into the store.",
+    "<code>NIX_LD</code> specifies the real loader; <code>NIX_LD_LIBRARY_PATH</code> specifies additional library directories, separated by <strong>colons</strong>, not commas. The shim supplies library search paths to the loader. Upstream also supports architecture-specific variables such as <code>NIX_LD_x86_64_linux</code>; the suffix replaces hyphens in the system identifier with underscores.",
+    "System Module Configuration",
+    "Run the target binary after the module takes effect. Merely writing the configuration to a file or building the system does not mean the shim is enabled. The dependency list above is a starting point, not a guarantee that every commercial application will run directly.",
+    "The original article was written in 2022 and discussed library configuration in the then-upcoming 23.05 release. The release preview is presented here as historical context. The original author's extended configuration is available in <a href=\"https://github.com/Mic92/dotfiles/blob/master/nixos/modules/nix-ld.nix\" target=\"_blank\" rel=\"noopener noreferrer\">Mic92's nix-ld module</a>.",
+    "Project-Local Environment Variables",
+    "If the shim is present but the loader configuration is missing, the error may explicitly state that <code>NIX_LD</code> has not been configured. Check the configuration according to the messages from your installed version.",
+    "The Boundary with Python Virtual Environments",
+    "Nixpkgs Python is already linked to a loader in the store; setting <code>NIX_LD_LIBRARY_PATH</code> does not automatically route it through nix-ld. If a PyPI extension module lacks libraries, prepare the correct system libraries and runtime environment locally for the project. Setting <code>LD_LIBRARY_PATH</code> globally may inject incorrect versions into programs that are already packaged. For specific Python/Qt troubleshooting, see <a href=\"/writing/nix-ecosystem-python-qt/\">Python Environment Configuration and Qt Troubleshooting</a>.",
+    "Choosing Between steam-run and Packaging",
+    "For occasional use of unadapted software, consider the FHS environment provided by <code>steam-run</code>:",
+    "The command requires <code>steam-run</code> to be available already. It provides a compatibility environment whose scope differs from nix-ld; when packaging, <code>autoPatchelfHook</code> or other Nixpkgs build mechanisms are usually preferred.",
+    "For everyday software such as QQ, WeChat, and VS Code, first look for an existing package in the <a href=\"https://search.nixos.org/packages\" target=\"_blank\" rel=\"noopener noreferrer\">Nixpkgs package search</a>, then choose a compatibility approach based on its dependencies. nix-ld addresses dynamic-loader and library-path problems; it does not automatically fix missing resources, kernel features, every hard-coded <code>/usr/bin</code> path, or other ABI differences. Hard-coded script paths are a separate topic; see <a href=\"https://github.com/Mic92/envfs\" target=\"_blank\" rel=\"noopener noreferrer\">envfs</a> for more.",
+    "Sources and Scope",
+    "This article combines basic configuration notes with the <a href=\"https://blog.thalheim.io/2022/12/31/nix-ld-a-clean-solution-for-issues-with-pre-compiled-executables-on-nixos/\" target=\"_blank\" rel=\"noopener noreferrer\">original nix-ld article</a> published by Jörg Thalheim and Jill Thornhill on 2022-12-31. It removes duplicated Chinese/English passages while preserving the full technical progression through system calls, ELF, RPATH, use cases, and configuration. Commands and output are explanatory examples, not results verified on this machine."
+  ],
+  "reference_labels": [
+    "Upstream nix-ld documentation",
+    "The original authors’ historical article"
+  ]
+}

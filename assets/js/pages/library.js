@@ -1,3 +1,4 @@
+import {t} from '../core/language.js';
 /* URL-owned directory state; the router is the only history writer. */
 export function initLibrary(root, scope, {updateUrl}) {
   const category = root.querySelector('#article-category');
@@ -14,7 +15,7 @@ export function initLibrary(root, scope, {updateUrl}) {
         || topic.value !== 'all' && !row.dataset.topics.split(' ').includes(topic.value);
       if (!row.hidden) visible++;
     });
-    root.querySelector('#writing-count').textContent = `${visible} / ${rows.length} 篇文章`;
+    root.querySelector('#writing-count').textContent = t(`${visible} / ${rows.length} 篇文章`, `${visible} / ${rows.length} articles`);
     root.querySelector('#writing-empty').hidden = visible > 0;
   };
   const restore = () => {

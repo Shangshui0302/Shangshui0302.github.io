@@ -1,3 +1,4 @@
+import {t as translate} from '../core/language.js';
 import {createStellarResponse} from './stellar-response.js';
 
 /* Original perspective geometry. All simulation is local and illustrative. */
@@ -186,7 +187,7 @@ export function initStellar(root, scope) {
       setStyle('--type-kick',`${(-response.displacement/.27*8).toFixed(1)}px`);
       if(!dragging){yawDrag+=inertia;inertia*=Math.pow(.91,dt*60);}
       const hadFlares=flares.length;flares=flares.filter(f=>t-f.time<2.7);
-      if(hadFlares&&!flares.length&&!dragging&&!charging)status.textContent='自由运行';
+      if(hadFlares&&!flares.length&&!dragging&&!charging)status.textContent=translate('自由运行', 'In orbit');
       draw();
     }
     function endDrag(){
@@ -200,8 +201,8 @@ export function initStellar(root, scope) {
       if (scope.disposed) return;
       reduced=reducedQuery.matches||document.documentElement.dataset.reducedMotion==='true';paused=manual||reduced;
       hero.dataset.paused=String(paused);pause.disabled=reduced;pulseButton.disabled=paused;reset.disabled=reduced;
-      pause.setAttribute('aria-pressed',String(paused));pause.innerHTML=reduced?'静态星系 <span aria-hidden="true">○</span>':manual?'继续运行 <span aria-hidden="true">▷</span>':'暂停星系 <span aria-hidden="true">Ⅱ</span>';
-      status.textContent=paused?'静态轨道':'自由运行';
+      pause.setAttribute('aria-pressed',String(paused));pause.innerHTML=reduced?translate('静态星系 <span aria-hidden="true">○</span>', 'Static galaxy <span aria-hidden="true">○</span>'):manual?translate('继续运行 <span aria-hidden="true">▷</span>', 'Resume galaxy <span aria-hidden="true">▷</span>'):translate('暂停星系 <span aria-hidden="true">Ⅱ</span>', 'Pause galaxy <span aria-hidden="true">Ⅱ</span>');
+      status.textContent=paused?translate('静态轨道', 'Static orbit'):translate('自由运行', 'In orbit');
       if(frame)cancelAnimationFrame(frame);frame=0;last=0;
       if(paused||document.hidden||!visible)cancelInteraction();
       if(paused){response.reset();setStyle('--type-kick','0px');}
@@ -230,19 +231,19 @@ export function initStellar(root, scope) {
     function ignite(x=centerX,y=centerY,power=0){
       if(paused)return;
       if(!power)response.velocity+=.42;
-      flares.push({x,y,time:t,power});if(flares.length>3)flares.shift();status.textContent=power>.3?'恒星爆发':'脉冲扩散';
+      flares.push({x,y,time:t,power});if(flares.length>3)flares.shift();status.textContent=power>.3?translate('恒星爆发', 'Stellar burst'):translate('脉冲扩散', 'Pulse expanding');
     }
     function beginCharge(){
       if(paused||charging)return;
-      charging=true;charge=0;chargeStart=t;hero.classList.add('is-charging');chargeLabel.textContent='松开释放';status.textContent='恒星蓄能';
+      charging=true;charge=0;chargeStart=t;hero.classList.add('is-charging');chargeLabel.textContent=translate('松开释放', 'Release to ignite');status.textContent=translate('恒星蓄能', 'Charging star');
     }
     function cancelCharge(){
       charging=false;charge=0;keyboardHeld=false;
       const captured=chargePointer;chargePointer=null;
       if(captured!==null&&pulseButton.hasPointerCapture(captured))pulseButton.releasePointerCapture(captured);
       hero.classList.remove('is-charging');setStyle('--charge','0');setCharge('0');
-      chargeLabel.textContent='长按蓄能';chargeValue.textContent='HOLD TO IGNITE';
-      status.textContent=paused?'静态轨道':'自由运行';
+      chargeLabel.textContent=translate('长按蓄能', 'Hold to charge');chargeValue.textContent='HOLD TO IGNITE';
+      status.textContent=paused?translate('静态轨道', 'Static orbit'):translate('自由运行', 'In orbit');
     }
     function releaseCharge(){
       if(!charging)return;
@@ -258,14 +259,14 @@ export function initStellar(root, scope) {
     scope.on(hero,'pointerdown',e=>{
       if(paused||interactive(e)||e.button!==0)return;
       downX=e.clientX;downY=e.clientY;dragTravel=0;heldPointer=e.pointerId;
-      if(e.pointerType!=='touch'&&fine.matches){dragging=true;hero.classList.add('is-dragging');hero.setPointerCapture(e.pointerId);status.textContent='轨道牵引';}
+      if(e.pointerType!=='touch'&&fine.matches){dragging=true;hero.classList.add('is-dragging');hero.setPointerCapture(e.pointerId);status.textContent=translate('轨道牵引', 'Turning orbit');}
     });
     scope.on(hero,'pointerup',e=>{
       if(e.pointerId!==heldPointer)return;
       const wasDragging=dragging;
       endDrag();
       if(paused||interactive(e))return;
-      if(wasDragging){if(dragTravel<7)ignite(e.clientX,e.clientY);else status.textContent='自由运行';}
+      if(wasDragging){if(dragTravel<7)ignite(e.clientX,e.clientY);else status.textContent=translate('自由运行', 'In orbit');}
       else if(e.pointerType==='touch'&&Math.hypot(e.clientX-downX,e.clientY-downY)<10)ignite(e.clientX,e.clientY);
     });
     scope.on(hero,'pointercancel',e=>{if(e.pointerId===heldPointer)cancelInteraction();});
@@ -284,7 +285,7 @@ export function initStellar(root, scope) {
     scope.on(pulseButton,'keyup',e=>{if(e.code==='Space'&&keyboardHeld){e.preventDefault();releaseCharge();}});
     scope.on(pulseButton,'blur',()=>{if(charging)cancelCharge();});
     scope.on(pulseButton,'click',()=>{if(performance.now()>ignoreClickUntil&&!charging)ignite();});
-    scope.on(reset,'click',()=>{cancelInteraction();response.reset();setStyle('--type-kick','0px');yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?'静态轨道':'自由运行';draw();});
+    scope.on(reset,'click',()=>{cancelInteraction();response.reset();setStyle('--type-kick','0px');yawDrag=pitchDrag=inertia=0;pointer.tx=pointer.ty=0;flares=[];status.textContent=paused?translate('静态轨道', 'Static orbit'):translate('自由运行', 'In orbit');draw();});
     scope.on(window,'pageshow',sync);
     scope.on(window,'scroll',updateScroll,{passive:true});
     const resizeObserver = new ResizeObserver(resize);

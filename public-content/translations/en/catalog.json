@@ -1,0 +1,1496 @@
+{
+  "writing": {
+    "git-snapshots": {
+      "title": "From the first add to undoing a change.",
+      "deck": "Walk through a local Git workflow: staging, partial commits, diff inspection, restoration, history rewriting, and ignore rules.",
+      "category": "GIT / WORKFLOW"
+    },
+    "linux-permissions": {
+      "title": "The other side of rwx.",
+      "deck": "Read a full ls listing to understand numeric permissions, directory access, deletion, special bits, and practical troubleshooting.",
+      "category": "LINUX / PERMISSIONS"
+    },
+    "login-and-session": {
+      "title": "After login, who takes over the desktop?",
+      "deck": "Follow a login from authentication and session entries through environment setup, autostart, and logout to see how each layer hands off control.",
+      "category": "WAYLAND / ARCHITECTURE"
+    },
+    "theme-nine-slice": {
+      "title": "From assets to candidate window: the complete dynamic theme pipeline.",
+      "deck": "Connect Fcitx5 nine-slice assets, layout, and blur masks to Matugen colors and Nix runtime directories.",
+      "category": "INTERFACE / FCITX5"
+    },
+    "declarative-and-state": {
+      "title": "If configuration is reproducible, why do apps still forget?",
+      "deck": "From GNOME defaults and Home Manager activation to Flatpak's management scope, distinguish declarations, preferences, and data.",
+      "category": "NIXOS / STATE"
+    },
+    "distrobox-export": {
+      "title": "What does Distrobox actually export?",
+      "deck": "Walk through GUI and CLI exports, arguments, wrapper scripts, shared paths, troubleshooting, and removing exported entries.",
+      "category": "CONTAINERS / DISTROBOX"
+    },
+    "dataview-data-model": {
+      "title": "Define the fields first, then make notes queryable.",
+      "deck": "Start with YAML and inline fields, distinguish pages, tasks, and four output formats, then work through sources, conditions, sorting, and expressions.",
+      "category": "KNOWLEDGE / DATAVIEW"
+    },
+    "dataview-query-workflows": {
+      "title": "Turn projects, tasks, and reading into useful queries.",
+      "deck": "Build query pages around five practical questions, retain the full grouping and flattening process, and clarify time boundaries, task status, and missing fields.",
+      "category": "KNOWLEDGE / DATAVIEW"
+    },
+    "yazi-config-and-openers": {
+      "title": "Separate Yazi's configuration, then wire up file openers.",
+      "deck": "Move from configuration-file responsibilities to openers, matching rules, and key bindings, updating older examples for Yazi 26.9.1.",
+      "category": "TOOLS / YAZI"
+    },
+    "yazi-navigation-and-shell": {
+      "title": "From selecting files to handing the directory back to the shell.",
+      "deck": "Distinguish finding, filtering, selection, and the file buffer to complete batch operations and pass the final directory back on exit.",
+      "category": "TOOLS / YAZI"
+    },
+    "podman-rootless-boundaries": {
+      "title": "Rootless containers: whose file permissions count?",
+      "deck": "Trace UID mappings through bind mounts, persistent data, and network boundaries to explain Podman's permission checks.",
+      "category": "CONTAINERS / PODMAN"
+    },
+    "quadlet-service-lifecycle": {
+      "title": "How does Quadlet turn container declarations into services?",
+      "deck": "Follow source files, systemd generation, startup verification, persistent data, and readiness checks, then diagnose service failures.",
+      "category": "CONTAINERS / PODMAN"
+    },
+    "nixos-introduction": {
+      "title": "NixOS: the foundations of a declarative system",
+      "deck": "Understand how NixOS works through configuration, build outputs, and generations.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nixos-installation": {
+      "title": "Installing NixOS: installation media, partitions, and initial configuration",
+      "deck": "Understand prerequisites and steps for both graphical and manual installation.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nixos-configuration-basics": {
+      "title": "NixOS configuration basics: options and modules",
+      "deck": "Organize a system configuration around boot, networking, users, packages, and services.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nixos-system-home-management": {
+      "title": "Managing a system with Flakes and Home Manager",
+      "deck": "Separate the responsibilities of dependency entry points, system modules, user configuration, and project development environments.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nixos-cli-guide": {
+      "title": "The NixOS command line: old and new interfaces and everyday maintenance",
+      "deck": "Distinguish commands for system activation, user profiles, temporary environments, and garbage collection.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nixos-generations": {
+      "title": "NixOS generation management and garbage collection",
+      "deck": "Understand the generation lifecycle through inspection, activation, history removal, and storage reclamation.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nixos-specialisation": {
+      "title": "Specialisation: multiple configuration variants in one generation",
+      "deck": "Declare variants under a base configuration and distinguish runtime activation from changes that require a reboot.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-system-model": {
+      "title": "Nix and NixOS: storage, rollback, and declarative thinking",
+      "deck": "Understand the NixOS system model through the store, profiles, and imperative tools.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-syntax": {
+      "title": "Nix syntax: attribute sets, lists, and built-in functions",
+      "deck": "Learn common data types, attribute access, and the basics of writing configuration expressions.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-functions-scopes": {
+      "title": "Nix functions and scope",
+      "deck": "Identify where each variable comes from in let, inherit, with, and function parameters.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-attribute-merging": {
+      "title": "Nix attribute sets: recursion and merging",
+      "deck": "Distinguish shallow merging in the language from the merging rules for NixOS module options.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-derivations": {
+      "title": "Derivations: from expressions to build outputs",
+      "deck": "Trace the relationship between evaluation, building or downloading substitutes, and store outputs.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-schema": {
+      "title": "Flake structure: inputs and outputs",
+      "deck": "Understand Flake inputs, outputs, self, and the levels involved in capturing function arguments.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-lock-determinism": {
+      "title": "flake.lock and reproducibility",
+      "deck": "Record dependency sources with version locking while understanding the conditions for reproducible results.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-utils-templates": {
+      "title": "Flake Utils and project templates",
+      "deck": "Generate outputs for multiple platforms and turn development environments into reusable templates.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-external-sources": {
+      "title": "External Flake references and collaboration",
+      "deck": "Connect external modules and packages, and check the relationships between dependency versions.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-system-migration": {
+      "title": "Migrating NixOS configuration to Flakes",
+      "deck": "Create a Flake entry point from an existing configuration, then perform checks, builds, and activation separately.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-tutorial": {
+      "title": "A tutorial on Flake projects and dependency management",
+      "deck": "Work through Flake commands and project structure, from input syntax to multi-host organization.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-update-mechanics": {
+      "title": "How Flake updates work",
+      "deck": "Distinguish input updates, package sets, system generations, and cache downloads.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-flake-lock-rollback": {
+      "title": "Rolling back and manually editing flake.lock",
+      "deck": "Preserve existing changes before restoring the lock file, and distinguish dependency rollback from system-generation rollback.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "home-manager-bootstrap": {
+      "title": "Home Manager integration and modular configuration",
+      "deck": "Compare standalone and NixOS module modes, then split user configuration into modules.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "home-manager-shell-programs": {
+      "title": "Configuring a terminal environment with Home Manager",
+      "deck": "Use modules to configure Zsh, Starship, and common command-line tools.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "home-manager-desktop-themes": {
+      "title": "Desktop and theme configuration with Home Manager",
+      "deck": "Separate system-session and user-appearance responsibilities when configuring Hyprland, Plasma, and GTK.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "home-manager-files-symlinks": {
+      "title": "Home Manager files and symbolic links",
+      "deck": "Use home.file and XDG file options to manage read-only configuration and directory links.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "home-manager-secrets": {
+      "title": "Secrets management with Home Manager and NixOS",
+      "deck": "Separate public configuration from private data using encrypted files and runtime paths.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "home-manager-tutorial": {
+      "title": "A tutorial on user-level configuration with Home Manager",
+      "deck": "A complete introduction to installation, program modules, dotfiles, services, and activation.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "linux-command-file-operations": {
+      "title": "File and directory operations",
+      "deck": "Learn everyday file operations, from browsing and searching to links, archives, and disk-space queries.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "linux-command-process-jobs": {
+      "title": "Process and job management",
+      "deck": "Understand program execution and termination through process snapshots, signals, and foreground and background jobs.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "linux-command-text-system": {
+      "title": "Text processing and system queries",
+      "deck": "Move from paged viewing and text filtering to queries about memory, disks, networks, and ports.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "linux-command-shell": {
+      "title": "Shell fundamentals",
+      "deck": "Combine command-line tools with pipes, redirection, variables, and history operations.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "linux-command-fzf": {
+      "title": "Fuzzy finding with fzf",
+      "deck": "Turn lists of files, processes, branches, and history entries into interactive selection inputs.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "linux-command-xargs": {
+      "title": "Passing arguments with xargs",
+      "deck": "Convert standard input into command arguments while handling delimiters, placeholders, parallelism, and empty input.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "ssh-authentication-model": {
+      "title": "SSH authentication: directories, keys, and TOFU",
+      "deck": "Distinguish user identity, server identity, and the limits of trust on first use.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "ssh-agent-keyring": {
+      "title": "ssh-agent, passphrases, and keyrings",
+      "deck": "Understand the separate roles of private-key file protection, the agent signing interface, and desktop keyrings.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "ssh-usage-guide": {
+      "title": "SSH usage guide: command-line operations",
+      "deck": "Generate and manage keys, inspect client configuration, and debug authentication.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "fish-interactive-workflow": {
+      "title": "Fish: from key bindings to an editable command line",
+      "deck": "Cover Emacs and Vi bindings, completion, abbreviations, PATH, events, and prompt configuration.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "foot-terminal-controls": {
+      "title": "Foot: the boundaries of search, selection, and configuration",
+      "deck": "Distinguish keyboard modes, primary selection, font size, and the configuration lifecycle, with a complete key-binding reference.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "zellij-session-lifecycle": {
+      "title": "Zellij: does the session survive when the window closes?",
+      "deck": "Move from panes and tabs to sessions, distinguishing reconnection, layout restoration, and process state.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "linux-gui-input-stack": {
+      "title": "Which layers does an input candidate window pass through?",
+      "deck": "Separate the communication and rendering responsibilities of toolkits, windowing protocols, compositors, the shell, and Fcitx5.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "hyprland-special-workspaces": {
+      "title": "Hyprland special workspaces: a drawer for your windows",
+      "deck": "Separate toggling, launching, and window matching to configure multiple named special workspaces in full.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "kde-plasma5-notes": {
+      "title": "Plasma 5: historical notes on desktop customization",
+      "deck": "Preserve the original configuration and tool references while clarifying older-version issues, session differences, and plugin compatibility.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "kde-plasma6-migration": {
+      "title": "Plasma 6: moving from X11 habits to Wayland",
+      "deck": "Preserve the original configuration and tool references while clarifying older-version issues, session differences, and plugin compatibility.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-philosophy-installation": {
+      "title": "Arch Linux philosophy and installation planning",
+      "deck": "Understand pre-installation choices through rolling releases, boot modes, and storage planning.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-kernel-uki": {
+      "title": "Kernel management, systemd-boot, and UKIs",
+      "deck": "Combine the kernel, initramfs, and command line into a UKI, and understand the limits of signing and TPM measurement.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-package-aur": {
+      "title": "Pacman hooks, the AUR, and build security",
+      "deck": "Distinguish the roles of official repositories, AUR build scripts, and isolated environments in package-management automation.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-btrfs-snapper": {
+      "title": "Btrfs subvolume layouts and Snapper snapshots",
+      "deck": "Define separate state boundaries for the system, user data, and logs, then configure a recoverable snapshot workflow.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-security-hardening": {
+      "title": "Hardening with LUKS2, Secure Boot, and TPM2",
+      "deck": "Combine disk encryption, boot verification, and runtime access control while retaining a recovery route for each layer.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-performance-maintenance": {
+      "title": "Performance choices and an everyday maintenance checklist",
+      "deck": "Use measurements to choose kernels, compressed swap, and power management, and establish checks after rolling updates.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-pacman-commands": {
+      "title": "Common Pacman commands and how to remember their flags",
+      "deck": "Use the S, Q, R, and U operation groups to distinguish repository queries, local queries, removal, and local package installation.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-pacman-download": {
+      "title": "Diagnosing slow Pacman downloads and choosing mirrors",
+      "deck": "Locate download bottlenecks step by step through networking, mirror status, and parallel downloads.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-informant-hook": {
+      "title": "informant: Arch news and Pacman hooks",
+      "deck": "Flag unread Arch news before installation or upgrade transactions, with separate entry points for reading and configuration.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-gnome-install": {
+      "title": "Arch Linux with Btrfs: manual installation and archinstall",
+      "deck": "Work through UEFI, Btrfs subvolumes, the base system, GRUB, and the archinstall installation process.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-gnome-desktop": {
+      "title": "Configuring GNOME, input methods, and snapshots",
+      "deck": "Progress from desktop components and graphics and audio drivers to applications, input methods, shortcuts, and snapshots.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-gnome-laptop-theme": {
+      "title": "GNOME laptop management and desktop customization",
+      "deck": "Configure hybrid graphics, power, and hibernation, then adjust GNOME, Zsh, and terminal appearance.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-gnome-virtualization-games": {
+      "title": "KVM, GPU passthrough, and gaming on Arch Linux",
+      "deck": "Set up virtual machines and device passthrough, and distinguish the runtime boundaries of Steam, Wine, and Waydroid.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "arch-gnome-maintenance": {
+      "title": "Swap, kernels, and troubleshooting on an Arch desktop",
+      "deck": "Retain full operational details for compressed swap, kernel switching, system cleanup, and common desktop problems.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-deploy-virtual-machines": {
+      "title": "Validating NixOS configuration with QEMU",
+      "deck": "From a minimal configuration to GNOME and Sway, distinguish VM declarations from persistent disk state.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-deploy-build-iso": {
+      "title": "Building a bootable NixOS ISO",
+      "deck": "Customize software, graphical desktops, and bootable images through installation-media modules.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-deploy-docker-images": {
+      "title": "Building and running container images with dockerTools",
+      "deck": "Manage application derivations, runtime closures, and container data state separately.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "nix-deploy-ssh-deployment": {
+      "title": "Deploying NixOS over SSH",
+      "deck": "Distinguish local builds, temporary remote activation, persistent switching, and failure rollback.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-deploy-terraform": {
+      "title": "Dividing deployment responsibilities between Terraform and NixOS",
+      "deck": "Manage cloud resources with Terraform, then deploy NixOS system configuration through a controlled process.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-deploy-environment-isolation": {
+      "title": "Designing layered desktop and development environments",
+      "deck": "Choose between the host, Flatpak, Distrobox, virtual machines, and servers based on dependency and permission boundaries.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "nix-gnome-declarative-management": {
+      "title": "Declarative GNOME desktop management",
+      "deck": "Organize desktop, login, theme, and input-method configuration responsibilities into module groups.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-gnome-module-options": {
+      "title": "GNOME module options reference",
+      "deck": "Trace module source code to clarify desktop entry points, service switches, application groups, and exclusion mechanisms.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-gnome-gsettings-dconf": {
+      "title": "Managing GSettings defaults and dconf state",
+      "deck": "Distinguish schema defaults, vendor overrides, and the user database to choose the right declarative interface.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-gnome-diff-export-extensions": {
+      "title": "From settings diffs to declarations and extensions",
+      "deck": "Export differences, verify schema keys and types, then declare packages and the enabled-extension list.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-gnome-specialisation": {
+      "title": "Building GNOME variants with Specialisation",
+      "deck": "Derive independent system toplevels from the parent module graph, with clear inheritance, override, and recovery paths.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-gnome-wayland-session": {
+      "title": "kmscon and uwsm in Wayland sessions",
+      "deck": "Investigate the lifecycles of DRM handoff, systemd user sessions, and XDG autostart separately.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-ld-precompiled": {
+      "title": "nix-ld: precompiled ELF binaries, loaders, and library paths",
+      "deck": "Start with an existing file that reports ENOENT, then connect ELF diagnostics, packaging fixes, and nix-ld configuration step by step.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-ecosystem-direnv": {
+      "title": "Progressing from nix-shell to devShell and direnv",
+      "deck": "Separate temporary tools, locked project environments, and automatic directory loading into three clear steps.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-ecosystem-overlays": {
+      "title": "Overlays, override, and overrideAttrs",
+      "deck": "Adjust arguments and add patches to existing package definitions, then make the system actually consume the overlay.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-ecosystem-gc-rollback": {
+      "title": "Garbage collection, store optimization, and rollback generations",
+      "deck": "Distinguish deleting generation references, reclaiming store objects, and switching to older system configurations.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-ecosystem-colmena": {
+      "title": "Colmena: building, transferring, and activating multiple nodes",
+      "deck": "Organize node configurations with a hive and clarify the boundary between local builds and remote application.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-ecosystem-raspberry-pi": {
+      "title": "NixOS on Raspberry Pi: images, hardware, and services",
+      "deck": "Move from SD images and first boot to board interfaces, common services, and maintenance on low-memory devices.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-ecosystem-best-practices": {
+      "title": "NixOS configuration organization, maintenance, and troubleshooting",
+      "deck": "Retain a complete working checklist for version control, module organization, update backups, secure development, and failure recovery.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-ecosystem-development-environments": {
+      "title": "Nix development environments: languages, databases, and full-stack examples",
+      "deck": "Retain complete configurations for Python, Node, Rust, Go, Java, C/C++, Haskell, databases, and Justfile.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-ecosystem-python-qt": {
+      "title": "Dependency boundaries in Python, uv, and Matplotlib/Qt",
+      "deck": "Trace Python packages, system libraries, and plugin paths through Qt5Agg and PyPI wheel troubleshooting examples.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "nix-ecosystem-command-reference": {
+      "title": "Nix commands explained: builds, environments, profiles, and systems",
+      "deck": "Retain new and legacy CLI commands, store operations, system installation, and Home Manager commands while clarifying easily confused flags.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-ecosystem-nh": {
+      "title": "nh: a unified workflow for Nix systems, users, and cleanup",
+      "deck": "Cover nh commands, module options, specialisations, search, environment variables, and upstream contribution guidance.",
+      "category": "LINUX / SYSTEMS"
+    },
+    "nix-ecosystem-learning-roadmap": {
+      "title": "A NixOS learning roadmap: foundations, Flakes, user configuration, and beyond",
+      "deck": "Retain six learning modules, language ecosystems, and advanced resources, with clear prerequisites and progression.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "git-model": {
+      "title": "Git's underlying model: objects, snapshots, and references",
+      "deck": "Use snapshots, the object database, and references to understand what Git operations change.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "git-branching": {
+      "title": "Git branches: merging, conflicts, and saving work in progress",
+      "deck": "Understand fast-forward and three-way merges, and use stash to manage unfinished work.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "git-remotes": {
+      "title": "Remote collaboration with Git: fetching, tracking, and two remotes",
+      "deck": "Distinguish refreshing references, updating local branches, and pushing to a fork.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "git-advanced-tools": {
+      "title": "Advanced Git: rebasing, cherry-picking, and bisecting",
+      "deck": "Use rebase, cherry-pick, reflog, and bisect after understanding the boundaries of history rewriting.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "git-recovery": {
+      "title": "A Git scenario handbook: correcting, undoing, and recovering",
+      "deck": "Choose a recovery path based on the current operation and what data has been saved, without compounding data loss.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "sops-principles": {
+      "title": "sops principles: hybrid encryption and recipients",
+      "deck": "Understand the boundaries of encrypted version control, data keys, and authorization for multiple recipients.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "sops-nixos-integration": {
+      "title": "sops-nix integration: runtime, ordering, and SSH host keys",
+      "deck": "Connect encrypted source files, runtime secret files, and service dependencies.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "sops-cli-workflow": {
+      "title": "sops usage guide: command-line operations",
+      "deck": "Edit encrypted files, inspect their status, and manage recipients and data keys.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "sops-configuration-templates": {
+      "title": "sops configuration templates and runtime rendering",
+      "deck": "Understand encryption rules, sops-nix configuration, and runtime placeholders field by field.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "sops-key-migration-rotation": {
+      "title": "sops key migration and rotation",
+      "deck": "Migrate keys through a two-recipient transition, distinguishing authorization updates from credential revocation.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "github-fundamentals": {
+      "title": "GitHub basics",
+      "deck": "Distinguish Git, GitHub, and gh, then work through sign-in, forking, pushing, and creating a PR.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "github-repository-management": {
+      "title": "GitHub repository management",
+      "deck": "Establish repository documentation, permissions, merge rules, and releases as a verifiable governance contract.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "github-contribution-workflow": {
+      "title": "The GitHub contribution workflow",
+      "deck": "Move from issues and branches through PR review and checks to synchronization and cleanup after merging.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "github-actions-fundamentals": {
+      "title": "The GitHub Actions execution model",
+      "deck": "Understand events, workflows, jobs, runners, and steps, along with the distinct roles of matrices, caches, and artifacts.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "github-actions-ci-configuration": {
+      "title": "Configuring CI with GitHub Actions",
+      "deck": "Design CI from local quality checks and connect stable check statuses to repository merge rules.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "github-actions-security-debugging": {
+      "title": "GitHub Actions security and troubleshooting",
+      "deck": "Locate CI risks and failures across event, permission, credential, runner, and supply-chain boundaries.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "github-nix-ci-example": {
+      "title": "Nix CI: evaluation, builds, and output contracts",
+      "deck": "Use a teaching example with six theme outputs to distinguish Nix evaluation, builds, Actions records, and desktop runtime evidence.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "docker-fundamentals": {
+      "title": "Docker basics: images, containers, and the daemon",
+      "deck": "Understand container startup through the client, API, containerd, and OCI runtime.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "docker-basic-usage": {
+      "title": "The Docker command line: images, containers, volumes, and networks",
+      "deck": "Learn common flags and distinguish the effects of running, stopping, and deleting resources.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "docker-build": {
+      "title": "Dockerfiles and image builds",
+      "deck": "Organize image recipes around entry commands, multi-stage builds, and cache optimization.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "docker-compose": {
+      "title": "Compose: defining multi-service applications",
+      "deck": "Manage single-host applications with services, dependencies, profiles, watch, and secrets.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "docker-networking-storage": {
+      "title": "Docker networking and storage",
+      "deck": "Choose network modes and persistence methods, with clear port-exposure and data-lifecycle boundaries.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "docker-production": {
+      "title": "Docker in production: resources, security, and recovery",
+      "deck": "Check container operating conditions through limits, logs, updates, credentials, and backups.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "docker-nixos-management": {
+      "title": "Declaring Docker and containers on NixOS",
+      "deck": "Organize engine settings, container definitions, and credential inputs with system modules.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "docker-swarm": {
+      "title": "Swarm: from service replicas to cluster orchestration",
+      "deck": "Understand stacks, overlay networks, and rolling updates, and check Compose compatibility boundaries.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "container-engine-relationship": {
+      "title": "Docker and Podman: architecture, compatibility, and coexistence",
+      "deck": "Compare engine control models, permissions, and ecosystems to choose tools by workload.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-fundamentals": {
+      "title": "Podman fundamentals",
+      "deck": "Understand Podman's architecture and permission model through containers, images, and OCI runtimes.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-basic-usage": {
+      "title": "A basic Podman usage guide",
+      "deck": "Learn commands for installation, images, containers, volumes, networks, and everyday maintenance.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-rootless-configuration": {
+      "title": "Rootless configuration: mappings, ICMP, and registries",
+      "deck": "Build on the existing permission-boundaries article with administrator configuration and rootless environment requirements.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-pods-kubernetes": {
+      "title": "Pods and Kubernetes manifests",
+      "deck": "Organize local containers that share networking, and check the scope of Kubernetes manifest imports and exports.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-quadlet-multi-service": {
+      "title": "Pods and multi-service configuration with Quadlet",
+      "deck": "Add a complete dependency template for Pod, database, API, and proxy resources.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-compose-interoperability": {
+      "title": "Compose providers and interoperability with Docker tools",
+      "deck": "Separate the responsibilities of Compose implementations, the Podman wrapper, and the compatible API socket.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-nixos-management": {
+      "title": "Managing Podman on NixOS",
+      "deck": "Declare container runtime environments through system modules, Home Manager, or quadlet-nix.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "podman-advanced-operations": {
+      "title": "Advanced Podman operations and tuning",
+      "deck": "Manage resources, health, image toolchains, logs, and storage cleanup.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-fundamentals": {
+      "title": "Distrobox fundamentals: userspace and host integration",
+      "deck": "Understand which resources are shared by default and the boundaries provided by rootless operation, images, and containers.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-installation": {
+      "title": "Distrobox installation and backend configuration",
+      "deck": "Build a working container environment layer by layer, from the backend and UID mappings to first entry.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-lifecycle": {
+      "title": "Distrobox image and container lifecycles",
+      "deck": "Use complete commands to manage creation, entry, upgrades, deletion, and temporary userspaces.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-integration-workflows": {
+      "title": "Distrobox desktop discovery and background-service integration",
+      "deck": "Handle app/bin export verification and the separate lifecycle of init services independently.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-advanced-workflows": {
+      "title": "Distrobox declarative manifests and advanced workflows",
+      "deck": "Cover assemble, GPUs, multi-container collaboration, and platform-specific practices while distinguishing manifests from service-management contracts.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-on-nixos": {
+      "title": "Distrobox on NixOS: package environments and host paths",
+      "deck": "Configure a rootless backend on a declarative host and diagnose boundaries between Nix profiles, graphics, and traditional userspaces.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-backup": {
+      "title": "Distrobox backups: images, package lists, and shared data",
+      "deck": "Preserve the guest environment in three complementary ways and clarify separate recovery responsibilities for shared directories and application data.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "distrobox-internals": {
+      "title": "Distrobox internals: packages, configuration, and command resolution",
+      "deck": "Use real path diagnostics to explain the different origins of same-named tools, shared configuration, and Nix binaries.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "kvm-fundamentals": {
+      "title": "The responsibilities of KVM, QEMU, and libvirt",
+      "deck": "Build a foundation for understanding the management stack, from hardware virtualization and the KVM API to QEMU's device model.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "kvm-installation": {
+      "title": "KVM host installation, permissions, and network preparation",
+      "deck": "Check host capabilities, distribution components, management authorization, and the actual default-network state one by one.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "kvm-libvirt-virsh": {
+      "title": "Managing domains, storage, networks, and recovery with virsh",
+      "deck": "Retain command categories and XML parameters while distinguishing persistent definitions, running instances, snapshots, and offline backups.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "kvm-virt-manager": {
+      "title": "virt-manager: VM creation, hardware panels, and remote control",
+      "deck": "Map the GUI creation wizard, device settings, and remote display to actual domain configuration and authentication requirements.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "kvm-advanced-features": {
+      "title": "KVM firmware, VFIO, virtiofs, and image chains",
+      "deck": "Explain advanced parameters and document compatibility and recovery requirements for passthrough, image changes, and shared directories.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "kvm-nixos-host": {
+      "title": "Declaring KVM host capabilities on NixOS",
+      "deck": "Configure libvirt through version-pinned module interfaces while managing networking, firmware, and VM runtime state outside the configuration.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "kvm-frontends": {
+      "title": "Choosing KVM management and automation tools",
+      "deck": "Compare desktop, web, and automation tools, distinguishing libvirt frontends, independent platforms, and offline image building.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-architecture": {
+      "title": "Waydroid architecture: LXC, Binder, and session bridging",
+      "deck": "Understand Waydroid through container management, user sessions, and Android services.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-installation": {
+      "title": "Waydroid installation and basic setup",
+      "deck": "Check Wayland, kernel, and graphics requirements, then install images and verify startup layer by layer.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-nixos": {
+      "title": "Waydroid integration on NixOS",
+      "deck": "Use actual module source code to distinguish system declarations, Android images, and user runtime state.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-gpu": {
+      "title": "Waydroid GPU detection and hardware acceleration",
+      "deck": "Diagnose rendering issues through DRM nodes, Android graphics properties, and compositor interactions.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-network-security": {
+      "title": "Waydroid bridges, NAT, and security boundaries",
+      "deck": "Troubleshoot container networking step by step through veth, bridges, DHCP, DNS, and firewalls.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-configuration": {
+      "title": "Waydroid properties, multi-window mode, and ARM translation",
+      "deck": "Adjust windows, input, and translation to application needs while keeping configuration records that allow rollback.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-troubleshooting": {
+      "title": "Waydroid troubleshooting and FAQ",
+      "deck": "Locate failures using evidence from the kernel, container, network, graphics, and application layers.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "waydroid-practical-tips": {
+      "title": "Waydroid tips: windows, translation, and shared directories",
+      "deck": "Retain Ivon's practical tips and operational details, with notes on historical versions and compatibility boundaries.",
+      "category": "SYSTEMS / INFRASTRUCTURE"
+    },
+    "wine-fundamentals": {
+      "title": "Wine: the compatibility layer and prefixes",
+      "deck": "Understand Wine's DLLs, prefixes, configuration, and runtime boundaries through Windows API compatibility.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "wine-proton-gaming": {
+      "title": "Proton: the gaming runtime",
+      "deck": "Distinguish Steam, official Proton, GE, and umu, and manage runners and prefixes per game.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "wine-bottles-manager": {
+      "title": "Bottles: runners and application environments",
+      "deck": "Maintain dependencies, prefixes, and restore points through the manager while checking actual Flatpak permissions.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "wine-proton-bottles-relationships": {
+      "title": "The relationship between Wine, Proton, and Bottles",
+      "deck": "Use the technical lineage, layered model, and scenario matrix to distinguish the responsibilities of compatibility engines and managers.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "wine-nixos-management": {
+      "title": "Wine and gaming environments on NixOS",
+      "deck": "Manage pinned software, Steam tool registration, Flatpak runtimes, and mutable prefixes as separate layers.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "wine-proton-troubleshooting": {
+      "title": "Troubleshooting Wine and Proton",
+      "deck": "Build a verifiable diagnostic process across the graphics stack, prefixes, media, audio, and logs.",
+      "category": "TOOLS / FIELD NOTES"
+    },
+    "wine-advanced-configuration": {
+      "title": "Wine and Proton configuration boundaries",
+      "deck": "Use environment variables, DLLs, the registry, multiple GPUs, HDR, and performance parameters according to component and version.",
+      "category": "TOOLS / FIELD NOTES"
+    }
+  },
+  "topics": {
+    "queryable-notes": {
+      "slug": "queryable-notes",
+      "title": "Making notes queryable",
+      "deck": "Obsidian Dataview: from field conventions to queries organized around your needs.",
+      "description": "Notes retain their prose; fields provide stable filtering entry points. This topic connects DQL fundamentals with dashboard practice, covering result formats, task hierarchies, grouping, and the limits of aggregation.",
+      "reading_guide": [
+        "Start with fields and types: distinguish pages from tasks, then understand sources, filtering, and sorting.",
+        "Apply queries to concrete questions: projects, recent changes, to-dos, grouped statistics, and data checks."
+      ],
+      "articles": [
+        "dataview-data-model",
+        "dataview-query-workflows"
+      ]
+    },
+    "terminal-workbench": {
+      "slug": "terminal-workbench",
+      "title": "A terminal file workbench",
+      "deck": "From Yazi's configuration responsibilities to navigation, batch operations, and handing directories back to the shell.",
+      "description": "Treat the terminal file manager as a workflow with clear objects and boundaries. Wire up file openers first, then connect browsing, selection, and shell operations into a continuous flow.",
+      "reading_guide": [
+        "Wire up file opening first: distinguish configuration responsibilities, matching rules, openers, and previews.",
+        "Then connect everyday operations: locating, selecting, batch processing, and handing the directory back on exit."
+      ],
+      "articles": [
+        "yazi-config-and-openers",
+        "yazi-navigation-and-shell"
+      ]
+    },
+    "rootless-containers": {
+      "slug": "rootless-containers",
+      "title": "Container permissions and lifecycles",
+      "deck": "Use Podman user mappings and Quadlet service generation to understand container boundaries on the host.",
+      "description": "Two independent Podman technical notes: establish process identity and file and data ownership first, then hand container declarations to systemd. Commands, configuration prerequisites, and troubleshooting paths are retained.",
+      "reading_guide": [
+        "Establish permissions and ownership first: understand rootless UID mappings, mounts, storage, and port boundaries.",
+        "Then manage the service lifecycle: move from Quadlet source files to generated units and verify their actual behavior."
+      ],
+      "articles": [
+        "podman-rootless-boundaries",
+        "quadlet-service-lifecycle"
+      ]
+    },
+    "linux-desktop-layers": {
+      "slug": "linux-desktop-layers",
+      "title": "Who is working beneath the desktop?",
+      "deck": "From file permissions to login sessions and an input candidate window on screen.",
+      "description": "What appears on the desktop often depends on cooperation between several layers. Follow permissions, sessions, and themes inward, identify each layer's responsibilities, then find the right place to make a change.",
+      "reading_guide": [
+        "Read about permissions first: understand file contents, directory entries, and path access.",
+        "Then follow sessions: trace authentication, desktop startup, autostart, and exit.",
+        "Finish with themes: connect assets, colors, and runtime directories into one chain."
+      ],
+      "articles": [
+        "linux-permissions",
+        "login-and-session",
+        "theme-nine-slice"
+      ]
+    },
+    "rebuildable-workspaces": {
+      "slug": "rebuildable-workspaces",
+      "title": "You can rebuild the environment. What about its state?",
+      "deck": "Which parts of a working environment do declarative configuration and container entry points each address?",
+      "description": "Reinstalling software does not necessarily restore preferences and data. A container application appearing on the desktop does not mean it has moved onto the host. This topic separates environments, entry points, and state before exploring how to combine them.",
+      "reading_guide": [
+        "Separate configuration from state first: identify the scope of defaults, activation, package lists, and backups.",
+        "Then examine container exports: verify where the program actually runs and how entry points connect to data paths."
+      ],
+      "articles": [
+        "declarative-and-state",
+        "distrobox-export"
+      ]
+    },
+    "nixos-system-fundamentals": {
+      "slug": "nixos-system-fundamentals",
+      "title": "NixOS system foundations and configuration",
+      "deck": "From installation and configuration organization to activation, generations, and variant maintenance.",
+      "description": "Installation and initialization provide the foundation. System configuration and Home Manager divide configuration responsibilities; the CLI, generations, and specialisations define operational and maintenance boundaries. Finally, examine the distinction between declared environments and writable data.",
+      "articles": [
+        "nixos-introduction",
+        "nixos-installation",
+        "nixos-configuration-basics",
+        "nixos-system-home-management",
+        "nixos-cli-guide",
+        "nixos-generations",
+        "nixos-specialisation",
+        "declarative-and-state"
+      ],
+      "reading_guide": [
+        "First understand the scope of the store, declarative configuration, and atomic profile switching.",
+        "Before installation, verify devices, backups, and boot mode, and distinguish the live environment from the target system.",
+        "Review your module definitions for boot, networking, accounts, software, and services.",
+        "Lock inputs with a Flake and separate system, user, and project development environments.",
+        "Choose commands for the system, profiles, or temporary environments, and check whether they perform activation.",
+        "List and verify rollback points first, then limit history and storage cleanup to the intended profile.",
+        "Learn inheritance and override rules, and check which variant changes require a reboot.",
+        "For each kind of preference, cache, and data, identify its manager, when it is written, and how to recover it."
+      ]
+    },
+    "nix-language-foundations": {
+      "slug": "nix-language-foundations",
+      "title": "The Nix language and build model",
+      "deck": "Understand how configuration works through attribute sets, function scope, module merging, and derivations.",
+      "description": "Nix is a functional expression language. Begin with the NixOS working model to identify inputs and outputs, then read code through basic types, scope, recursive attribute sets, and merging. Finally, trace how expressions produce build descriptions and store outputs.",
+      "articles": [
+        "nix-system-model",
+        "nix-syntax",
+        "nix-functions-scopes",
+        "nix-attribute-merging",
+        "nix-derivations"
+      ],
+      "reading_guide": [
+        "Understand why build outputs, source configuration, and writable data have three separate histories.",
+        "Read minimal expressions through space-separated lists, semicolons, and attribute access.",
+        "Identify whether each variable comes from let, a function parameter, or with.",
+        "Assess // overrides separately from type-based module-option merging.",
+        "Separate evaluation, cache substitution, and local builds; not every store hash is content-addressed."
+      ]
+    },
+    "nix-flakes": {
+      "slug": "nix-flakes",
+      "title": "Flakes: project and dependency management",
+      "deck": "From input graphs to system outputs, understand locking, updates, and rollback.",
+      "description": "A Flake organizes a project into inputs and outputs, while flake.lock records the resolved input graph. This topic explains structure and locking before covering templates, external dependencies, system migration, a complete tutorial, and update recovery.",
+      "articles": [
+        "nix-flake-schema",
+        "nix-flake-lock-determinism",
+        "nix-flake-utils-templates",
+        "nix-flake-external-sources",
+        "nix-flake-system-migration",
+        "nix-flake-tutorial",
+        "nix-flake-update-mechanics",
+        "nix-flake-lock-rollback"
+      ],
+      "reading_guide": [
+        "Understand Flake inputs, outputs, self, and the levels involved in capturing function arguments.",
+        "Record dependency sources with version locking while understanding the conditions for reproducible results.",
+        "Generate outputs for multiple platforms and turn development environments into reusable templates.",
+        "Connect external modules and packages, and check the relationships between dependency versions.",
+        "Create a Flake entry point from an existing configuration, then perform checks, builds, and activation separately.",
+        "Work through Flake commands and project structure, from input syntax to multi-host organization.",
+        "Distinguish input updates, package sets, system generations, and cache downloads.",
+        "Preserve existing changes before restoring the lock file, and distinguish dependency rollback from system-generation rollback."
+      ]
+    },
+    "home-manager": {
+      "slug": "home-manager",
+      "title": "Home Manager: managing user configuration",
+      "deck": "Bring programs, files, and user services into declarative configuration.",
+      "description": "Home Manager can be activated independently or integrated as a NixOS module. Follow installation modes, program configuration, desktop themes, file links, secrets management, and a complete tutorial, with an emphasis on the boundary between user configuration and mutable data.",
+      "articles": [
+        "home-manager-bootstrap",
+        "home-manager-shell-programs",
+        "home-manager-desktop-themes",
+        "home-manager-files-symlinks",
+        "home-manager-secrets",
+        "home-manager-tutorial"
+      ],
+      "reading_guide": [
+        "Compare standalone and NixOS module modes, then split user configuration into modules.",
+        "Use modules to configure Zsh, Starship, and common command-line tools.",
+        "Separate system-session and user-appearance responsibilities when configuring Hyprland, Plasma, and GTK.",
+        "Use home.file and XDG file options to manage read-only configuration and directory links.",
+        "Separate public configuration from private data using encrypted files and runtime paths.",
+        "A complete introduction to installation, program modules, dotfiles, services, and activation."
+      ]
+    },
+    "linux-commands": {
+      "slug": "linux-commands",
+      "title": "Linux command-line fundamentals and composition",
+      "deck": "Six guides connect files, processes, text, the shell, fzf, and xargs.",
+      "description": "File operations do the hands-on work; process management shows what is running; text processing filters information; and the shell connects the tools. fzf and xargs extend this into interactive selection and argument passing. Existing topics link to deeper coverage of permissions and systemd.",
+      "articles": [
+        "linux-command-file-operations",
+        "linux-command-process-jobs",
+        "linux-command-text-system",
+        "linux-command-shell",
+        "linux-command-fzf",
+        "linux-command-xargs"
+      ],
+      "reading_guide": [
+        "Practice browsing, finding files, and checking disk space before learning links, archives, and scope checks before deletion.",
+        "Distinguish PIDs, shell jobs, and systemd units, and learn signals with TERM as the first choice.",
+        "Start by viewing and searching files, then use query results to assess memory, ports, and network state.",
+        "Trace stdin, stdout, and stderr, check redirection order, and distinguish Bash from other shells.",
+        "Understand list input and selection output first, then check cancellation, filename boundaries, and state-changing operations.",
+        "Compare default whitespace parsing, NUL delimiters, and -I; finish with parallelism and GNU empty-input protection."
+      ]
+    },
+    "ssh-authentication-workflow": {
+      "slug": "ssh-authentication-workflow",
+      "title": "SSH authentication, agents, and command-line workflows",
+      "deck": "Clarify authentication in both directions, then understand key protection and everyday operations.",
+      "description": "The client verifies the server's host identity, while the server verifies the user's identity through its authorization mechanisms. Start with directories and four kinds of authentication material, move through TOFU and out-of-band verification, then learn passphrases, agents, keyrings, and command-line configuration. Automatic desktop unlocking depends on the specific version and session integration.",
+      "articles": [
+        "ssh-authentication-model",
+        "ssh-agent-keyring",
+        "ssh-usage-guide"
+      ],
+      "reading_guide": [
+        "Separate user keys from host keys first, then examine the continuity TOFU can guarantee and the first-contact authenticity it cannot.",
+        "Follow private-key files, agent sockets, keyrings, and PAM layer by layer, paying particular attention to automatic unlocking and forgotten-passphrase conditions.",
+        "Practice generating keys, checking the agent, inspecting configuration, and debugging connections in that order; verify the host fingerprint before the first connection."
+      ]
+    },
+    "terminal-sessions": {
+      "slug": "terminal-sessions",
+      "title": "Shells, terminals, and sessions",
+      "deck": "Which layer of interaction do Fish, Foot, and Zellij each manage?",
+      "description": "The terminal displays characters, the shell edits and executes commands, and the multiplexer manages sessions. Organize shortcuts, search, configuration, and state around these three layers.",
+      "articles": [
+        "fish-interactive-workflow",
+        "foot-terminal-controls",
+        "zellij-session-lifecycle"
+      ],
+      "reading_guide": [
+        "Start with the command line: completion, key bindings, abbreviations, and functions.",
+        "Then understand the display layer: selection, search, configuration, and color switching.",
+        "Finish with session persistence: the boundaries of detaching, reconnecting, and restoring layouts."
+      ]
+    },
+    "linux-desktop-workflows": {
+      "slug": "linux-desktop-workflows",
+      "title": "The Linux desktop: protocols, windows, and customization",
+      "deck": "Input-method communication, Hyprland workspaces, and Plasma version migration.",
+      "description": "Distinguish applications, toolkits, and compositors first, then read about window organization and historical desktop configurations. The collected Plasma 5/6 experiences retain their original sources and applicable versions to avoid treating old workarounds as current defaults.",
+      "articles": [
+        "linux-gui-input-stack",
+        "hyprland-special-workspaces",
+        "kde-plasma5-notes",
+        "kde-plasma6-migration"
+      ],
+      "reading_guide": [
+        "Read the architecture first: communication paths and candidate-panel responsibilities.",
+        "Configure window drawers: verify toggling, launching, and matching separately.",
+        "Revisit Plasma 5: identify the limits of X11 and older plugin approaches.",
+        "Move to Plasma 6: recheck portals, input methods, and KWin interfaces."
+      ]
+    },
+    "arch-linux": {
+      "slug": "arch-linux",
+      "title": "Arch Linux",
+      "deck": "A practical path from installation and boot to package management, snapshots, security, and the GNOME desktop.",
+      "description": "Arch's user-centric principle asks you to turn system choices into configuration you understand. This topic progresses through system foundations, management and storage, security and maintenance, then desktops and applications. It retains manual installation and the complete desktop workflow while explaining the limits of UKIs, TPMs, Btrfs rollback, and third-party sources.",
+      "articles": [
+        "arch-philosophy-installation",
+        "arch-kernel-uki",
+        "arch-package-aur",
+        "arch-btrfs-snapper",
+        "arch-security-hardening",
+        "arch-performance-maintenance",
+        "arch-pacman-commands",
+        "arch-pacman-download",
+        "arch-informant-hook",
+        "arch-gnome-install",
+        "arch-gnome-desktop",
+        "arch-gnome-laptop-theme",
+        "arch-gnome-virtualization-games",
+        "arch-gnome-maintenance"
+      ],
+      "reading_guide": [
+        "Clarify Arch design principles, UEFI, and storage choices before choosing manual installation or an installer.",
+        "Understand UKI generation, boot discovery, and the signing chain; distinguish successful generation from verified booting.",
+        "Learn hooks and AUR review, and distinguish clean builds, clean chroots, and security sandboxes.",
+        "Define subvolume boundaries, mount arrangements, and available recovery paths before taking snapshots.",
+        "Combine encryption, Secure Boot, TPM, and runtime access control according to your threat model.",
+        "Establish routine checks for updates, pacnew files, caches, logs, and power management.",
+        "Learn S/Q/R/U syntax before using advanced flags and orphan queries.",
+        "Check networking and mirror status before adjusting parallel downloads and Reflector parameters.",
+        "Learn when informant blocks a transaction, and distinguish marking news as read from completing the actions it requires.",
+        "Start in the installation environment and check partitions, subvolumes, pacstrap, fstab, and GRUB step by step.",
+        "Once the base system boots, choose desktop, audio, and input-method components for the graphics hardware and session.",
+        "Verify graphics switching, hibernation, and power policies before adjusting themes and the terminal.",
+        "Set up an ordinary VM before studying IOMMU passthrough; choose gaming approaches by architecture and compatibility.",
+        "Before changing kernels or removing a system, check fallback boot options and backups, then address swap and partitions."
+      ]
+    },
+    "nix-deploy-virtualization": {
+      "slug": "nix-deploy-virtualization",
+      "title": "NixOS virtualization and deployment",
+      "deck": "From disposable VMs to images, remote nodes, and cloud resources, manage build outputs separately from runtime state.",
+      "description": "This topic covers QEMU virtual machines, custom ISOs, dockerTools container images, SSH deployment, Terraform cloud resources, and layered environment design. Understand system configuration in an isolated environment first, then choose an image or remote delivery path. At every step, distinguish evaluation, building, activation, runtime verification, and data recovery.",
+      "articles": [
+        "nix-deploy-virtual-machines",
+        "nix-deploy-build-iso",
+        "nix-deploy-docker-images",
+        "nix-deploy-ssh-deployment",
+        "nix-deploy-terraform",
+        "nix-deploy-environment-isolation"
+      ],
+      "reading_guide": [
+        "Use a minimal VM to observe how configuration and qcow2 state change independently, then try graphical sessions.",
+        "Learn ISO modules and Flake output paths; verify the whole-disk device and backups before writing a USB drive.",
+        "Understand the boundaries between application closures, image layers, running instances, and database volumes.",
+        "Read in the order build, test, switch, and rollback, checking SSH identity and sudo permissions.",
+        "Separate cloud-resource plans and state from NixOS generations, paying special attention to AMIs, routing, and the two interpolation layers.",
+        "Choose Flatpak, Distrobox, VMs, or servers according to dependency, permission, and recovery needs rather than pursuing absolute isolation."
+      ]
+    },
+    "nix-gnome-desktop": {
+      "slug": "nix-gnome-desktop",
+      "title": "A declarative GNOME desktop on NixOS",
+      "deck": "From module enablement to user settings and session lifecycles, identify the layer responsible for each desktop setting.",
+      "description": "Begin with GNOME/GDM entry points and module groups, inspect services and package lists, then address GSettings defaults, dconf user state, extension installation, and specialisations. Finally, use the kmscon/uwsm session chain to understand graphical desktop startup and autostart. Check module source snapshots and runtime behavior separately.",
+      "articles": [
+        "nix-gnome-declarative-management",
+        "nix-gnome-module-options",
+        "nix-gnome-gsettings-dconf",
+        "nix-gnome-diff-export-extensions",
+        "nix-gnome-specialisation",
+        "nix-gnome-wayland-session"
+      ],
+      "reading_guide": [
+        "Identify which module is responsible for the desktop, login manager, themes, and input methods.",
+        "When removing packages or disabling services, consult the options and check actual defaults at the locked revision.",
+        "Understand the three precedence layers before choosing defaults or writes during activation.",
+        "Find changes with before-and-after diffs, convert schema/path formats, then declare extension packages and UUIDs.",
+        "Understand parent-module inheritance, mkForce, and independent toplevels; prepare a base recovery entry before switching.",
+        "Check DRM, user targets, and autostart separately. Use logs to confirm the specific failure rather than treating a symptom as a unique root cause."
+      ]
+    },
+    "nix-ecosystem-development": {
+      "slug": "nix-ecosystem-development",
+      "title": "Nix development environments and binary compatibility",
+      "deck": "From project shells to language dependencies, ELF loaders, and package overrides.",
+      "description": "Organize your reading around reproducible development environments, automatic directory loading, language toolchains, and library paths, retaining the development-workflow and package-modification paths in the source MOC.",
+      "articles": [
+        "nix-ecosystem-direnv",
+        "nix-ecosystem-development-environments",
+        "nix-ecosystem-python-qt",
+        "nix-ld-precompiled",
+        "nix-ecosystem-overlays"
+      ],
+      "reading_guide": [
+        "Distinguish temporary shells, devShells, and direnv automatic-loading responsibilities first.",
+        "Find complete configurations by language, then read the database, container, and Justfile combinations.",
+        "Use ldd, file indexes, and plugin paths to diagnose mixed Python/Qt ABIs.",
+        "Start with execve and the ELF interpreter to determine whether nix-ld is needed.",
+        "Connect the overlay to its actual consumer, then verify builds of the affected packages."
+      ]
+    },
+    "nix-ecosystem-maintenance": {
+      "slug": "nix-ecosystem-maintenance",
+      "title": "Nix commands and long-term maintenance",
+      "deck": "Connect the command reference, nh, generation cleanup, and configuration organization.",
+      "description": "Organize everyday system maintenance around the NixOS MOC's learning path, from declarative and reproducible systems through the language and Flakes to user configuration. Treat rollback, store garbage collection, and data backup separately.",
+      "articles": [
+        "nix-ecosystem-learning-roadmap",
+        "nix-ecosystem-command-reference",
+        "nix-ecosystem-nh",
+        "nix-ecosystem-gc-rollback",
+        "nix-ecosystem-best-practices"
+      ],
+      "reading_guide": [
+        "Use the six-module sequence to identify which configuration layers you already understand.",
+        "Before looking up flags, identify the new or legacy CLI and the specific tool version.",
+        "Choose build, switch, or clean, and check extended search features against the installed version.",
+        "Decide which generations to keep before deleting references and reclaiming objects.",
+        "Review module organization, automatic updates, security, data backups, and recovery steps together."
+      ]
+    },
+    "nix-ecosystem-devices-deployment": {
+      "slug": "nix-ecosystem-devices-deployment",
+      "title": "NixOS node deployment and ARM devices",
+      "deck": "From Colmena deployment targets to Raspberry Pi images and hardware services.",
+      "description": "Follow the deployment path in the original ecosystem MOC, verifying node building, transfer, activation, and ARM-image startup separately. Do not assume cross-architecture copying or older hardware options work by default.",
+      "articles": [
+        "nix-ecosystem-colmena",
+        "nix-ecosystem-raspberry-pi"
+      ],
+      "reading_guide": [
+        "Check hive inputs, node selection, and the boundaries of build, dry-activate, and switch first.",
+        "Verify the board model and image, then configure hardware interfaces and services step by step."
+      ]
+    },
+    "git-engineering-workflow": {
+      "slug": "git-engineering-workflow",
+      "title": "Git: from snapshots to collaboration and recovery",
+      "deck": "Build a complete workflow through the object model, local operations, branches, remotes, and recovery.",
+      "description": "Understand snapshots, the staging area, and references before completing a local workflow. Organize collaboration with branches and remotes, then handle history and recovery through rebasing, cherry-picking, reflogs, and a scenario handbook. A separate topic covers the GitHub platform.",
+      "articles": [
+        "git-model",
+        "git-snapshots",
+        "git-branching",
+        "git-remotes",
+        "git-advanced-tools",
+        "git-recovery"
+      ],
+      "reading_guide": [
+        "Distinguish immutable objects from movable references, and understand garbage-collection and backup boundaries.",
+        "Trace which content each command changes across the working tree, staging area, and HEAD.",
+        "Distinguish fast-forward and three-way merges, and save work in progress before switching or resolving conflicts.",
+        "Check remote URLs and refspecs, distinguishing fetches, local updates, and remote pushes.",
+        "Rewrite only history you have coordinated with others; first protect commits found through reflog with a recovery branch.",
+        "Choose whether to continue, undo, or recover according to status and saved data, rather than blindly using hard reset."
+      ]
+    },
+    "sops-secrets-workflow": {
+      "slug": "sops-secrets-workflow",
+      "title": "SOPS encrypted configuration and key lifecycles",
+      "deck": "From hybrid encryption to runtime deployment, editing, templates, and key migration.",
+      "description": "Secret configuration enters version control as ciphertext, while decryption identities remain in controlled environments. Understand data keys and recipient wrapping first, then separate CLI encryption rules, sops-nix runtime deployment, and template-placeholder rendering. Finish with a two-recipient transition for migration and recovery verification.",
+      "articles": [
+        "sops-principles",
+        "sops-nixos-integration",
+        "sops-cli-workflow",
+        "sops-configuration-templates",
+        "sops-key-migration-rotation"
+      ],
+      "reading_guide": [
+        "Start with the data and key layers, distinguish structured and binary formats, then examine authorization and plaintext-leakage boundaries.",
+        "Trace ciphertext, each secret output, and service consumption; check mount and user-creation ordering against the specific module version.",
+        "Read edit first, then compare temporary plaintext with set/unset; carefully check configuration discovery, encryption rules, and identity inputs.",
+        "Separate CLI creation_rules, NixOS deployment configuration, and sops.templates, and verify defaults and output encoding.",
+        "Keep the old recipient until the new identity and deployment chain are both verified, then consider rotating data keys, secret values, and recovery material."
+      ]
+    },
+    "github-collaboration": {
+      "slug": "github-collaboration",
+      "title": "GitHub repositories and collaboration",
+      "deck": "Move from remote hosting to repository governance, then complete a contribution that can be reviewed.",
+      "description": "Git manages commits, branches, and history; GitHub manages hosting, issues, PRs, reviews, permissions, and rules; gh provides a terminal interface. This topic progresses from using repositories to maintaining them and contributing. If you already know Git branches and remotes, start with the contribution workflow. Maintainers should continue to the Actions topic to implement quality gates as platform checks.",
+      "articles": [
+        "github-fundamentals",
+        "github-repository-management",
+        "github-contribution-workflow"
+      ],
+      "reading_guide": [
+        "Distinguish clone, fork, branch, and origin/upstream first, then follow the full command sequence to confirm the different boundaries of pushing and creating a PR.",
+        "Start with community files and permissions, then verify the platform state of rulesets, required checks, and releases. Documentation alone does not mean a rule is active.",
+        "Follow issues, topic branches, PRs, reviews, checks, and cleanup, paying particular attention to base/head, shared branches, and history rewriting."
+      ]
+    },
+    "github-actions": {
+      "slug": "github-actions",
+      "title": "GitHub Actions and CI",
+      "deck": "Turn local checks into continuous integration with explicit permissions, results, and failure evidence.",
+      "description": "Actions is an event-driven automation system. Read its execution model, design CI contracts, merge gates, and resource policies, then review tokens, secrets, OIDC, untrusted inputs, and the supply chain. A Nix theme teaching example records evaluation, actual builds, output contracts, Actions runs, and desktop runtime separately. This topic centers on CI; deployment, Pages, Packages, large-scale Enterprise governance, and full self-hosted runner operations appear only where they connect directly to CI. GitHub interfaces, plans, runners, and Action versions change, so maintain configurations against current official references and actual platform state.",
+      "articles": [
+        "github-actions-fundamentals",
+        "github-actions-ci-configuration",
+        "github-actions-security-debugging",
+        "github-nix-ci-example"
+      ],
+      "reading_guide": [
+        "Learn the execution tree from event to step, then compare the roles of needs, outputs, matrix, concurrency, cache, and artifact.",
+        "Build quality gates from existing local commands, then examine matrices, caches, and aggregate checks. Verify required-check names, trigger coverage, and Pending states together.",
+        "Map trust boundaries for events, permissions, credentials, and runners first, then study pull_request_target/workflow_run, supply chains, log diagnostics, and cost control.",
+        "Read the six-variant Nix workflow and Flake output contract section by section, then use the three-layer record template to assess what evaluation, builds, Actions, and desktop evidence can each establish."
+      ]
+    },
+    "docker-container-workflow": {
+      "slug": "docker-container-workflow",
+      "title": "Docker: from running containers to application orchestration",
+      "deck": "Follow images, builds, Compose, networking, storage, and production operations through to Swarm and engine selection.",
+      "description": "Start with the client-server model and OCI execution chain, then learn image, container, and persistence parameters. Organize applications with Dockerfiles and Compose. Networking, storage, security, and NixOS modules clarify runtime boundaries; Swarm explains multi-node services; a final Podman comparison addresses compatibility and permissions.",
+      "articles": [
+        "docker-fundamentals",
+        "docker-basic-usage",
+        "docker-build",
+        "docker-compose",
+        "docker-networking-storage",
+        "docker-production",
+        "docker-nixos-management",
+        "docker-swarm",
+        "container-engine-relationship"
+      ],
+      "reading_guide": [
+        "Identify CLI and daemon permissions first; a regular user invoking Docker does not make it rootless.",
+        "Read commands by object lifecycle, checking writable layers, volumes, and images before deletion.",
+        "Check caches and outputs through the relationships between context, entry points, and build stages; never put credentials in layers.",
+        "Distinguish interpolation, injection, readiness, and ongoing health, and check the Compose version and profile behavior.",
+        "Clarify exposed ports, network modes, volume locations, and actual backup consistency.",
+        "Turn limits, logs, health, updates, and data recovery into practical acceptance checks.",
+        "Check daemon.settings, credential files, and coexistence options in the pinned Nix modules.",
+        "Review the legacy v3 format and multi-node storage before assessing what cluster scheduling can recover.",
+        "Compare permissions, APIs, builds, and orchestration individually. Docker and Podman can coexist, but they are not complete replacements for each other."
+      ]
+    },
+    "podman-workflows": {
+      "slug": "podman-workflows",
+      "title": "Podman container workflows",
+      "deck": "From images and rootless fundamentals to Pods, Quadlet, Compose, and NixOS management.",
+      "description": "Understand OCI container execution and permissions, then learn image, container, volume, and network commands. Use the existing rootless and Quadlet articles as a shared foundation for configuration, Pods, and multi-service examples before moving to Compose interoperability, declarative Nix management, and operations. Version and permission requirements apply throughout.",
+      "articles": [
+        "podman-fundamentals",
+        "podman-basic-usage",
+        "podman-rootless-boundaries",
+        "podman-rootless-configuration",
+        "podman-pods-kubernetes",
+        "quadlet-service-lifecycle",
+        "podman-quadlet-multi-service",
+        "podman-compose-interoperability",
+        "podman-nixos-management",
+        "podman-advanced-operations",
+        "container-engine-relationship"
+      ],
+      "reading_guide": [
+        "Move from containers and images into OCI runtimes, focusing on daemon management and permission modes.",
+        "Practice with images, containers, volumes, and networks, distinguishing queries from deletion first.",
+        "Understand actual UID mappings, host-file permissions, and data-storage locations first.",
+        "Continue with subUID configuration, system ICMP policies, and registry search; do not copy ranges or paths without checking.",
+        "Create and manage Pods first, then check supported kube-manifest features, storage, and secret exports.",
+        "Follow Quadlet source files through generated units to real-request verification, understanding data and readiness boundaries.",
+        "Read Pod, network, volume, and PostgreSQL/API/Web resources separately, checking prerequisites for environment files and health-check tools.",
+        "Distinguish podman-compose from podman compose, then assess CLI, provider, and socket interoperability.",
+        "Choose management through system modules, Home Manager, or quadlet-nix, checking locked revisions and activation boundaries.",
+        "Start with resource and health observation, then move to updates, image transfer, logs, and cleanup backed by backups.",
+        "Compare shared OCI standards and the two management interfaces, using concrete tool requirements to assess compatibility and coexistence."
+      ]
+    },
+    "distrobox": {
+      "slug": "distrobox",
+      "title": "Distrobox: userspace, desktop integration, and recoverable environments",
+      "deck": "From the sharing model to NixOS practice, manage trusted cross-distribution userspaces from end to end.",
+      "description": "This topic introduces userspace integration, backend installation, and image and container lifecycles before moving into desktop exports, init services, assemble manifests, GPUs, and multi-container collaboration. It concludes with declarative host paths, backup assets, and command resolution on NixOS. Follow the main path for development tools and GUI applications; read service, GPU, and special-platform sections as needed. Every approach assumes the trust boundaries of a shared HOME and shared host resources.",
+      "articles": [
+        "distrobox-fundamentals",
+        "distrobox-installation",
+        "distrobox-lifecycle",
+        "distrobox-export",
+        "distrobox-integration-workflows",
+        "distrobox-advanced-workflows",
+        "distrobox-on-nixos",
+        "distrobox-backup",
+        "distrobox-internals"
+      ],
+      "reading_guide": [
+        "Build an overall understanding of userspace, shared resources, and security boundaries first.",
+        "Check the environment in order: backend, mappings, installation, and first initialization.",
+        "Treat create/enter, upgrades, and deletion as separate state transitions, paying close attention to shared data.",
+        "Read the existing long-form export guide to learn app/bin arguments, Exec rewriting, and wrapper branches.",
+        "Complete XDG desktop verification and the guest/host service lifecycles.",
+        "Choose assemble, GPU, multi-container, and special-platform practices as needed; examples are not universal configurations.",
+        "On NixOS, check against the pinned version and verify configuration, builds, application, and guest paths separately.",
+        "List data assets beyond images before choosing a backup approach and rehearsing recovery.",
+        "Use real command-resolution evidence to identify where configuration, binaries, and execution environments come from."
+      ]
+    },
+    "kvm-management-foundations": {
+      "slug": "kvm-management-foundations",
+      "title": "KVM host and management foundations",
+      "deck": "From virtualization responsibilities to host setup and management workflows you can verify.",
+      "description": "Learn KVM/QEMU/libvirt, host installation and permissions, virsh management, and virt-manager GUI operations in sequence. Every entry point refers to a specific host URI, domain state, and set of resources.",
+      "articles": [
+        "kvm-fundamentals",
+        "kvm-installation",
+        "kvm-libvirt-virsh",
+        "kvm-virt-manager"
+      ],
+      "reading_guide": [
+        "Identify the KVM accelerator, QEMU guest process, and libvirt management layer before reading about VM entry/exit, memory mappings, and URIs.",
+        "Follow the installation path for your distribution. Verify CPU flags, /dev/kvm permissions, daemons, URIs, and NAT state separately.",
+        "Look up commands starting from the URI and domain state. Read recovery and offline-backup boundaries before manipulating snapshots, storage, or deletion.",
+        "Move from the creation wizard to device panels, then check requirements for firmware, guest drivers, shared memory, and remote display."
+      ]
+    },
+    "kvm-platform-and-advanced": {
+      "slug": "kvm-platform-and-advanced",
+      "title": "Advanced KVM capabilities and platform choices",
+      "deck": "Design recoverable configurations around devices, firmware, image chains, and management tools.",
+      "description": "Build advanced foundations with UEFI/TPM, VFIO, virtiofs, and offline image chains, then explore declarative NixOS hosts and desktop, web, and IaC tool choices. Keep external runtime state and resource-ownership boundaries explicit.",
+      "articles": [
+        "kvm-advanced-features",
+        "kvm-nixos-host",
+        "kvm-frontends"
+      ],
+      "reading_guide": [
+        "Examine the independent state of UEFI/TPM and VFIO first, then read CPU/I/O tuning, virtiofs, and offline image chains as needed.",
+        "Check options against the project-pinned nixpkgs, paying attention to QEMU runtime identity, firmware migration, network activation, and recovery generations.",
+        "Read architecture diagrams and resource ownership first, then compare tools by operational scope. Verify templates, credentials, and provider versions in automation examples."
+      ]
+    },
+    "waydroid": {
+      "slug": "waydroid",
+      "title": "Waydroid",
+      "deck": "Understand Android container integration, graphics and network paths, and application compatibility.",
+      "description": "This topic covers LXC and Binder architecture, installation across distributions, declarative NixOS integration, GPUs, bridges and NAT, properties and ARM translation, and common failures. Container operation, graphics output, and target-application usability are separate verification layers. Source-code and version constraints come before general tuning claims.",
+      "articles": [
+        "waydroid-architecture",
+        "waydroid-installation",
+        "waydroid-nixos",
+        "waydroid-gpu",
+        "waydroid-network-security",
+        "waydroid-configuration",
+        "waydroid-troubleshooting",
+        "waydroid-practical-tips"
+      ],
+      "reading_guide": [
+        "Read shared-kernel, Binder, management-process, and bridging boundaries first; do not treat LXC as VM-level isolation.",
+        "Check the actual environment, then install for your distribution. Verify the container, Android readiness, and UI separately.",
+        "Check the pinned module source before defining the management boundaries for system configuration, images, and data.",
+        "Start with node permissions and renderer evidence, comparing software rendering where needed.",
+        "Troubleshoot DHCP, DNS, routing, and actual firewall rules layer by layer, without allowing everything globally.",
+        "Choose windowing, input, and translation approaches for the target application, rather than applying generic brand or PID optimizations.",
+        "Preserve logs before diagnosing symptoms; possible causes in an FAQ are not necessarily the sole root cause.",
+        "Use everyday tips in the context of Ivon’s historical experience, filling gaps in the collected notes with current official interfaces."
+      ]
+    },
+    "wine-compatibility-environments": {
+      "slug": "wine-compatibility-environments",
+      "title": "Wine and application environments",
+      "deck": "Understand the compatibility engine, then maintain Windows applications with separate prefixes and managers.",
+      "description": "Wine provides Windows API compatibility; Proton integrates runtime and graphics components for gaming; Bottles and Lutris manage prefixes, dependencies, and runners. Establish their relationship first, then learn Wine operations and Bottles management. Separate prefixes are not security sandboxes, and a manager's state restoration does not replace external data backups. The articles retain the original MOC's structure of kernels, compatibility engines, graphics components, and management layers, while removing unverified promises about the latest versions.",
+      "articles": [
+        "wine-proton-bottles-relationships",
+        "wine-fundamentals",
+        "wine-bottles-manager"
+      ],
+      "reading_guide": [
+        "Start with the technical lineage and scenario matrix, distinguishing API translation, graphics translation, runtime environments, and management interfaces.",
+        "Read prefixes, winecfg, dependencies, and the complete command sequence, then check synchronization, WoW64, Wayland, and security boundaries.",
+        "Move from runner selection and dependencies to restore points, then verify Flatpak graphics extensions, file permissions, and actual execution."
+      ]
+    },
+    "wine-proton-operation": {
+      "slug": "wine-proton-operation",
+      "title": "Proton gaming, deployment, and troubleshooting",
+      "deck": "Choose a supported path for running games, then manage configuration and investigate failures layer by layer.",
+      "description": "Steam compatibility data, umu Wine prefixes, software declared in Nix, and Flatpak runtimes are different state layers. Set up the Proton path and per-game configuration first, then examine NixOS integration, diagnostics, and advanced variables. Claims about performance, HDR, Wayland, frame generation, and anti-cheat require specific versions, games, drivers, and actual evidence. Environment variables or the presence of kernel devices alone do not establish success.",
+      "articles": [
+        "wine-proton-gaming",
+        "wine-nixos-management",
+        "wine-proton-troubleshooting",
+        "wine-advanced-configuration"
+      ],
+      "reading_guide": [
+        "Distinguish official and GE versions, and use the umu path outside Steam; pay particular attention to the different meanings of the compatdata parent directory and pfx.",
+        "Check target nixpkgs options and software identity, recording builds, activation, runner paths, and mutable prefixes separately.",
+        "Generate logs and confirm the actual graphics environment first, then address prefixes, media, anti-cheat, audio, and fonts individually.",
+        "Look up variables by component, check DLL/registry, multi-GPU, and HDR paths one by one, retain rollback options, and measure behavior."
+      ]
+    }
+  },
+  "taxonomy": {
+    "categories": {
+      "development": {
+        "label": "Development tools",
+        "description": "Version control, terminal tools, and reusable everyday workflows."
+      },
+      "linux-desktop": {
+        "label": "Systems and desktops",
+        "description": "Permissions, sessions, themes, and declarative desktop configuration."
+      },
+      "containers": {
+        "label": "Containers and infrastructure",
+        "description": "Understand execution environments, permission boundaries, and service lifecycles."
+      },
+      "knowledge": {
+        "label": "Knowledge management",
+        "description": "Organize notes into knowledge you can find, query, and maintain over time."
+      }
+    },
+    "tags": {
+      "git": "Git",
+      "version-control": "Version control",
+      "linux": "Linux",
+      "permissions": "Permissions",
+      "wayland": "Wayland",
+      "greetd": "greetd",
+      "uwsm": "uwsm",
+      "fcitx5": "Fcitx5",
+      "matugen": "Matugen",
+      "nixos": "NixOS",
+      "home-manager": "Home Manager",
+      "distrobox": "Distrobox",
+      "containers": "Containers",
+      "obsidian": "Obsidian",
+      "dataview": "Dataview",
+      "yazi": "Yazi",
+      "terminal": "Terminal",
+      "podman": "Podman",
+      "systemd": "systemd",
+      "quadlet": "Quadlet",
+      "nix-language": "Nix language",
+      "nix-flakes": "Flakes",
+      "cli": "Command line",
+      "ssh": "SSH",
+      "fish": "Fish",
+      "foot": "Foot",
+      "zellij": "Zellij",
+      "desktop": "Desktop environments",
+      "hyprland": "Hyprland",
+      "kde": "KDE Plasma",
+      "arch-linux": "Arch Linux",
+      "boot": "Boot and startup",
+      "package-management": "Package management",
+      "filesystem": "Filesystems",
+      "security": "Security",
+      "gnome": "GNOME desktop",
+      "deployment": "Virtualization and deployment",
+      "sops": "SOPS",
+      "github": "GitHub",
+      "collaboration": "Collaboration",
+      "governance": "Repository governance",
+      "actions": "Actions",
+      "ci": "Continuous integration",
+      "nix": "Nix",
+      "docker": "Docker",
+      "kvm": "KVM",
+      "virtualization": "Virtualization",
+      "waydroid": "Waydroid",
+      "wine": "Wine",
+      "compatibility": "Compatibility layers",
+      "proton": "Proton",
+      "gaming": "Gaming",
+      "bottles": "Bottles",
+      "flatpak": "Flatpak",
+      "debugging": "Troubleshooting",
+      "configuration": "Configuration"
+    }
+  }
+}

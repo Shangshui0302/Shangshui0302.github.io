@@ -1,0 +1,33 @@
+{
+  "source_sha256": "7a2743fba9fdb96f7fe8420bd930323dbaafa7c49d2499070f76e45051079ee7",
+  "segments": [
+    "Declarative Docker configuration on NixOS. Docker and Podman use different approaches and different NixOS configuration interfaces; check them against the relevant version.",
+    "Basic Configuration",
+    "Minimal Enablement",
+    "Complete Configuration",
+    "Declarative Containers: The oci-containers Module",
+    "NixOS has a built-in module for declaring containers directly, similar to a simplified Compose:",
+    "<strong>Limitations</strong>: this module does not implement the full Compose model. Its own <code>dependsOn</code> generates systemd After/Requires dependencies, and health/runtime options can be supplied through the corresponding interfaces or extraOptions, but it does not automatically provide Compose profiles or service_healthy dependency semantics. For complex applications, using <code>docker compose</code> and keeping the Compose file in Git remains the recommended approach.",
+    "Docker is primarily managed through system-level configuration. Do not configure credentials by writing a config.json containing auth/token data into the store as public home.file text. Separately verify support in the relevant system or user modules for a user-level rootless daemon, socket, and context.",
+    "Choosing Docker vs. Podman on NixOS",
+    "The engines can coexist, but CLI and socket compatibility options may conflict. When enabling actual Docker, do not also let Podman take over the <code>docker</code> command:",
+    "Use Case",
+    "Recommendation",
+    "Running someone else's <code>docker-compose.yml</code>",
+    "Docker (native Compose v2)",
+    "Writing new services yourself",
+    "Podman + Quadlet (declarative + systemd)",
+    "Learning containers",
+    "Podman (rootless and daemonless)",
+    "Company projects",
+    "Docker (team standard)",
+    "Verifying Builds, Activation, and Runtime Behavior",
+    "<code>nixos-rebuild build</code> only verifies build outputs. The example <code>switch</code> activates the system and may restart services, so follow the deployment procedure. Logging in again after joining the docker group only determines when the permission change takes effect; it does not reduce the group's security risk. The controlled file <code>/run/secrets/postgres.env</code> must exist with restricted read access and contain the required database credentials; this configuration does not generate it automatically. Rootless mode uses a separate daemon/socket; running the CLI as an ordinary user does not automatically make the setup rootless."
+  ],
+  "reference_labels": [
+    "NixOS 26.05 Docker Module",
+    "NixOS 26.05 OCI Containers Module",
+    "Docker Rootless Mode",
+    "NixOS 26.05 Podman Coexistence Options"
+  ]
+}

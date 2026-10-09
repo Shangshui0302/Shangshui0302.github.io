@@ -1,0 +1,40 @@
+{
+  "source_sha256": "503392bc76e7ded0bedf94620814b4ff2a880e45ccd8f88ad6b0db40de5913d6",
+  "segments": [
+    "In the vast Unix/Linux ecosystem, combining tools is an art. We know the power of the pipe (<code>|</code>): like a quiet river, it carries an upstream program's standard output (stdout) smoothly into a downstream program's standard input (stdin). Real-world system interactions are often more complicated, though. Many classic commands, such as <code>rm</code>, <code>cp</code>, and <code>mkdir</code>, do not listen to this &quot;river&quot;. They turn their backs on the pipe and wait for explicit <strong>command-line arguments</strong>.",
+    "This raises a classic design problem: how do you turn a flowing data stream into discrete command-line arguments?",
+    "That is precisely why <code>xargs</code> exists. It is more than a command runner: it is a diligent &quot;translator&quot; and &quot;scheduler&quot;.",
+    "1. The core idea: stdin → command-line arguments",
+    "The core job of <code>xargs</code> is to <strong>read data from standard input, parse it into separate arguments, and append those arguments to the target command before running it.</strong>",
+    "Imagine that you want to use <code>find</code> to locate every <code>.log</code> file and delete them.",
+    "Your first instinct might be to write:",
+    "Because <code>rm</code> ignores standard input, it simply waits for command-line arguments.",
+    "But when you introduce <code>xargs</code>:",
+    "It turns input items into an argument list such as <code>rm a.log b.log c.log</code>. By default, parsing follows whitespace, quote, and backslash rules rather than simply processing one line at a time; NUL delimiters are used here to avoid ambiguous filenames. Compared with the <code>find -exec</code> you have already learned, <code>xargs</code> is more general: it is not limited to find and can work with any command that produces a list.",
+    "2. Handle spaces and special characters: -print0 and -0",
+    "Filenames can contain spaces or newlines. Splitting on whitespace, as <code>xargs</code> does by default, can be disastrous. Combine <code>find</code>'s <code>-print0</code> with <code>xargs</code>' <code>-0</code>:",
+    "The null character (<code>\\0</code>) becomes the sole, unambiguous delimiter, avoiding all the special-character pitfalls.",
+    "3. Placeholders: precise argument placement (-I)",
+    "Not every command accepts arguments at the end. <code>-I {}</code> lets you insert an argument wherever you need it:",
+    "<code>-I {}</code> normally runs once per input line; it will not split <code>echo &quot;a b c&quot;</code> into three directories. The original form would create a single directory named <code>a b c</code>. When combined with <code>-0</code>, substitution is performed for each NUL-delimited item; the destination archive directory must already exist. <code>-I</code> is generally mutually exclusive with <code>-n</code> and <code>-L</code>, so do not combine them blindly.",
+    "4. Parallel execution: -P and -n",
+    "<code>xargs</code> can act as a lightweight task scheduler, running tasks in parallel:",
+    "<code>-n 1</code>: Pass only 1 URL to wget per invocation",
+    "<code>-P 4</code>: Run 4 wget processes at a time for parallel downloads",
+    "A few arguments provide concurrency without having to write a multithreaded shell script.",
+    "5. Guard against empty input: -r",
+    "If the upstream command provides no data, <code>xargs</code> still runs the target command once without arguments by default, which may cause an error. <code>-r</code> (<code>--no-run-if-empty</code>) prevents this:",
+    "Everyday use: quick reference",
+    "I want to...",
+    "Command",
+    "Delete files in bulk",
+    "Delete safely (filenames containing spaces)",
+    "Move files in bulk",
+    "Download in parallel",
+    "Do nothing when the search returns no results",
+    "The empty-input behavior described here applies to GNU xargs. <code>-r</code> is a GNU extension, and other implementations may behave differently by default. <code>-o</code> lets an interactive program read input from the terminal; <code>-p</code> requests confirmation before execution. NUL delimiters preserve filename boundaries but do not eliminate races between finding a file and acting on it. Permissions and race conditions need separate consideration in untrusted directories that can be modified concurrently. The URL list assumes that no item contains unencoded whitespace."
+  ],
+  "reference_labels": [
+    "GNU xargs options"
+  ]
+}

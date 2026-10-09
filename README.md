@@ -66,7 +66,7 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 
 ## 字体与隐私
 
-字体、CSS 与脚本均由本站提供，无第三方分析、远程头像或字体请求。外观与动效开关仅将偏好存入本站 localStorage，并尊重系统减少动效设置。外部链接不发送 referrer。
+字体、CSS 与脚本均由本站提供，无第三方分析、远程头像或字体请求。语言、外观与动效开关仅将偏好存入本站 localStorage，并尊重系统减少动效设置。外部链接不发送 referrer。
 
 Archivo Variable、IBM Plex Mono 与思源黑体的许可证位于 `assets/fonts/`。中文字体为按当前内容裁剪并改名的 Offset Han Sans，保留原版权和 SIL OFL；缺失字符使用系统中文字体。来源记录见 `FONT-SOURCES.md`。
 
@@ -114,3 +114,11 @@ node --test tests/*.test.mjs
 启用前先确认全部图片、字体与文章的公开分发权，以及仓库公开范围；再将仓库 Settings → Pages → Source 设为 GitHub Actions。推送 `main` 或在 `main` 手动运行流程会触发部署；其他分支的手动运行会跳过。建议将 `github-pages` 环境的部署分支限制为 `main`。发布状态应以 Actions 的实际部署结果和线上检查为准，不能以本地构建成功代替。
 
 流程依据 [GitHub Pages 官方自定义工作流说明](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)；Actions 固定版本来自 [checkout](https://github.com/actions/checkout/releases/tag/v7.0.1)、[configure-pages](https://github.com/actions/configure-pages/releases/tag/v6.0.0)、[upload-pages-artifact](https://github.com/actions/upload-pages-artifact/releases/tag/v5.0.0) 与 [deploy-pages](https://github.com/actions/deploy-pages/releases/tag/v5.0.1) 的官方发布。
+
+## 中英双语
+
+原有中文路由保持不变，完整英文页面位于 `/en/`。顶栏的 `中 / EN` 为原生链接，无脚本也能切换到当前页面的另一语言。启用脚本时保留查询条件与段落位置，并把明确选择存入本站的 `offset-language`；再次从首页进入时恢复该选择，直接分享的文章链接与浏览器前进/后退仍以 URL 所指语言为准。切换语言使用完整页面导航，同语言浏览继续使用原有渐进路由。字体、外观和动效偏好继续沿用。
+
+英文项目记录在 `public-content/translations/en/work.json`；文章标题、简介、专题和分类标签在 `catalog.json`；共享界面文案在 `ui.json`；`sources.json` 记录项目、目录与分类原文哈希，防止原文更新后静默沿用旧译文。逐篇正文译文位于 `articles/{slug}.json`，存储来源哈希、按顺序对应的 HTML 文案片段及参考资料标题。`site_builder/article_translation.py` 将译文填回原文结构，保留代码、命令、原始链接、标签结构和段落 ID；渲染时将站内导航映射到对应语言路径，并翻译可访问名称。原中文内容单独保留；已有英文代码注释与示例中的中文也按原样保留。
+
+新增或修改文章时，需同时更新英文目录元数据和对应正文译文。缺失译文或来源哈希过期会阻止发布构建；普通预览对尚未翻译的正文明确标注为中文，不伪装成完整英文版。每种语言有独立的搜索索引与 RSS、页面语言、标题与描述，以及 canonical/hreflang 对应关系。原中文 RSS 地址保持不变，英文 RSS 位于 `/en/feed.xml`。英文阅读时长按英文词数估算。

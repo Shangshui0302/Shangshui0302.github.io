@@ -1,0 +1,29 @@
+{
+  "source_sha256": "70d3fb4f96374d41dc1652adf3b15515b87f0fe62c3d1d653ec6c2770f118a91",
+  "segments": [
+    "Basic Flake structure",
+    "A typical <code>flake.nix</code> is an attribute set in which <code>outputs</code> is a function that takes inputs and returns an output attribute set.",
+    "1. Inputs",
+    "<code>inputs</code> contains the external resources you want to reference.",
+    "<strong>nixpkgs</strong>: the entire package repository.",
+    "<strong>home-manager</strong>: a user-level configuration tool.",
+    "<strong>flake-utils</strong>: a commonly used helper library.",
+    "<strong>The <code>follows</code> keyword</strong>: very important! It makes a specified nested input follow the top-level nixpkgs, reducing duplicate nixpkgs sources in the dependency graph. Multiple package versions may still exist, and sharing an input does not guarantee compatibility across all external projects.",
+    "2. Outputs",
+    "<code>outputs</code> contains what your Flake produces.",
+    "<strong><code>nixosConfigurations</code></strong>: used by <code>nixos-rebuild</code>; your system is at its core.",
+    "<strong><code>homeConfigurations</code></strong>: used by <code>home-manager</code>.",
+    "<strong><code>devShells</code></strong>: development environments used by <code>nix develop</code>.",
+    "<strong><code>packages</code></strong>: software you package yourself.",
+    "What are self and @inputs here?",
+    "<strong><code>self</code></strong>: represents the current Flake itself. You can use it to reference files defined within it.",
+    "<strong><code>@inputs</code></strong>: syntactic sugar that captures all input arguments together.",
+    "Practical tip: understand the outputs hierarchy",
+    "Running <code>nix flake show</code> displays the outputs as a tree. Those levels must match exactly in your code for <code>nixos-rebuild</code> to find your configuration."
+  ],
+  "reference_labels": [
+    "Nix Flake manual",
+    "Nix flake update",
+    "Nix flake check"
+  ]
+}

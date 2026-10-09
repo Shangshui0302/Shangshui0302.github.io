@@ -6,7 +6,7 @@ import re
 from .templates.components import url
 
 
-def write_search_index(output, works, posts, topics, taxonomy, urls=None):
+def write_search_index(output, works, posts, topics, taxonomy, urls=None, english=False):
     records = []
     for kind, items in [('work', works), ('writing', posts), ('topics', topics)]:
         for item in items:
@@ -19,6 +19,9 @@ def write_search_index(output, works, posts, topics, taxonomy, urls=None):
                 text += ' ' + ' '.join(taxonomy['tags'][tag] for tag in item['tags'])
             records.append({'url': url('writing/topics' if kind == 'topics' else kind, item),
                             'text': re.sub(r'\s+', ' ', text).strip()})
+    if english:
+        for record in records:
+            record['url'] = '/en' + record['url']
     if urls:
         for record in records:
             record['url'] = urls.mount(record['url'])

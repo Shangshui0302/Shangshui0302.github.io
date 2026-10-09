@@ -1,0 +1,33 @@
+{
+  "source_sha256": "aae656239bde334df7c7571173e80767e765ceb01837fe2ee4dba97df00a2179",
+  "segments": [
+    "Why clean up?",
+    "A successful system build produces a system closure in <code>/nix/store</code>. Switching the system profile creates selectable generations. References from older generations protect their dependencies, allowing those configurations to be used later. Repeatedly switching to the same output does not necessarily produce different software versions.",
+    "<strong>Benefit</strong>: you can select an older version from the boot menu to roll back at any time.",
+    "<strong>Cost</strong>: disk space can fill up quickly.",
+    "Stage 1: manual cleanup",
+    "1. Clean up old versions (generations)",
+    "2. Garbage collection",
+    "Deleting old generations only removes references. To actually free disk space, run:",
+    "<strong><code>-d</code></strong>: first deletes old generations of the profiles it finds, then collects objects not referenced by any GC root. It does not simply remove software outside the current system, and it does not retain the latest two or three generations.",
+    "Stage 2: automated maintenance",
+    "Configure automatic cleanup in <code>configuration.nix</code> so you no longer need to run the commands manually.",
+    "Stage 3: the art of rolling back",
+    "1. Temporary rollback without rebooting",
+    "If you find a problem with the configuration you just installed, you do not need to reboot:",
+    "2. Roll back from the boot menu",
+    "If the system cannot reach the desktop, select the previous version directly from the GRUB/systemd-boot menu.",
+    "Advice for Arch users",
+    "Do not clear caches as frequently as you might on Arch. Nix has a distinctive storage model; retaining the last 2-3 generations can sometimes save you.",
+    "Summary",
+    "<strong>Generation</strong>: a system configuration closure and historical profile reference, not a snapshot of user files, databases, or an entire filesystem.",
+    "<strong>GC</strong>: reclaims store objects not protected by GC roots. Dependencies that still have references are retained.",
+    "<strong>Optimize</strong>: reduces the disk space used by duplicate files.",
+    "Rollback prerequisites",
+    "Deleting old generations may remove store contents needed by their boot entries. Rolling back configuration does not undo data written by applications or database migrations; plan system changes and data backups separately. <code>switch --rollback</code> activates the old configuration immediately and is an operation that actually applies changes."
+  ],
+  "reference_labels": [
+    "Nix garbage collection command",
+    "NixOS rollback"
+  ]
+}

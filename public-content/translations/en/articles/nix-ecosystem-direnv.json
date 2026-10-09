@@ -1,0 +1,28 @@
+{
+  "source_sha256": "7e7998a8438a2082cb3c9b8910737a98ce2a9d18599b5d4fd34dd0d2047515e5",
+  "segments": [
+    "️ The pain of the traditional approach",
+    "On Arch Linux, if you install <code>gcc</code>, <code>libxml2</code>, <code>libxslt</code> to compile a Python project, those packages remain in the global environment until explicitly removed, and may cause version conflicts between projects.\n<strong>On NixOS</strong>: You can define an environment in the project directory and return to the outer shell when you exit; objects in the store remain until garbage collection removes them.",
+    "️ Stage 1: nix-shell",
+    "Enter a temporary environment.",
+    "Stage 2: Flake-driven devShells",
+    "In a modern workflow, we define the environment in the project’s <code>flake.nix</code>:",
+    "Run <code>nix develop</code> to enter it.",
+    "Stage 3: Automation with Direnv",
+    "Manually running <code>nix develop</code> every time is tedious. With <code>direnv</code>, the environment loads automatically as soon as you enter the directory.",
+    "1. Enable direnv",
+    "In Home Manager:",
+    "2. Use it in a project",
+    "Create an <code>.envrc</code> in the project root:",
+    "Run <code>direnv allow</code> once. The next time you <code>cd</code> into this directory, the terminal will automatically display <code>direnv: loading...</code>, and all your tools and environment variables will be ready!",
+    "Why is this useful?",
+    "<strong>Version isolation</strong>: Project A uses Python 3.9 and project B uses Python 3.12, without interfering with each other.",
+    "<strong>Team consistency</strong>: Share <code>flake.nix</code>, <code>flake.lock</code>, and <code>.envrc</code> with your colleagues, and match the target platform. The lock file pins input revisions, while running services, external downloads, and system state can still affect the actual result.",
+    "Authorization and shell integration",
+    "<code>direnv allow</code> authorizes the <code>.envrc</code> in the current directory to execute shell code, so read it first. Home Manager configuration must be paired with the appropriate shell integration. Changing directories restores environment variables; it does not automatically stop a database started by shellHook."
+  ],
+  "reference_labels": [
+    "Declarative shell tutorial",
+    "nix-direnv"
+  ]
+}

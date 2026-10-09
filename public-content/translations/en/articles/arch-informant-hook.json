@@ -1,0 +1,17 @@
+{
+  "source_sha256": "7e024922289dac7a3300c6ece5b74d79904aa4a670e1e3eff64989813a3af1e6",
+  "segments": [
+    "Source and license: This article contains excerpts and adaptations of Bradford Smith's <a href=\"https://github.com/bradford-smith94/informant\" target=\"_blank\" rel=\"noopener noreferrer\">informant project documentation</a>. Copyright (c) 2018-2024 Bradford Smith. The retained upstream material is provided under the <a href=\"/assets/licenses/informant-MIT.txt\" target=\"_blank\" rel=\"noopener noreferrer\">MIT License (full copyright notice, permission notice, and disclaimer)</a>. This article changes the organization and some explanations, and adds guidance on usage limitations; this license notice was added on 2026-10-09. The license applies to the upstream material described above and does not change the ownership of rights to other content on this site.",
+    "Source and purpose",
+    "This article is based on the project documentation for <a href=\"https://github.com/bradford-smith94/informant\" target=\"_blank\" rel=\"noopener noreferrer\">bradford-smith94/informant</a>. The subcommands, hook behavior, and configuration format are retained below; consult the help and manual for your installed version for its exact behavior.",
+    "Usage limitations",
+    "<code>read --all</code> only changes the read status; it does not establish that you have completed the manual intervention required by a news item. You still need to read Arch News yourself after temporarily disabling the hook. The program runs in pacman's permission context, so system-wide configuration must be readable in that context. Do not put private feed credentials in a public article."
+  ],
+  "reference_labels": [
+    "bradford-smith94/informant original project",
+    "AUR: informant",
+    "alpm-hooks(5)",
+    "informant: full MIT copyright and license notice",
+    "Upstream MIT License"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "source_sha256": "ec551dd8f9dea4e4873a09f6b9d34ad863b72d03df984fb7ba2bc67b3954740b",
+  "segments": [
+    "The desktop, toolkit, compositor, and input method all affect the windows you ultimately see. When troubleshooting, first identify the path messages take, then determine which component draws a particular visual element. Avoid reducing every problem to “try a different theme.”",
+    "Qt, GTK, and display protocols operate at different layers",
+    "Qt and GTK are application toolkits that provide widgets, events, and application interfaces. Wayland and X11 are window-system protocols and mechanisms; the same toolkit can use different display backends. A Qt application is not necessarily an X11 application, and a GTK application is not necessarily part of a particular desktop environment.",
+    "XWayland provides compatibility for X11 applications in a Wayland session. A process running in a Wayland session does not prove that its window is using a native Wayland backend. Check the window’s actual backend before explaining why an environment variable does or does not take effect.",
+    "Input-method communication paths and candidate windows",
+    "The input engine converts input into candidates; the frontend connects input protocols from applications, toolkits, or compositors to Fcitx5; the user interface then displays candidates and status. Engines such as Rime and Pinyin operate at a different layer from candidate-window themes.",
+    "Applications can communicate with Fcitx5 through GTK / Qt input-method modules, or through Wayland text-input with the compositor connecting them to the input method. The original note’s claim that “native Wayland input always has the application draw the candidate window itself” was too absolute: the protocol path and the candidate-panel implementation must be checked separately. Support in the environment affects Classic UI, panel integration, and fallback paths; Qt6, GTK4, or a terminal’s name alone cannot establish whether a theme will definitely work or definitely fail.",
+    "Match environment variables to the specific application",
+    "<code>XMODIFIERS</code> primarily concerns X11 / XWayland; <code>GTK_IM_MODULE</code> and <code>QT_IM_MODULE</code> affect the choices made by their respective toolkits. Setting more variables does not necessarily improve compatibility. Forcing an input-method module may bypass the Wayland text-input path you intended to use, or may be necessary for a specific application that does not support that path.",
+    "KDE Plasma, GNOME, and wlroots-based compositors differ in their support for input-method protocols. The Qt version, whether an application bundles input-method modules, and whether XWayland is enabled also affect the outcome. Choose settings using the upstream Fcitx5 application/compositor matrix; apply per-application overrides for special cases rather than setting the whole group of variables globally without checking.",
+    "When troubleshooting, record the application version, display backend, toolkit version, compositor, relevant environment variables, and Fcitx5 logs. Then compare a working application with a malfunctioning one in the same environment to narrow down the differences.",
+    "Compositors, desktop shells, and status bars",
+    "Hyprland and Niri primarily handle window management, input, output layout, and compositing. A desktop shell provides interfaces such as panels, launchers, notifications, and a control center. Quickshell is a framework for implementing these interfaces; it should not be treated as the same product as a particular shell.",
+    "Noctalia, DMS, Waybar, and full desktop environments have different responsibilities and integration approaches. Waybar is primarily a status bar; Quickshell lets developers define interfaces and logic; KDE Plasma / GNOME provide more complete desktop integration. These are not successive upgrade tiers, and no particular combination is inherently guaranteed to be faster.",
+    "Application rendering paths and performance assessment",
+    "Frameworks such as Qt / GTK, Electron, and Flutter make different choices about widgets, rendering, and system integration. Applications still ultimately present their output through the window system. This cannot be represented as a single path in which an application passes through the desktop shell before reaching the GPU; the shell itself is also a client or desktop component involved in compositing.",
+    "Assess performance through processes, frame times, resource use, and actual interaction. Whether a static interface saves memory cannot be deduced from labels such as “native” or “GPU UI” alone; blur, animations, image decoding, and refresh rates can all change the load.",
+    "Locate appearance and input problems layer by layer",
+    "Confirm the application’s actual display backend and version rather than relying only on the session name.",
+    "Check whether the input-method engine produces candidates and whether the application receives preedit and committed text.",
+    "Identify the UI implementation that displays the candidate panel, then check its theme, fonts, and scaling.",
+    "Check compositor protocols and toolkit input-method modules, then address application-specific fallbacks.",
+    "Change only one layer at a time, reproduce the issue with the same input, and retain reversible configurations and logs.",
+    "For further study, explore Wayland text-input, toolkit input contexts, compositor input-method support, the Rime engine, and QML interfaces separately. Distinguish the interfaces first, then decide which configuration to change."
+  ],
+  "reference_labels": [
+    "Fcitx5: Wayland Application and Compositor Support",
+    "Wayland Architecture"
+  ]
+}

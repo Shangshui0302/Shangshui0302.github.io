@@ -1,0 +1,31 @@
+{
+  "source_sha256": "b925347f534ba516493f196c78d9b5e4d098f681e0f8b70b9ca27e6d56d78468",
+  "segments": [
+    "What is home.file?",
+    "Sometimes you encounter less-common software for which Home Manager’s <code>programs</code> provides no dedicated options. In that case, you can use the <code>home.file</code> attribute to declare a file link at a specific location in your home directory.",
+    "1. Basic usage",
+    "<strong>Result</strong>: Home Manager creates a symbolic link under <code>~/.config/my-app/</code> pointing to a read-only file in <code>/nix/store</code>.",
+    "2. Referencing local files in the project",
+    "If you already have a collection of <code>.conf</code> files and do not want to rewrite them in Nix:",
+    "XDG Base Directory (the modern approach)",
+    "For modern Linux applications, use <code>xdg.configFile</code> rather than working directly at the root of the home directory.",
+    "This automatically places the file at <code>~/.config/kitty/kitty.conf</code>.",
+    "The executable and recursive options",
+    "<strong><code>executable = true;</code></strong>: when linking a script, this option ensures it has execute permission.",
+    "<strong><code>recursive = true;</code></strong>: links the files in a directory individually; the default, <code>false</code>, links the target directory as a whole to the source directory. Both approaches can manage directories.",
+    "Why did my configuration file become “read-only”?",
+    "This is Home Manager’s default behavior.",
+    "<strong>Reason</strong>: the Store file the link points to generally cannot be edited directly. If you replace the link with a regular file, the next activation may refuse to overwrite it because of a file conflict. Make changes in the declarative source.",
+    "<strong>Lesson</strong>: <strong>always</strong> edit your <code>.nix</code> configuration rather than the file exposed through a <code>/nix/store</code> symlink.",
+    "A practical tip: a transitional approach",
+    "If you are not ready to convert hundreds of lines of Nvim configuration to Nix:",
+    "Place your <code>.config/nvim</code> folder inside your Nix configuration directory.",
+    "Link the entire directory with <code>home.file.&quot;.config/nvim&quot;.source = ./nvim;</code>.",
+    "When you have time later, gradually split it into separate Nix modules."
+  ],
+  "reference_labels": [
+    "Home Manager Manual",
+    "Home Manager Command Source",
+    "Home Manager File Options Source"
+  ]
+}

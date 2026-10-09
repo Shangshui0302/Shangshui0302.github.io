@@ -645,3 +645,5 @@
     display:none
   }
 }
+
+html[lang="en"] .series-reading [aria-current="page"]::after { content:'READING NOW'; }

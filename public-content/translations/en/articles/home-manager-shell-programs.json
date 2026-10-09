@@ -1,0 +1,27 @@
+{
+  "source_sha256": "c8a76889b38da190f827616a9bf5c2a08cfa6328b6ab3a52e63ba64406766b6c",
+  "segments": [
+    "Configuring Zsh with Nix",
+    "Home Manager provides powerful <code>programs.zsh</code> options that let you manage all your plugins in Nix code.",
+    "The prompt: Starship",
+    "If you like a modern terminal prompt, configuration is straightforward:",
+    "Common command-line tools (CLI)",
+    "These tools also have dedicated configuration options in Home Manager:",
+    "<strong><code>programs.git</code></strong>: Configure your username, email address, and aliases.",
+    "<strong><code>programs.fzf</code></strong>: Automatically enable Zsh bindings.",
+    "<strong><code>programs.direnv</code></strong>: Automatically load the development environment when you enter a directory.",
+    "<strong><code>programs.bat</code></strong>: A <code>cat</code> with syntax highlighting.",
+    "Why do this?",
+    "<strong>Ready to use</strong>: Clone your configuration on a new machine and run a command to install all your shell plugins and themes automatically.",
+    "<strong>Reusable configuration</strong>: You can easily put your Zsh configuration in a separate file and share it across machines, even on macOS.",
+    "Migration tip",
+    "At the <code>configuration.nix</code> level, you only need to specify <code>users.defaultUserShell = pkgs.zsh;</code>; leave all the shell details to Home Manager.",
+    "Version compatibility and shell responsibilities",
+    "The example retains the <code>initExtra</code> syntax from older Home Manager versions; newer versions may use <code>initContent</code>. Verify plugin versions and hashes against the actual pinned sources rather than treating placeholders as validated configuration. The system layer also needs to enable <code>programs.zsh.enable</code> and set the user’s login shell; Home Manager manages the user configuration."
+  ],
+  "reference_labels": [
+    "Home Manager manual",
+    "Home Manager command source",
+    "Home Manager file options source"
+  ]
+}

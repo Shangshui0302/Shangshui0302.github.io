@@ -1,0 +1,30 @@
+{
+  "source_sha256": "c20541edd86335fab92659f09689e3e650d38cc76c88505e4e97d9ca26def04e",
+  "segments": [
+    "How do you reference external resources?",
+    "In <code>flake.nix</code>, you can define various external sources in the <code>inputs</code> section.",
+    "1. Common URL types",
+    "<strong>Local path</strong>: <code>path:../other-flake</code>",
+    "Practical examples: referencing someone else’s Nix configuration",
+    "1. Referencing Hyprland’s official Flake",
+    "Hyprland evolves very quickly, and the official NixOS repository may not be recent enough. You can reference its Flake directly:",
+    "2. Referencing someone else’s Neovim configuration",
+    "Suppose someone has packaged their Neovim setup as a Flake:",
+    "🔄 Collaboration and dependency conflicts",
+    "When you reference multiple Flakes, each may depend on a different version of <code>nixpkgs</code>. Check the external projects’ compatibility requirements before sharing a version.",
+    "Solve it with follows!",
+    "If the external Flake supports your current nixpkgs, you can make a specified input follow the main configuration’s version:",
+    "Collaboration workflow",
+    "<strong>Add an Input</strong>: edit <code>flake.nix</code>.",
+    "<strong>Lock versions</strong>: run <code>nix flake lock</code> (which updates <code>flake.lock</code> automatically).",
+    "<strong>Use an Output</strong>: reference the corresponding output by variable name in your code.",
+    "Summary",
+    "Learning to reference external Flakes puts the whole Nix community’s toolkit at your disposal. Desktop environments, editors, and specialized development tools can all be made to work “out of the box.”"
+  ],
+  "reference_labels": [
+    "Nix Flake Manual",
+    "Nix flake update",
+    "Nix flake check",
+    "Official Hyprland NixOS Documentation"
+  ]
+}

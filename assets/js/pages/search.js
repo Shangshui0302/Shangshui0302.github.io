@@ -1,3 +1,4 @@
+import {t} from '../core/language.js';
 import {loadSearchIndex} from '../core/search-index.js';
 
 export function initSearch(root, scope, {updateUrl}) {
@@ -15,7 +16,7 @@ export function initSearch(root, scope, {updateUrl}) {
     const terms = input.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
     const waiting = terms.length > 0 && !index;
     notice.hidden = !waiting;
-    notice.querySelector('span').textContent = failed ? '全文搜索暂时不可用，可继续浏览目录。' : '正在准备全文搜索…';
+    notice.querySelector('span').textContent = failed ? t('全文搜索暂时不可用，可继续浏览目录。', 'Full-text search is unavailable. You can still browse the index.') : t('正在准备全文搜索…', 'Preparing full-text search…');
     retry.hidden = !failed;
     if (waiting && !loading && !failed) {
       loading = true;
@@ -30,7 +31,9 @@ export function initSearch(root, scope, {updateUrl}) {
       if (item.row.hidden !== hidden) item.row.hidden = hidden;
       if (!hidden) visible++;
     });
-    count.textContent = waiting ? `${visible} 项目录内容 · ${failed ? '搜索未完成' : '准备搜索中'}` : `${visible} 项内容`;
+    count.textContent = waiting
+      ? t(`${visible} 项目录内容 · ${failed ? '搜索未完成' : '准备搜索中'}`, `${visible} index entries · ${failed ? 'search unavailable' : 'preparing search'}`)
+      : t(`${visible} 项内容`, `${visible} ${visible === 1 ? 'result' : 'results'}`);
     empty.hidden = waiting || visible > 0;
   };
   const restore = () => {

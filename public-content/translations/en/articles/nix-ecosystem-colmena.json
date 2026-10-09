@@ -1,0 +1,30 @@
+{
+  "source_sha256": "e6aa62970e43ceac222b6c87d5428242080a474fb643f934b731c02ba9fc7875",
+  "segments": [
+    "Why Use Remote Deployment?",
+    "When you have multiple NixOS nodes, such as a primary computer, a server, and a Raspberry Pi, running <code>nixos-rebuild switch</code> on each is cumbersome and makes version drift more likely. <strong>Colmena</strong> lets you push configuration to all nodes centrally from your primary computer.",
+    "Stage One: Configure Colmena",
+    "The following is a traditional <code>hive.nix</code> example using the locally selected Nixpkgs; production projects should pin a Nixpkgs revision. When using a Flake, export <code>colmena</code> / <code>colmenaHive</code> as required by your Colmena version. Do not put an unbound <code>inputs</code> variable directly into a standalone file.",
+    "Stage Two: Deployment Commands",
+    "<strong>Check the configuration</strong>: <code>colmena build</code>",
+    "<strong>Preview changes</strong>: <code>colmena apply dry-activate --on server</code>",
+    "<strong>Push and activate</strong>: <code>colmena apply switch --on server</code> (omitting the node filter may deploy to multiple nodes)",
+    "Benefits of Remote Deployment",
+    "<strong>Build locally, install remotely</strong>: after building, you can copy the system closure. Building an ARM system on x86_64 requires proper cross-compilation, emulation, or a remote builder; simply copying binaries is not enough. You can also use <code>deployment.buildOnTarget</code> to build on the target node.",
+    "<strong>Parallel deployment</strong>: upgrade 10 servers at once to exactly the same version.",
+    "<strong>Fault tolerance</strong>: older NixOS generations provide a recovery path, but Colmena does not guarantee automatic network recovery or rollback after every failure. Prepare SSH connectivity checks, a console channel, and manual recovery procedures before deployment.",
+    "Advice for Arch Users",
+    "If you previously used Ansible to manage multiple Arch machines, think of Colmena as a tool that coordinates building, copying, and activation on top of NixOS's declarative system configuration. Mutable application state still needs separate management.",
+    "Summary",
+    "<strong>Hive</strong>: a collection of configurations.",
+    "<strong>Apply</strong>: deploy and activate.",
+    "<strong>Build</strong>: build without installing.",
+    "Boundaries Between Building, Previewing, and Activation",
+    "<code>build</code> normally only builds; with buildOnTarget enabled, the result resides on the target machine. <code>dry-activate</code> may first build, transfer the closure, and run the target's preview script, so it is not a purely local, read-only check. <code>test</code> activates immediately without making the configuration the boot default; <code>boot</code> changes the boot default without activating immediately; <code>switch</code> does both. The example hostnames are placeholders. Deploy only after confirming the target, authorized account, and hardware configuration."
+  ],
+  "reference_labels": [
+    "Introduction to Colmena",
+    "Colmena Deployment Options",
+    "Colmena Deployment Goal Source"
+  ]
+}
