@@ -1,6 +1,7 @@
 """Persistent site shell; every route shares the same assets and navigation."""
 from html import escape as esc
 from pathlib import Path
+from ..urls import SiteURLs
 
 THEME_BOOTSTRAP = (Path(__file__).resolve().parents[2] / "assets/js/core/theme-bootstrap.js").read_text()
 
@@ -12,7 +13,7 @@ def render_page(config, title, body, active='', description='', is_article=False
         for slug, href, label in [('home', '/', '首页'), ('work', '/work/', '作品'), ('writing', '/writing/', '文章'), ('index', '/index/', '<span class="search-symbol" aria-hidden="true"></span>搜索')])
     body_class = 'orbit-home' if stellar else 'reading-page' if is_article else 'case-page' if is_case else ''
     favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F1EFE9'/%3E%3Cpath fill='%2317191C' d='M10 10h44v14H10zm0 32h44v12H10z'/%3E%3Cpath fill='%23FF4D2E' d='M10 29h44v8H10z'/%3E%3C/svg%3E"
-    return f'''<!doctype html><html class="no-js" lang="zh-CN"><head>
+    return f'''<!doctype html><html class="no-js" lang="zh-CN" data-base-path="{esc(SiteURLs(config.get('site_url') or 'http://127.0.0.1:4173').base_path)}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)} · {esc(name)} / {esc(wordmark)}</title>
 <meta name="description" content="{esc(description or config['description'])}"><meta name="referrer" content="no-referrer">
@@ -30,3 +31,4 @@ def render_page(config, title, body, active='', description='', is_article=False
 <div class="route-status sr-only" role="status" aria-live="polite"></div>
 <div class="route-error" role="alert" hidden><p>页面未能加载，请重试。</p><button type="button" data-route-retry>重新加载</button><a data-route-open data-native>直接打开</a><button type="button" data-route-dismiss aria-label="关闭">×</button></div>
 </body></html>'''
+

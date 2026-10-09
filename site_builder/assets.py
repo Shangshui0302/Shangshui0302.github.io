@@ -6,7 +6,7 @@ IMPORT = re.compile(r'@import\s+url\([\'"]?([^\'"\)]+)[\'"]?\);')
 URL = re.compile(r'url\(([\'"]?)([^\'"\)]+)\1\)')
 
 
-def bundle_styles(root):
+def bundle_styles(root, urls=None):
     def read(path, parents=()):
         path = path.resolve()
         if path in parents or not path.is_relative_to(root.resolve()):
@@ -21,4 +21,8 @@ def bundle_styles(root):
             return f'url("/{target.relative_to(root)}")'
         source = URL.sub(asset, source)
         return IMPORT.sub(lambda m: read(path.parent / m[1], (*parents, path)), source)
-    return read(root / 'assets/css/site.css')
+    source = read(root / 'assets/css/site.css')
+    if urls:
+        source = URL.sub(lambda match: f'url("{urls.mount(match[2])}")', source)
+    return source
+

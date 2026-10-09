@@ -93,3 +93,24 @@ node --test tests/*.test.mjs
 Node 检查需要先完成本地构建，验证实际搜索页面能进入缓存，以及索引跨挂载复用、失败后重试；同时检查玻璃采样映射在直边、圆角和尺寸变化下保持连续、无反转。
 
 旧版快照、构建缓存、字体覆盖报告和本地验证记录保存在被 Git 忽略的 `.sites-runtime/` 中，不进入发布目录。
+
+
+## GitHub Pages 构建
+
+支持根域名与项目子路径；默认构建仍读取原有 `site_config.json`，不改动现有 Sites 项目或 `.openai/hosting.json`。两个脚本共享同一配置规则：`--site-url` 参数优先，其次是 `SITE_URL` 环境变量，最后是配置文件。构建与检查必须使用相同地址。
+
+```sh
+# 仅演示项目路径的本地构建与检查；此命令不会发布网站。
+python3 build_site.py --release --site-url https://shangshui0302.github.io/offset
+python3 check_site.py --release --site-url https://shangshui0302.github.io/offset
+python3 -m unittest discover -s tests
+node --test tests/*.test.mjs
+```
+
+上述 Pages 地址是部署配置示例，不表示已成功上线。生成文件仍直接位于 `dist/`，不是 `dist/offset/`；页面导航、图片、CSS 字体、搜索索引和 RSS 都包含一致的 `/offset` 前缀。路由只接管相同源且位于当前站点子路径内的 HTML 导航，其他仓库站点、下载和 Demo 交给浏览器。默认根路径预览请重新运行不带覆盖参数的构建命令。
+
+`.github/workflows/pages.yml` 使用 GitHub 官方 Actions 并固定完整提交 SHA。流程先检查根路径及 `/offset`，再以 `configure-pages` 返回的 `base_url` 构建实际发布文件，最后只上传 `dist/`。构建任务仅有源码和 Pages 元数据读取权限；独立部署任务才有 Pages 写入和 OIDC 权限。流程不创建密钥、不保存检出凭据、不自动开启 Pages，也不改变仓库可见性。运行环境使用 GitHub 托管 Ubuntu 的 Python 3 与 Node.js，无额外运行依赖。
+
+启用前先确认全部图片、字体与文章的公开分发权，以及仓库公开范围；再将仓库 Settings → Pages → Source 设为 GitHub Actions。推送 `main` 或在 `main` 手动运行流程会触发部署；其他分支的手动运行会跳过。建议将 `github-pages` 环境的部署分支限制为 `main`。发布状态应以 Actions 的实际部署结果和线上检查为准，不能以本地构建成功代替。
+
+流程依据 [GitHub Pages 官方自定义工作流说明](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)；Actions 固定版本来自 [checkout](https://github.com/actions/checkout/releases/tag/v7.0.1)、[configure-pages](https://github.com/actions/configure-pages/releases/tag/v6.0.0)、[upload-pages-artifact](https://github.com/actions/upload-pages-artifact/releases/tag/v5.0.0) 与 [deploy-pages](https://github.com/actions/deploy-pages/releases/tag/v5.0.1) 的官方发布。

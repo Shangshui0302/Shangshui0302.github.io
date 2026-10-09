@@ -53,7 +53,7 @@ class StructureTests(unittest.TestCase):
 
     def test_release_rejects_preview_origins_and_demo_output(self):
         for origin in (None, 'http://127.0.0.1:4173', 'https://127.0.0.1', 'https://192.168.1.1',
-                       'https://preview.local', 'https://example.com', 'https://site.org/path',
+                       'https://preview.local', 'https://example.com', 'https://site.org/path/../escape',
                        'https://user:secret@site.org', 'https://site.org/?q=1'):
             with self.subTest(origin=origin), self.assertRaises(ValueError):
                 release_origin({'site_url': origin})
@@ -70,3 +70,4 @@ class StructureTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

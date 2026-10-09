@@ -2,6 +2,7 @@
 from site_builder.content import read_content, select_home_content, validate_case_studies
 from site_builder.search import write_search_index
 from site_builder.release import release_origin
+from site_builder.urls import load_config, SiteURLs
 import argparse
 from site_builder.assets import bundle_styles
 from pathlib import Path
@@ -21,10 +22,12 @@ import shutil
 from site_builder.feed import render_feed
 
 ROOT = Path(__file__).parent
-CONFIG = json.loads((ROOT / 'site_config.json').read_text())
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--release', action='store_true', help='Require a public HTTPS origin before building')
+parser.add_argument('--site-url', help='Override the deployment URL (or set SITE_URL)')
 args = parser.parse_args()
+CONFIG = load_config(ROOT, args.site_url)
+urls = SiteURLs(CONFIG['site_url'])
 if args.release:
     CONFIG['site_url'] = release_origin(CONFIG)
 MANIFEST = json.loads((ROOT / 'public-content/manifest.json').read_text())
@@ -51,7 +54,7 @@ for p in posts:
 def write(route, content):
     target = OUT / route.strip('/') / 'index.html'
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content)
+    target.write_text(urls.html(content))
 
 write('', page('开源作品与技术文章', render_home(ROOT, works, home_selection, topics, taxonomy), 'home', stellar=True))
 
@@ -72,12 +75,12 @@ for post in posts:
     # Existing preview links remain useful without depending on JavaScript.
     write('journal/'+post['slug'],page(post['title'],article,'writing',post['deck'],True))
 
-index_url = write_search_index(OUT, works, posts, topics, taxonomy)
+index_url = write_search_index(OUT, works, posts, topics, taxonomy, urls)
 write('index', page('搜索', render_search(works, posts, topics, taxonomy, index_url), 'index'))
 
 render_feed(CONFIG, posts, taxonomy).write(OUT/'feed.xml', encoding='utf-8', xml_declaration=True)
 shutil.copytree(ROOT/'assets',OUT/'assets',dirs_exist_ok=True)
-(OUT/'assets/site.css').write_text(bundle_styles(ROOT))
+(OUT/'assets/site.css').write_text(bundle_styles(ROOT, urls))
 dest=ROOT/'dist'
 previous=ROOT/'.sites-runtime/previous-build'
 if previous.exists():shutil.rmtree(previous)
@@ -85,3 +88,4 @@ if dest.exists():dest.rename(previous)
 OUT.rename(dest)
 mode = 'release build (not deployed)' if args.release else 'local preview only'
 print(f'Rendered {len(works)} projects and {len(posts)} articles with {len(topics)} topics from the explicit allowlist; {mode}.')
+

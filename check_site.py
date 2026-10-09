@@ -11,13 +11,16 @@ import json
 import re
 import argparse
 from site_builder.release import check_release_output
+from site_builder.urls import load_config, SiteURLs
 
 ROOT = Path(__file__).parent
 OUT = ROOT / 'dist'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--release', action='store_true', help='Reject preview origins and non-release output')
+parser.add_argument('--site-url', help='Use the same deployment URL as the build (or SITE_URL)')
 args = parser.parse_args()
-config = json.loads((ROOT / 'site_config.json').read_text())
+config = load_config(ROOT, args.site_url)
+urls = SiteURLs(config['site_url'])
 if args.release:
     check_release_output(OUT, config)
 manifest = json.loads((ROOT / 'public-content/manifest.json').read_text())
@@ -44,7 +47,7 @@ class Page(HTMLParser):
             self.inside_link = True
         if 'writing-row' in attrs.get('class', '').split():
             self.rows.append(attrs)
-        for key in ('href', 'src'):
+        for key in ('href', 'src', 'action', 'poster', 'data-search-index'):
             if key in attrs:
                 self.links.append((tag, key, attrs[key], attrs))
 
@@ -73,7 +76,7 @@ for path, page in pages.items():
                 errors.append(f'Unsafe link scheme: {route}')
             continue
         references += 1
-        target = (OUT / url.path.lstrip('/') if url.path.startswith('/') else path.parent / url.path).resolve() if url.path else path
+        target = (OUT / urls.local_path(url.path) if url.path.startswith('/') else path.parent / url.path).resolve() if url.path else path
         if target.is_dir():
             target /= 'index.html'
         if not target.exists():
@@ -95,7 +98,7 @@ for path in (OUT / 'assets').rglob('*'):
     for ref in refs:
         if urlsplit(ref).scheme:
             continue
-        target = OUT / ref.lstrip('/') if ref.startswith('/') else path.parent / ref
+        target = OUT / urls.local_path(ref) if ref.startswith('/') else path.parent / ref
         assert target.resolve().is_file(), f'Missing asset import: {path.name} -> {ref}'
 for path in OUT.rglob('index.html'):
     if '/demos/' not in str(path):
@@ -137,8 +140,9 @@ search_html = (OUT / 'index/index.html').read_text()
 assert len(search_html.encode('utf-16-le')) <= 800_000, 'Search HTML exceeds the page cache budget'
 assert 'data-search=' not in search_html, 'Full-text data must stay outside the page HTML'
 index_path = re.search(r'data-search-index="([^"]+)"', search_html)[1]
-records = json.loads((OUT / index_path.lstrip('/')).read_text())
+records = json.loads((OUT / urls.local_path(index_path)).read_text())
 expected_urls = {f'/work/{slug}/' for slug in manifest['work']} | {f'/writing/{slug}/' for slug in manifest['writing']} | {f'/writing/topics/{slug}/' for slug in manifest['topics']}
+expected_urls = {urls.mount(value) for value in expected_urls}
 assert len(records) == len(expected_urls) and {record['url'] for record in records} == expected_urls, 'Search index coverage mismatch'
 assert all(isinstance(record['text'], str) and record['text'] for record in records)
 
@@ -162,9 +166,11 @@ for path in OUT.rglob('*'):
         home_accounts = re.findall(r'(?<![\w.~])/(?:home|Users)/([^/:\s<>&"\']+)', local_text)
         if any(account not in {'user', 'alice', 'bob', 'example', '用户', '$USER'} for account in home_accounts) or re.search(r'MyVault|github_pat_|ghp_[A-Za-z0-9]{20}|BEGIN [A-Z ]*PRIVATE KEY|\[\[02_Academic', local_text):
             errors.append(f'Private-source pattern: {path.relative_to(OUT)}')
-        if Path.home().name not in ('root', 'user') and Path.home().name in text:
+        # Match a real home path, not words such as ssh-agent on an 'agent' runner.
+        if Path.home().name not in ('root', 'user') and str(Path.home()) + '/' in local_text:
             errors.append(f'Local account name: {path.relative_to(OUT)}')
 
 report = {'pages': len(pages), 'local_references': references, 'articles': len(posts), 'topics': len(topics), 'categories': len({post['category_id'] for post in posts}), 'tags': len({tag for post in posts for tag in post['tags']}), 'errors': errors}
 print(json.dumps(report, ensure_ascii=False))
 assert not errors, '\n'.join(errors)
+

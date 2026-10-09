@@ -1,3 +1,4 @@
+import {isSitePage} from './site-path.js';
 import { reducedMotion } from './motion.js';
 import {createPageCache} from './page-cache.js';
 import {createPageTransition} from '../components/page-transition.js';
@@ -7,6 +8,8 @@ export function createRouter(mountPage) {
   let current = new URL(location.href), page, request, sequence = 0;
   let scrollTimer = 0, navigating = false, failedURL;
   const root = document.documentElement;
+  const basePath = root.dataset.basePath || '';
+  const owns = url => isSitePage(url, location.origin, basePath);
   const notice = document.querySelector('.route-status');
   const error = document.querySelector('.route-error');
   history.scrollRestoration = 'manual';
@@ -48,7 +51,7 @@ export function createRouter(mountPage) {
 
   async function navigate(value, {mode = 'push', saved} = {}) {
     const url = new URL(value, location.href);
-    if (url.origin !== location.origin) return;
+    if (!owns(url)) return;
     const id = ++sequence;
     request?.abort();
     transition.cancel();
@@ -71,7 +74,7 @@ export function createRouter(mountPage) {
       if (id !== sequence) return;
       const incoming = new DOMParser().parseFromString(html, 'text/html');
       const nextMain = incoming.querySelector('#main');
-      if (!nextMain || !incoming.querySelector('[data-site-shell]')) throw new Error('Missing site shell');
+      if (!nextMain || !incoming.querySelector('[data-site-shell]') || (incoming.documentElement.dataset.basePath || '') !== basePath) throw new Error('Missing site shell');
       if (id !== sequence) return;
       const commit = () => {
         if (id !== sequence) return;
@@ -107,7 +110,7 @@ export function createRouter(mountPage) {
     const link = event.target.closest('a[href]');
     if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.hasAttribute('download') || link.hasAttribute('data-native') || link.target && link.target !== '_self') return;
     const url = new URL(link.href, location.href);
-    if (url.origin !== location.origin || !url.pathname.endsWith('/') || url.pathname.startsWith('/demos/')) return;
+    if (!owns(url)) return;
     event.preventDefault();
     navigate(url);
   });
@@ -124,3 +127,4 @@ export function createRouter(mountPage) {
   remember();
   return {navigate, updateUrl};
 }
+
